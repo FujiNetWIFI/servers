@@ -1,11 +1,23 @@
 # APOD for Fujinet
 
-by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2020-12-17
+by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2020-12-18
 
 ## Purpose
 Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
 convert it to a format suitable for quickly loading on an Atari, and make it
 available via HTTP for an Atari with a #FujiNet and its `N:` device.
+
+## Requirements
+- A webserver
+- [PHP](https://www.php.net) web scripting language
+- [GNU Bash](https://www.gnu.org/software/bash/) shell
+- [PHP's DOM library](https://www.php.net/manual/en/book.dom.php),
+  for parsing the HTML and RSS feed XML from the APOD site
+- [ImageMagick](https://imagemagick.org/), used for scaling and
+  format conversion of the images fetched from the APOD site
+
+People are encouraged to look at how this works and create improved
+versions that are less "cobbled-together" than my original.
 
 ## How it works
 The PHP script examines an image file on the server;
