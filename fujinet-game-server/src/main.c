@@ -18,7 +18,7 @@ int ret;
 
 void banner(int argc, char* argv[])
 {
-  printf(argv[0] " " VERSION "Built " __DATE__" " __TIME__ "\n");
+  printf("%s " VERSION " - Built " __DATE__" " __TIME__ "\n",argv[0]);
 }
 
 int main(int argc, char* argv[])
