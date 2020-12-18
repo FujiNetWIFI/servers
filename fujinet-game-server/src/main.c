@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include "version.h"
 #include "setup.h"
 #include "run.h"
 #include "done.h"
@@ -15,9 +16,9 @@
  */
 int ret;
 
-void banner(void)
+void banner(int argc, char* argv[])
 {
-  printf("atari-game-server " __VERSION__ "Built " __DATE__ __TIME__);
+  printf(argv[0] " " VERSION "Built " __DATE__" " __TIME__ "\n");
 }
 
 int main(int argc, char* argv[])
