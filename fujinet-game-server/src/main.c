@@ -10,6 +10,12 @@
 #include "setup.h"
 #include "run.h"
 #include "done.h"
+#include "context.h"
+
+/**
+ * Global server context
+ */
+Context context;
 
 /**
  * Return code
