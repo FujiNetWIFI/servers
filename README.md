@@ -8,3 +8,6 @@ Source to servers for games and apps that work with FujiNet
     an Atari with a #FujiNet and its `N:` device.
 
 - "fujinet-game-server" - The beginnings of a multi-player game server that works over UDP.
+
+- "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
+
