@@ -6,7 +6,7 @@ include("letters.php");
 /* ...words no shorter than this... */
 $MIN_LETTERS = 3;
 /* ...And words up to this long */
-$MAX_LETTERS = intval(file_get_contets("max-wordlen.txt"));
+$MAX_LETTERS = intval(file_get_contents("max-wordlen.txt"));
 /* (See Makefile) */
 /* They must contain this many vowels */
 $VOWELS = "AEIOU";
