@@ -1,4 +1,7 @@
 <?php
+
+$FUJINET_MSG = "";
+
 /**
  * Display an error message and abort the script
  *
@@ -9,7 +12,22 @@
  * @param string $msg
  */
 function fujinet_error($msg) {
-  echo "E:" . $msg . "\n";
+  global $FUJINET_MSG;
+
+  $FUJINET_MSG = "E:" . $msg . "\n";
+  fujinet_exit();
+}
+
+function fujinet_exit() {
+  global $FUJINET_MSG;
+
+  // header('Content-type: text/plain');
+  header("Content-length: " . strlen($FUJINET_MSG));
+  if (array_key_exists("interact", $_GET) && $_GET["interact"] == "yes") {
+    echo str_replace("\n", "<br/>\n", $FUJINET_MSG);
+  } else {
+    echo str_replace("\n", chr(155), $FUJINET_MSG);
+  }
   exit;
 }
 
@@ -79,7 +97,11 @@ function fujinet_write_and_close_db($fp, $dbdata) {
  * @return array containing command and argument
  */
 function fujinet_get_cmd($valid_args) {
-  $cmd = $_GET["cmd"];
+  if (array_key_exists("cmd", $_GET)) {
+    $cmd = $_GET["cmd"];
+  } else {
+    $cmd = "";
+  }
   $args = array();
   if (array_key_exists($cmd, $valid_args)) {
     foreach ($valid_args[$cmd] as $a) {
@@ -105,16 +127,18 @@ function fujinet_get_cmd($valid_args) {
  * @param string $data3 [optional]
  */
 function fujinet_msg($response, $data1 = "", $data2 = "", $data3 = "") {
-  echo $response . ":" . $data1;
+  global $FUJINET_MSG;
+
+  $FUJINET_MSG .= $response . ":" . $data1;
   if ($data2 != "" || $data3 != "") {
-    echo ";" . $data2;
+    $FUJINET_MSG .= ";" . $data2;
   }
   if ($data3 != "") {
-    echo ";" . $data3;
+    $FUJINET_MSG .= ";" . $data3;
   }
-  echo "\n";
+  $FUJINET_MSG .= "\n";
 
-  if ($_GET["interact"] != "yes") {
+  if (!array_key_exists("interact", $_GET) || $_GET["interact"] != "yes") {
     return;
   }
 

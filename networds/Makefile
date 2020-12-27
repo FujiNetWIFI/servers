@@ -1,8 +1,8 @@
 # Makefile for networds server
 # Bill Kendrick <bill@newbreedsoftware.com>
-# 2020-12-08 - 2020-12-13
+# 2020-12-08 - 2020-12-26
 
-all:	words.txt words.cnt games.db
+all:	words.txt words.cnt games.db NETWORDS.LST
 
 # Delete everything, including the current game state database!
 veryclean:	clean
@@ -16,6 +16,7 @@ clean:
 	-rm words.cnt
 	-rm full-dict.txt.new
 	-rm full-dict.txt
+	-rm NETWORDS.LST
 
 # A dictionary of only words possible in the game
 words.txt:	full-dict.txt max-wordlen.txt
@@ -46,4 +47,7 @@ words.cnt:	words.txt
 games.db:
 	touch games.db
 	chmod 666 games.db
+
+NETWORDS.LST:	networds-list.txt
+	cat networds-list.txt | tr "\n" "\233" > NETWORDS.LST
 

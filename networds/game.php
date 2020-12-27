@@ -98,9 +98,13 @@ function new_game($name) {
     fujinet_error("Bad username");
   }
 
+  $my_ip = $_SERVER['REMOTE_ADDR'];
+
   $match = -1;
   for ($i = 0; $i < count($games) && $match == -1; $i++) {
-    if ($games[$i]["player2"] == "") {
+    if ($games[$i]["player2"] == "" &&
+        !($games[$i]["player1"] == $name && $games[$i]['p1ip'] == $my_ip)
+    ) {
       $match = $i;
     }
   }
@@ -113,7 +117,7 @@ function new_game($name) {
       "id" => $gameid,
       "player1" => $name,
       "player2" => "",
-      "p1ip" => $_SERVER['REMOTE_ADDR'],
+      "p1ip" => $my_ip,
       "ts" => time(),
     );
     fujinet_msg("W", $gameid);
@@ -219,7 +223,7 @@ function next_round($gameid, $ply, $round) {
  *    has started; round 1's letters are {letters}.
  *    Player should enter words, and send them with "W".
  *
- *  - N:{gameid}
+ *  - W:{gameid}
  *    No opponent has arrived for game id {gameid};
  *    continue to check back (poll) with "M" command to see if you have one.
  *
@@ -238,7 +242,7 @@ function game_matched($gameid) {
     if ($games[$match]["player2"] != "") {
       fujinet_msg("M", $gameid, $games[$match]["player2"], $games[$match]["letters"]);
     } else {
-      fujinet_msg("N", $gameid);
+      fujinet_msg("W", $gameid);
     }
     $games[$match]["ts"] = time();
   }
@@ -267,7 +271,7 @@ function store_and_score_words($gameid, $ply, $words) {
   $word_scores = array();
   foreach ($words as $word) {
     /* For each word, score it */
-    $word = trim($word);
+    $word = strtoupper(trim($word));
     if (strlen($word) > 0) {
       if (strlen($word) >= $MIN_LETTERS &&
           strlen($word) <= $MAX_LETTERS
@@ -289,12 +293,12 @@ function store_and_score_words($gameid, $ply, $words) {
             $l = substr($word, $i, 1);
             $found = -1;
             for ($j = 0; $j < $MAX_LETTERS && $found == -1; $j++) {
-              if (array_key_exists($j, $available_letters) && $available_letters[$j] == $l) {
+              if ($available_letters[$j] == $l) {
                 $found = $j;
               }
             }
             if ($found != -1) {
-              unset($available_letters[$found]);
+              $available_letters[$found] = "_";
             } else {
               $only_valid = false;
             }
@@ -383,7 +387,7 @@ $db = fujinet_open_db("games.db");
 $games = fujinet_read_db($db);
 
 /* Debug option to dump game list */
-if ($_GET["debug"] == "y") {
+if (array_key_exists("debug", $_GET) && $_GET["debug"] == "y") {
   echo "<pre>"; print_r($games); echo "</pre>";
   echo "Current ts = " . time();
   @flock($db, LOCK_UN);
@@ -414,7 +418,7 @@ if ($cmd == "n") {
 } else if ($cmd == "w") {
   /* Submitting my words, score them, and show me my results */
   $my_words = $args["words"];
-  $my_words = preg_replace("/\s/", ",", $my_words);
+  $my_words = preg_replace("/\s+/", ",", $my_words);
   $my_words = preg_replace("/[^a-zA-Z0-9,]/", "", $my_words);
 
   store_and_score_words($args["id"], $args["ply"], explode(",", $my_words));
@@ -444,4 +448,6 @@ if (count($games)) {
 
 /* Close DB */
 fujinet_write_and_close_db($db, $remaining_games);
+
+fujinet_exit();
 
