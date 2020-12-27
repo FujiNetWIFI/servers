@@ -1,0 +1,28 @@
+start game:
+  -> cmd=n&name=MYNAME
+  <- N:GAME-ID  [or match, see below]
+
+poll for match:
+  -> cmd=m&id=GAME-ID
+
+match:
+  <- M:GAME-ID;THEIRNAME;LETTERS
+
+send words:
+  -> cmd=w&ply=PLAYER&id=GAME-ID&words=WORD+WORD+WORD
+  <- S:WORD;SCORE/ERROR [multiple]
+  <- X:GAME-ID [marks message end]
+
+get opponent's words:
+  -> cmd=g&ply=OTHER_PLAYER&id=GAME-ID
+  <- Z:GAME-ID [waiting]
+[then]
+  <- S:WORD;SCORE/ERROR [multiple]
+  <- X:GAME-ID
+
+start next round:
+  -> cmd=p&ply=PLAYER&round=ROUND&id=GAME-ID
+  <- V:GAME-ID;NEW_ROUND_NUM [waiting]
+[then]
+  <- R:GAME-ID;NEW_ROUND_NUM;LETTERS
+
