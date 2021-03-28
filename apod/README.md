@@ -1,6 +1,6 @@
 # APOD for Fujinet
 
-by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2020-12-18
+by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-03-27
 
 ## Purpose
 Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
@@ -81,6 +81,14 @@ and shows the title and description in the text window at the bottom:
 60 CLOSE #1
 99 GOTO 99
 ```
+
+## Example code 3 - cc65
+The 'official' APOD #FujiNet client is written in C and
+compiled with cc65.  It uses direct SIO calls to access the
+N: device of #FujiNet (no drivers needed).
+
+See the code in GitHub at
+https://github.com/FujiNetWIFI/fujinet-apps/tree/master/apod
 
 ## Possible expansion
 ### More Atari Image Types
