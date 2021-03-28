@@ -9,6 +9,7 @@
     * ?mode=9 -- fetch 80x192 GRAPHICS 9 16 greyscale image
     * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 greyscale image
     * ?mode=8 -- fetch 320x192 GRAPHICS 8 black & white image
+    * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 4096 color
 
    Read the 7,680 bytes (40 x 192, aka 30 pages) into screen
    memory.  You can then read until an end-of-line or the
@@ -27,6 +28,8 @@ if ($mode == "8") {
   $outfile = "img/$basename.GR8";
 } else if ($mode == "15") {
   $outfile = "img/$basename.G15";
+} else if ($mode == "rgb9") {
+  $outfile = "img/$basename.CV9";
 } else {
   $mode = "9";
   $outfile = "img/$basename.GR9";
