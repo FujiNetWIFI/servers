@@ -1,6 +1,6 @@
 # APOD for Fujinet
 
-by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-03-27
+by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-03-31
 
 ## Purpose
 Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
@@ -15,6 +15,8 @@ available via HTTP for an Atari with a #FujiNet and its `N:` device.
   for parsing the HTML and RSS feed XML from the APOD site
 - [ImageMagick](https://imagemagick.org/), used for scaling and
   format conversion of the images fetched from the APOD site
+- [Wget](https://www.gnu.org/software/wget/), used to fetch files
+  off the web
 
 People are encouraged to look at how this works and create improved
 versions that are less "cobbled-together" than my original.
@@ -90,16 +92,38 @@ N: device of #FujiNet (no drivers needed).
 See the code in GitHub at
 https://github.com/FujiNetWIFI/fujinet-apps/tree/master/apod
 
-## Possible expansion
+## Modes
+The APOD server webapp can produce various image formats,
+depending on the "mode" argument sent to the script
+(e.g., "...?mode=15")
+
+ * 8 - "GRAPHICS 8" -- 320x192, monochrome (black & white)
+ * 15 - "GRAPHICS 15" (aka "7+") -- 160x192, 4 greys
+ * 9 - "GRAPHICS 9" -- 80x192, 16 greys
+ * rgb9 -- "ColorView 9" -- 80x192, 4096 colors (via 16 shades * 3 (red, green, and blue))
+
+## Dealing with Non-imagery
+Sometimes the APOD is actually a video.  If an embedded YouTube clip
+is detected (within an `<iframe>` on the APOD web page), we'll fetch and
+convert the default thumbnail image for the video.
+
+## Sample images
+A number of local sample images are available; add a
+"sample" argument to the URL (e.g., "...?mode=8&sample=2")
+to receive one of them (after converting, if necessary; these
+can be used during development to help fine-tune the conversion
+process).
+
+## Possible expansions
 ### More Atari Image Types
-Software-driven modes like the low resolution 256-color APAC (Any Point,
-Any Color) or various resolution 8-, 64- and 4096-color ColorView modes,
+More software-driven modes like the two low resolution 256-color APAC
+(Any Point, Any Color) modes (80x192 via flickering, or 80x96 static),
+or other resolutions of ColorView mode (320x192 8 color and 160x192 64 color),
 HIP, RIP, etc.
 
-## Non-imagery
-Sometimes the APOD is actually a video (e.g., an embedded YouTube clip).
-We could get really clever, determine how to grab YouTube's preview image
-for the video, and send that to the Atari (it's better than nothing!)
-(See my bug to KDE's "Picture of the Day" wallpaper component, regarding
-APOD videos: https://bugs.kde.org/show_bug.cgi?id=425058)
+### Overall color hints
+When sending monochrome images, provide a hint as to
+what hue the image is, overall (e.g., if it's a big
+mostly-purple nebula, why not show the image in shades of
+purple?)
 

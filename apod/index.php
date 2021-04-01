@@ -33,15 +33,23 @@ $sample_files = array(
 
 $today = date("Y-m-d");
 
-if (intval($_GET["sample"]) && intval($_GET["sample"]) <= count($sample_files)) {
+if (array_key_exists("sample", $_GET) &&
+    intval($_GET["sample"]) &&
+    intval($_GET["sample"]) <= count($sample_files)
+) {
   $sample = intval($_GET["sample"]);
   $basename = "SAMPLE" . $sample;
 } else {
+  $sample = false;
   $basename = "AP" . date("ymd");
 }
 
 /* What mode of image do they want? */
-$mode = trim($_GET["mode"]);
+if (array_key_exists("mode", $_GET)) {
+  $mode = trim($_GET["mode"]);
+} else {
+  $mode = "";
+}
 
 if ($mode == "8") {
   $img_size = 7680;
@@ -84,9 +92,36 @@ if (!$sample) {
           }
         }
       }
+
+      if ($img_src != "") {
+        /* Found an image! Convert it! */
+        system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
+      } else {
+        /* Let's see if there's a YouTube video */
+        $vid_src = "";
+
+        $iframes = $dom->getElementsByTagName('iframe');
+        foreach ($iframes as $iframe) {
+          if ($vid_src == "") {
+            if (stripos($iframe->getAttribute('src'), "https://www.youtube.com/embed/") !== false) {
+              $vid_src = $iframe->getAttribute('src');
+            }
+          }
+        }
+
+        if ($vid_src != "") {
+          /* Found a video! Fetch and convert its thumbnail! */
+          $vid_url_path = parse_url($vid_src, PHP_URL_PATH);
+          $vid_parts = explode("/", $vid_url_path);
+          $vid_id = $vid_parts[2];
+
+          if ($vid_id) {
+            system("./fetch_and_cvt.sh 'https://img.youtube.com/vi/$vid_id/maxresdefault.jpg' '$mode' '$outfile'");
+          }
+        }
+      }
     }
 
-    system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
 
     $rss = file_get_contents("https://apod.nasa.gov/apod.rss");
     if (!empty($rss)) {
