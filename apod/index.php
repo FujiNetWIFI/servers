@@ -9,105 +9,134 @@
     * ?mode=9 -- fetch 80x192 GRAPHICS 9 16 greyscale image
     * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 greyscale image
     * ?mode=8 -- fetch 320x192 GRAPHICS 8 black & white image
-    * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 4096 color
 
    Read the 7,680 bytes (40 x 192, aka 30 pages) into screen
    memory.  You can then read until an end-of-line or the
    end-of-file to grab the title and description of the image
    (e.g., "INPUT #1,A$").
+
+   Other more complicated modes:
+
+    * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 4096 color (R, G, B split)
+
+   Sample options:
+
+    * ?sample=N -- fetch a sample image, rather than APOD (where N is 1 or higher)
 */
+
+$sample_files = array(
+  "alt_reality.jpg",
+  "ngc2818.jpg",
+  "Parrot.jpg",
+  "SPACE.JPG",
+);
 
 $today = date("Y-m-d");
 
-$basename = "AP" . date("ymd");
+if (intval($_GET["sample"]) && intval($_GET["sample"]) <= count($sample_files)) {
+  $sample = intval($_GET["sample"]);
+  $basename = "SAMPLE" . $sample;
+} else {
+  $basename = "AP" . date("ymd");
+}
 
 /* What mode of image do they want? */
 $mode = trim($_GET["mode"]);
 
 if ($mode == "8") {
+  $img_size = 7680;
   $outfile = "img/$basename.GR8";
 } else if ($mode == "15") {
+  $img_size = 7680;
   $outfile = "img/$basename.G15";
 } else if ($mode == "rgb9") {
+  $img_size = 7680 * 3;
   $outfile = "img/$basename.CV9";
 } else {
+  $img_size = 7680;
   $mode = "9";
   $outfile = "img/$basename.GR9";
 }
 
 
-/* Check whether it's a new day, and we'll need
-   to fetch and convert an the image */
-if (file_exists($outfile)) {
-  $ts = date("Y-m-d", filemtime($outfile));
-} else {
-  $ts = "2020-01-01";
-}
-
-
-if ($ts < $today) {
-  /* Time to fetch a new one */
-  $img_src = "";
-  $page = file_get_contents("https://apod.nasa.gov/apod/astropix.html");
-
-  if (!empty($page)) {
-    $dom = new DOMDocument;
-    if ($dom->loadHTML($page)) {
-      $imgs = $dom->getElementsByTagName('img'); 
-      foreach ($imgs as $img) {
-        if ($img_src == "") {
-          $img_src = $img->getAttribute('src');
-        }
-      }
-    }
+if (!$sample) {
+  /* Check whether it's a new day, and we'll need
+     to fetch and convert an the image */
+  if (file_exists($outfile)) {
+    $ts = date("Y-m-d", filemtime($outfile));
+  } else {
+    $ts = "2020-01-01";
   }
 
-  system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
 
-  $rss = file_get_contents("https://apod.nasa.gov/apod.rss");
-  if (!empty($rss)) {
-    $dom = new DOMDocument;
-    if ($dom->loadXML($rss)) {
-      $items = $dom->getElementsByTagName('item');
-      if ($items) {
-        $latest = $items->item(0);
+  if ($ts < $today) {
+    /* Time to fetch a new one */
+    $img_src = "";
+    $page = file_get_contents("https://apod.nasa.gov/apod/astropix.html");
 
-        if ($latest->childNodes) {
-          foreach ($latest->childNodes as $child) {
-            if ($child->tagName == "title") {
-              $title = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
-            }
-            if ($child->tagName == "description") {
-              $descr = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
-            }
+    if (!empty($page)) {
+      $dom = new DOMDocument;
+      if ($dom->loadHTML($page)) {
+        $imgs = $dom->getElementsByTagName('img');
+        foreach ($imgs as $img) {
+          if ($img_src == "") {
+            $img_src = $img->getAttribute('src');
           }
         }
       }
     }
 
-    $fo = fopen("descr.txt", "w");
+    system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
 
-    /* Store it, word-wrapping the title to avoid words
-       breaking at the end of a line, but then pad each
-       line to 40 characters, so we only need to INPUT
-       one string (max 159 characters on the Atari end,
-       to avoid scrolling any text off the 4-line text window) */
-    $title = wordwrap($title, 40);
-    $title_lines = explode("\n", $title);
-    
-    $title = "";
-    foreach ($title_lines as $t) {
-      $title .= $t;
-      $pad = strlen($t) % 40;
-      if ($pad != 0) {
-        $title = $title . str_repeat("_", 40 - $pad);
+    $rss = file_get_contents("https://apod.nasa.gov/apod.rss");
+    if (!empty($rss)) {
+      $dom = new DOMDocument;
+      if ($dom->loadXML($rss)) {
+        $items = $dom->getElementsByTagName('item');
+        if ($items) {
+          $latest = $items->item(0);
+
+          if ($latest->childNodes) {
+            foreach ($latest->childNodes as $child) {
+              if ($child->tagName == "title") {
+                $title = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
+              }
+              if ($child->tagName == "description") {
+                $descr = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
+              }
+            }
+          }
+        }
       }
-    }
 
-    fprintf($fo, "%s", $title);
-    fprintf($fo, "%s%c", $descr, 155); /* 155 = Atari EOL character */
-    fclose($fo);
+      $fo = fopen("descr.txt", "w");
+
+      /* Store it, word-wrapping the title to avoid words
+         breaking at the end of a line, but then pad each
+         line to 40 characters, so we only need to INPUT
+         one string (max 159 characters on the Atari end,
+         to avoid scrolling any text off the 4-line text window) */
+      $title = wordwrap($title, 40);
+      $title_lines = explode("\n", $title);
+
+      $title = "";
+      foreach ($title_lines as $t) {
+        $title .= $t;
+        $pad = strlen($t) % 40;
+        if ($pad != 0) {
+          $title = $title . str_repeat("_", 40 - $pad);
+        }
+      }
+
+      fprintf($fo, "%s", $title);
+      fprintf($fo, "%s%c", $descr, 155); /* 155 = Atari EOL character */
+      fclose($fo);
+    }
   }
+} else {
+  /* This is kinda dumb, but `wget` can't fetch via `file` scheme */
+  $sample_img = "http://billsgames.com/fujinet/apod/samples/" . $sample_files[$sample - 1];
+  system("./fetch_and_cvt.sh '$sample_img' '$mode' '$outfile'");
 }
 
 /* Get the image */
@@ -117,9 +146,8 @@ $descr = file_get_contents("descr.txt");
 
 /* Dump the results: */
 header("Content-Type: application/octet-stream");
-header("Content-Length: " . 7680 + strlen($descr));
+header("Content-Length: " . ($img_size + strlen($descr)));
 header("Content-Disposition: attachment; filename=\"" . basename($outfile) . "\"");
 
 echo $img;
 echo $descr;
-
