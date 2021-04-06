@@ -31,7 +31,8 @@ $sample_files = array(
   "SPACE.JPG",
 );
 
-$today = date("Y-m-d");
+$date = new DateTime("now", new DateTimeZone('America/New_York') );
+$today = $date->format("Y-m-d");
 
 if (array_key_exists("sample", $_GET) &&
     intval($_GET["sample"]) &&
