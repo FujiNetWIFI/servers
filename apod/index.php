@@ -25,7 +25,7 @@
 */
 
 $sample_files = array(
-  "alt_reality.jpg",
+  "alt_reality.png",
   "ngc2818.jpg",
   "Parrot.jpg",
   "SPACE.JPG",
