@@ -7,13 +7,15 @@
    with the following GET arguments:
 
     * ?mode=9 -- fetch 80x192 GRAPHICS 9 16 greyscale image
-    * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 greyscale image
+    * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 color image *
     * ?mode=8 -- fetch 320x192 GRAPHICS 8 black & white image
 
    Read the 7,680 bytes (40 x 192, aka 30 pages) into screen
    memory.  You can then read until an end-of-line or the
    end-of-file to grab the title and description of the image
-   (e.g., "INPUT #1,A$").
+   (e.g., "INPUT #1,A$").  (Mode 15 will return four additional
+   bytes of color palette data, for COLOR4 (background), and
+   COLOR0, COLOR1, and COLOR2 (foreground).)
 
    Other more complicated modes:
 
@@ -54,15 +56,19 @@ if (array_key_exists("mode", $_GET)) {
 
 if ($mode == "8") {
   $img_size = 7680;
+  $pal_size = 0;
   $outfile = "img/$basename.GR8";
 } else if ($mode == "15") {
   $img_size = 7680;
+  $pal_size = 4;
   $outfile = "img/$basename.G15";
 } else if ($mode == "rgb9") {
   $img_size = 7680 * 3;
+  $pal_size = 0;
   $outfile = "img/$basename.CV9";
 } else {
   $img_size = 7680;
+  $pal_size = 0; /* FIXME: Would be nice to pick a suitable hue and send it down the wire */
   $mode = "9";
   $outfile = "img/$basename.GR9";
 }
@@ -182,7 +188,7 @@ $descr = file_get_contents("descr.txt");
 
 /* Dump the results: */
 header("Content-Type: application/octet-stream");
-header("Content-Length: " . ($img_size + strlen($descr)));
+header("Content-Length: " . ($img_size + $pal_size + strlen($descr)));
 header("Content-Disposition: attachment; filename=\"" . basename($outfile) . "\"");
 
 echo $img;
