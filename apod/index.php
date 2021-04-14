@@ -24,6 +24,12 @@
    Sample options:
 
     * ?sample=N -- fetch a sample image, rather than APOD (where N is 1 or higher)
+
+   Date options:
+
+    * ?date=YYMMDD -- fetch the APOD for a given day
+      (if provided, will fetch from https://apod.nasa.gov/apod/apYYMMDD.html;
+      if not provided, will fetch from https://apod.nasa.gov/apod/astropix.html)
 */
 
 $sample_files = array(
@@ -34,7 +40,21 @@ $sample_files = array(
 );
 
 $date = new DateTime("now", new DateTimeZone('America/New_York') );
-$today = $date->format("Y-m-d");
+
+$date_wanted = NULL;
+
+if (array_key_exists("date", $_GET)) {
+  $date_request = $_GET["date"];
+  if (preg_match("/^([0-9][0-9])([0-9][0-9])([0-9][0-9])$/", $date_request, $matches)) {
+    $yr = $matches[1];
+    $mo = $matches[2];
+    $da = $matches[3];
+
+    $date_wanted = sprintf("%02d%02d%02d", $yr, $mo, $da);
+  }
+} else {
+  $today = $date->format("Y-m-d");
+}
 
 if (array_key_exists("sample", $_GET) &&
     intval($_GET["sample"]) &&
@@ -44,7 +64,12 @@ if (array_key_exists("sample", $_GET) &&
   $basename = "SAMPLE" . $sample;
 } else {
   $sample = false;
-  $basename = "AP" . date("ymd");
+
+  if ($date_wanted !== NULL) {
+    $basename = "AP" . $date_wanted;
+  } else {
+    $basename = "AP" . date("ymd");
+  }
 }
 
 /* What mode of image do they want? */
@@ -77,17 +102,15 @@ if ($mode == "8") {
 if (!$sample) {
   /* Check whether it's a new day, and we'll need
      to fetch and convert an the image */
-  if (file_exists($outfile)) {
-    $ts = date("Y-m-d", filemtime($outfile));
-  } else {
-    $ts = "2020-01-01";
-  }
-
-
-  if ($ts < $today) {
+  if (!file_exists($outfile)) {
     /* Time to fetch a new one */
     $img_src = "";
-    $page = file_get_contents("https://apod.nasa.gov/apod/astropix.html");
+    if ($date_wanted !== NULL) {
+      $url = "https://apod.nasa.gov/apod/ap" . $date_wanted . ".html";
+    } else {
+      $url = "https://apod.nasa.gov/apod/astropix.html";
+    }
+    $page = file_get_contents($url);
 
     if (!empty($page)) {
       $dom = new DOMDocument;
