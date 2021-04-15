@@ -13,5 +13,5 @@ cat img/tmp_r.pgm | ./pgm_to_gr9.php > img/tmp.cv9
 cat img/tmp_g.pgm | ./pgm_to_gr9.php >> img/tmp.cv9
 cat img/tmp_b.pgm | ./pgm_to_gr9.php >> img/tmp.cv9
 
-cat img/tmp.cv9
+./interleave.php < img/tmp.cv9
 
