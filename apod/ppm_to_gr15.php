@@ -66,8 +66,6 @@ for ($y = 0; $y < 192; $y++) {
   }
 }
 
-fprintf(STDERR, "palette = \n%s\n\n", print_r($palette, true));
-
 /* Determine the Atari colors utilize, so we can send bytes for the four
    color palette entries */
 
@@ -93,11 +91,9 @@ for ($i = 0; $i < 256; $i++) {
 }
 fclose($fi);
 
-fprintf(STDERR, "atari_colors = \n%s\n\n", print_r($atari_colors, true));
-
 foreach ($palette as $rgb => $_) {
   if (!array_key_exists($rgb, $atari_colors)) {
-    echo "color $rgb doesn't exist\n";
+    fprintf(STDERR, "color $rgb doesn't exist\n");
     fwrite(STDOUT, chr(0), 1);
   } else {
     $c = chr($atari_colors[$rgb]);
