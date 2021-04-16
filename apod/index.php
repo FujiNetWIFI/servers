@@ -146,7 +146,7 @@ if (!$sample) {
           $vid_id = $vid_parts[2];
 
           if ($vid_id) {
-            system("./fetch_and_cvt.sh 'https://img.youtube.com/vi/$vid_id/maxresdefault.jpg' '$mode' '$outfile'");
+            system("./fetch_and_cvt.sh 'https://img.youtube.com/vi/$vid_id/hqdefault.jpg' '$mode' '$outfile'");
           }
         }
       }
