@@ -37,6 +37,7 @@ $sample_files = array(
   "ngc2818.jpg",
   "Parrot.jpg",
   "SPACE.JPG",
+  "rainbow.png"
 );
 
 $date = new DateTime("now", new DateTimeZone('America/New_York') );
