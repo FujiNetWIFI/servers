@@ -62,13 +62,27 @@ for ($hue = 0; $hue < 16; $hue++) {
 fclose($fi);
 
 
-for ($y = 0; $y < 192; $y++) {
-  for ($x = 0; $x < 80; $x++) {
-    $c = $px[$y][$x];
-    list($hue, $lum) = $atari_colors[$c];
+for ($scrn = 0; $scrn < 2; $scrn++) {
+  for ($y = 0; $y < 192; $y++) {
+    for ($x = 0; $x < 80; $x+=2) {
+      /* Fetch two pixels from the image */
+      $c1 = $px[$y][$x];
+      $c2 = $px[$y][$x + 1];
 
-    /* FIXME: Write out the bytes, and interleave scanlines correctly (saving 2 x 40 x 192 bytes out) */
-    printf("(%d,%d) => %02d %02d\n", $x, $y, $hue, $lum);
+      /* Get their Atari hue & luminence values */
+      list($hue1, $lum1) = $atari_colors[$c1];
+      list($hue2, $lum2) = $atari_colors[$c2];
+
+      /* Save out the appropriate, interleaved image */
+      if (($y + $scrn) % 2 == 0) {
+        $byt = ($lum1 << 4) + $lum2;
+      } else {
+        $byt = ($hue1 << 4) + $hue2;
+      }
+
+      $chr = chr($byt);
+      fwrite(STDOUT, $chr, 1);
+    }
   }
 }
 
