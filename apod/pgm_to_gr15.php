@@ -17,10 +17,10 @@ for ($y = 0; $y < 192; $y++) {
     $b3 = ord(fgetc(STDIN));
     $b4 = ord(fgetc(STDIN));
 
-    $b1 = floor($b1 / 4);
-    $b2 = floor($b2 / 4);
-    $b3 = floor($b3 / 4);
-    $b4 = floor($b4 / 4);
+    $b1 = floor($b1 / 64);
+    $b2 = floor($b2 / 64);
+    $b3 = floor($b3 / 64);
+    $b4 = floor($b4 / 64);
 
     $c = chr($b1 * 64 + $b2 * 16 + $b3 * 4 + $b4);
     fwrite(STDOUT, $c, 1);
