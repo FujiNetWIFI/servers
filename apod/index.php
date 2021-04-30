@@ -19,8 +19,9 @@
 
    Other more complicated modes:
 
-    * ?mode=apac -- fetch 80x192 GRAPHICS 9 256 color (hue, luma split)
-    * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 4096 color (R, G, B split)
+    * ?mode=apac -- fetch 80x192 GRAPHICS 9 @ 256 color (hue, luma split)
+    * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 @ 4096 color (R, G, B split)
+    * ?mode=rgb15 -- fetch 160x192 GRAPHICS 15 @ 64 color (R, G, B split)
 
    Sample options:
 
@@ -93,6 +94,10 @@ if ($mode == "8") {
   $img_size = 7680 * 3;
   $pal_size = 0;
   $outfile = "img/$basename.CV9";
+} else if ($mode == "rgb15") {
+  $img_size = 7680 * 3;
+  $pal_size = 0;
+  $outfile = "img/$basename.C15";
 } else if ($mode == "apac") {
   $img_size = 7680 * 2;
   $pal_size = 0;
