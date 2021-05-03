@@ -36,6 +36,7 @@ for ($y = 0; $y < 192; $y++) {
     $c = sprintf("%02x%02x%02x", clamp($r), clamp($g), clamp($b));
 
     if (!in_array($c, $colors)) {
+      fprintf(STDERR, "Adding color $c\n");
       $colors[] = $c;
     }
   }
@@ -69,10 +70,10 @@ for ($y = 0; $y < 192; $y++) {
 /* Determine the Atari colors utilize, so we can send bytes for the four
    color palette entries */
 
-$fi = fopen("atari256.ppm", "r");
+$fi = fopen("atari128.ppm", "r");
 /* Skip header; assuming:
 P6
-160 192
+80 192
 255
 */
 
@@ -81,13 +82,13 @@ for ($i = 0; $i < 3; $i++) {
 }
 
 $atari_colors = array();
-for ($i = 0; $i < 256; $i++) {
+for ($i = 0; $i < 128; $i++) {
   $r = ord(fgetc($fi));
   $g = ord(fgetc($fi));
   $b = ord(fgetc($fi));
 
   $c = sprintf("%02x%02x%02x", clamp($r), clamp($g), clamp($b));
-  $atari_colors[$c] = $i;
+  $atari_colors[$c] = ($i * 2);
 }
 fclose($fi);
 
@@ -97,11 +98,14 @@ foreach ($palette as $rgb => $_) {
     fwrite(STDOUT, chr(0), 1);
   } else {
     $c = chr($atari_colors[$rgb]);
+    fprintf(STDERR, "Atari color $rgb = %s\n", $atari_colors[$rgb]);
     fwrite(STDOUT, $c, 1);
   }
 }
 
+/* FIXME: This function shouldn't be necessary...? */
 function clamp($x) {
-  return (floor($x / 16) * 16);
+  return($x);
+ // return (floor($x / 16) * 16);
 }
 
