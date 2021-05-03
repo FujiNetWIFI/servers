@@ -6,7 +6,8 @@ fname="tmp_cv15_${uuid}"
 rm img/${fname}.pnm
 rm img/${fname}.cv15
 
-convert -size 320x192 xc:black - -resize 320x192 -gravity center -compose over \
+convert - -fuzz 1% -trim +repage pnm:- \
+| convert -size 320x192 xc:black - -resize 320x192 -gravity center -compose over \
   -composite pnm:- > img/${fname}.pnm
 
 convert img/${fname}.pnm -channel R -separate -resize 160x192\! \
