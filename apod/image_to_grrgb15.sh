@@ -25,4 +25,10 @@ cat img/${fname}_b.pgm | ./pgm_to_gr15.php >> img/${fname}.cv15
 
 ./interleave.php < img/${fname}.cv15
 
-# FIXME: Clean up
+# Clean up
+rm img/${fname}.pnm
+rm img/${fname}_r.pgm
+rm img/${fname}_g.pgm
+rm img/${fname}_b.pgm
+rm img/${fname}.cv15
+
