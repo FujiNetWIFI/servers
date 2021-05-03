@@ -56,7 +56,7 @@ if (array_key_exists("date", $_GET)) {
     $date_wanted = sprintf("%02d%02d%02d", $yr, $mo, $da);
   }
 } else {
-  $today = $date->format("Y-m-d");
+  $today = $date->format("ymd");
 }
 
 if (array_key_exists("sample", $_GET) &&
@@ -71,7 +71,7 @@ if (array_key_exists("sample", $_GET) &&
   if ($date_wanted !== NULL) {
     $basename = "AP" . $date_wanted;
   } else {
-    $basename = "AP" . date("ymd");
+    $basename = "AP" . $today;
   }
 }
 
