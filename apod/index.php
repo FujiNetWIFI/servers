@@ -118,7 +118,7 @@ if ($mode == "8") {
 if (!$sample) {
   /* Check whether it's a new day, and we'll need
      to fetch and convert an the image */
-  if (!file_exists($outfile) || true) {
+  if (!file_exists($outfile)) {
     /* Time to fetch a new one */
     $img_src = "";
     if ($date_wanted !== NULL) {
