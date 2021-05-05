@@ -12,10 +12,9 @@
 
    Read the 7,680 bytes (40 x 192, aka 30 pages) into screen
    memory.  You can then read until an end-of-line or the
-   end-of-file to grab the title and description of the image
-   (e.g., "INPUT #1,A$").  (Mode 15 will return four additional
-   bytes of color palette data, for COLOR4 (background), and
-   COLOR0, COLOR1, and COLOR2 (foreground).)
+   end-of-file to grab the title of the image.
+   (Mode 15 will return four additional bytes of color palette data,
+   for COLOR4 (background), and COLOR0, COLOR1, and COLOR2 (foreground).)
 
    Other more complicated modes:
 
@@ -45,6 +44,7 @@ $sample_files = array(
 $date = new DateTime("now", new DateTimeZone('America/New_York') );
 
 $date_wanted = NULL;
+$want_todays = false;
 
 if (array_key_exists("date", $_GET)) {
   $date_request = $_GET["date"];
@@ -54,9 +54,14 @@ if (array_key_exists("date", $_GET)) {
     $da = $matches[3];
 
     $date_wanted = sprintf("%02d%02d%02d", $yr, $mo, $da);
+
+    if ($date_wanted == $date->format("ymd")) {
+      $want_todays = true;
+    }
   }
 } else {
   $today = $date->format("ymd");
+  $want_todays = true;
 }
 
 if (array_key_exists("sample", $_GET) &&
@@ -113,7 +118,7 @@ if ($mode == "8") {
 if (!$sample) {
   /* Check whether it's a new day, and we'll need
      to fetch and convert an the image */
-  if (!file_exists($outfile)) {
+  if (!file_exists($outfile) || true) {
     /* Time to fetch a new one */
     $img_src = "";
     if ($date_wanted !== NULL) {
@@ -163,36 +168,54 @@ if (!$sample) {
       }
     }
 
-
-    $rss = file_get_contents("https://apod.nasa.gov/apod.rss");
-    if (!empty($rss)) {
-      $dom = new DOMDocument;
-      if ($dom->loadXML($rss)) {
-        $items = $dom->getElementsByTagName('item');
-        if ($items) {
-          $latest = $items->item(0);
-
-          if ($latest->childNodes) {
-            foreach ($latest->childNodes as $child) {
-              if ($child->tagName == "title") {
-                $title = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
-              }
-              if ($child->tagName == "description") {
-                $descr = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
+    if ($want_todays) {
+      /* Fetch latest from the short RSS feed */
+      $rss = file_get_contents("https://apod.nasa.gov/apod.rss");
+      if (!empty($rss)) {
+        $dom = new DOMDocument;
+        if ($dom->loadXML($rss)) {
+          $items = $dom->getElementsByTagName('item');
+          if ($items) {
+            $item = $items->item(0);
+            if ($item != NULL && $item->childNodes) {
+              foreach ($item->childNodes as $child) {
+                if ($child->tagName == "title") {
+                  $title = trim(preg_replace("/\s+/", " ", strip_tags($child->textContent)));
+                }
               }
             }
           }
         }
       }
+    } else {
+      /* Fetch from the huge HTML archive index */
 
+      /* Grab a copy of their index if we don't have it,
+         or our copy is > 24 hours old */
+      if (!file_exists("index/archivepixFull.html") ||
+          filemtime("index/archivepixFull.html") < time() - (24 * 60 * 60)) {
+        $html = file_get_contents("https://apod.nasa.gov/apod/archivepixFull.html");
+        $fo = fopen("index/archivepixFull.html", "w");
+        fputs($fo, $html);
+        fclose($fo);
+      } else {
+        $html = file_get_contents("index/archivepixFull.html");
+      }
+
+      if (!empty($html)) {
+        if (preg_match("/<a href=\"ap$date_wanted.html\">(.*)<\/a>/", $html, $matches)) {
+          $title = $matches[1];
+        }
+      }
+    }
+
+    if ($title != "") {
       $descr_outfile = "descr/" . $basename . ".txt";
       $fo = fopen($descr_outfile, "w");
 
       /* Store it, word-wrapping the title to avoid words
          breaking at the end of a line, but then pad each
-         line to 40 characters, so we only need to INPUT
-         one string (max 159 characters on the Atari end,
-         to avoid scrolling any text off the 4-line text window) */
+         line to 40 characters */
       $title = wordwrap($title, 40);
       $title_lines = explode("\n", $title);
 
@@ -205,8 +228,7 @@ if (!$sample) {
         }
       }
 
-      fprintf($fo, "%s", $title);
-      fprintf($fo, "%s%c", $descr, 155); /* 155 = Atari EOL character */
+      fprintf($fo, "%s", str_pad($title, 256, "_"));
       fclose($fo);
     }
   }
