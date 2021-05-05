@@ -1,14 +1,14 @@
-all: descr.txt img
+all: descr img
 
-descr.txt:
-	touch descr.txt
-	chmod 666 descr.txt
+descr:
+	mkdir descr
+	chmod 777 descr
 
 img:
 	mkdir img
 	chmod 777 img
 
 clean:
-	-rm descr.txt
+	-rm -rm descr
 	-rm -rf img
 

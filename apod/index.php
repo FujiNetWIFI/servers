@@ -185,7 +185,8 @@ if (!$sample) {
         }
       }
 
-      $fo = fopen("descr.txt", "w");
+      $descr_outfile = "descr/" . $basename . ".txt";
+      $fo = fopen($descr_outfile, "w");
 
       /* Store it, word-wrapping the title to avoid words
          breaking at the end of a line, but then pad each
@@ -217,8 +218,12 @@ if (!$sample) {
 
 /* Get the image */
 $img = file_get_contents($outfile);
-$descr = file_get_contents("descr.txt");
 
+if (!$sample) {
+  $descr = file_get_contents($descr_outfile);
+} else {
+  $descr = "SAMPLE $sample";
+}
 
 /* Dump the results: */
 header("Content-Type: application/octet-stream");
