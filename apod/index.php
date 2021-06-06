@@ -95,6 +95,10 @@ if ($mode == "8") {
   $img_size = 7680;
   $pal_size = 4;
   $outfile = "img/$basename.G15";
+} else if ($mode == "15dli") {
+  $img_size = (40 + 4) * 192;
+  $pal_size = 0;
+  $outfile = "img/$basename.G5D";
 } else if ($mode == "rgb9") {
   $img_size = 7680 * 3;
   $pal_size = 0;
