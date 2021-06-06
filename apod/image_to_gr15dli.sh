@@ -17,19 +17,11 @@ convert - -fuzz 1% -trim +repage pnm:- \
 
 ./ppm_to_gr15dli.php img/${fname}.pnm img/${fname}.gr15dli.img img/${fname}.gr15dli.pal
 
-#for i in `seq 0 191`; do
-#  convert img/${fname}.pnm -crop 160x1+0+${i} pnm:- \
-#  | convert - -depth 8 +dither -colors 4 pnm:- \
-#  | convert - +dither -remap atari128.ppm -interpolate nearest pnm:- \
-#  | ./ppm_to_gr15.php img/${fname}.gr15dli.pal \
-#  >> img/${fname}.gr15dli.img
-#done
-
 rm img/${fname}.pnm
 
 cat img/${fname}.gr15dli.img
 cat img/${fname}.gr15dli.pal
 
-#rm img/${fname}.gr15dli.img
-#rm img/${fname}.gr15dli.pal
+rm img/${fname}.gr15dli.img
+rm img/${fname}.gr15dli.pal
 
