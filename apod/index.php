@@ -7,20 +7,23 @@
    with the following GET arguments:
 
     * ?mode=9 -- fetch 80x192 GRAPHICS 9 16 greyscale image
-    * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 color image *
+    * ?mode=15 -- fetch 160x192 GRAPHICS 15 4 color image
     * ?mode=8 -- fetch 320x192 GRAPHICS 8 black & white image
 
    Read the 7,680 bytes (40 x 192, aka 30 pages) into screen
    memory.  You can then read until an end-of-line or the
    end-of-file to grab the title of the image.
-   (Mode 15 will return four additional bytes of color palette data,
-   for COLOR4 (background), and COLOR0, COLOR1, and COLOR2 (foreground).)
 
    Other more complicated modes:
 
     * ?mode=apac -- fetch 80x192 GRAPHICS 9 @ 256 color (hue, luma split)
     * ?mode=rgb9 -- fetch 80x192 GRAPHICS 9 @ 4096 color (R, G, B split)
     * ?mode=rgb15 -- fetch 160x192 GRAPHICS 15 @ 64 color (R, G, B split)
+    * ?mode=15dli -- fetch 160x192 GRAPHICS 15, plus 4 colors for each scanline
+
+   (Mode "15" will return four additional bytes of color palette data,
+   for COLOR4 (background), and COLOR0, COLOR1, and COLOR2 (foreground);
+   "15dli" will return a block of 192 of those colors (768 bytes) at the end.)
 
    Sample options:
 
@@ -96,8 +99,8 @@ if ($mode == "8") {
   $pal_size = 4;
   $outfile = "img/$basename.G15";
 } else if ($mode == "15dli") {
-  $img_size = (40 + 4) * 192;
-  $pal_size = 0;
+  $img_size = 7680;
+  $pal_size = (192 * 4);
   $outfile = "img/$basename.G5D";
 } else if ($mode == "rgb9") {
   $img_size = 7680 * 3;
