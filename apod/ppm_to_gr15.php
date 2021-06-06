@@ -6,14 +6,15 @@ P6
 255
 */
 
+$DEBUG = true;
+
 $height = 192;
 
 if ($argc == 2) {
-  $height = intval($argv[1]);
-  if (!$height) {
-    fprintf(STDERR, "Usage: %s {height}\n", $argv[0]);
-    exit(1);
-  }
+  $height = 1;
+  $pal_out = fopen($argv[1], "a");
+} else {
+  $pal_out = NULL;
 }
 
 for ($i = 0; $i < 3; $i++) {
@@ -46,7 +47,7 @@ for ($y = 0; $y < $height; $y++) {
     $c = sprintf("%02x%02x%02x", clamp($r), clamp($g), clamp($b));
 
     if (!in_array($c, $colors)) {
-      fprintf(STDERR, "Adding color $c\n");
+      if ($DEBUG) fprintf(STDERR, "Adding color $c\n");
       $colors[] = $c;
     }
   }
@@ -105,21 +106,39 @@ fclose($fi);
 $colors = 0;
 foreach ($palette as $rgb => $_) {
   if (!array_key_exists($rgb, $atari_colors)) {
-    fprintf(STDERR, "color $rgb doesn't exist\n");
-    fwrite(STDOUT, chr(0), 1);
+    if ($DEBUG) fprintf(STDERR, "color $rgb doesn't exist\n");
+    if ($pal_out) {
+      fwrite($pal_out, chr(0), 1);
+    } else {
+      fwrite(STDOUT, chr(0), 1);
+    }
   } else {
     $c = chr($atari_colors[$rgb]);
-    fprintf(STDERR, "Atari color $rgb = %s\n", $atari_colors[$rgb]);
-    fwrite(STDOUT, $c, 1);
-    $colors++;
+    if ($DEBUG) fprintf(STDERR, "Atari color $rgb = %s\n", $atari_colors[$rgb]);
+    if ($pal_out) {
+      fwrite($pal_out, $c, 1);
+    } else {
+      fwrite(STDOUT, $c, 1);
+    }
   }
+  $colors++;
 }
 
 if ($colors < 4) {
-  fprintf(STDERR, "Adding %d buffer colors\n", 4 - $colors);
+  if ($DEBUG) fprintf(STDERR, "Adding %d buffer colors\n", 4 - $colors);
   for ($i = $colors; $i < 4; $i++) {
-    fwrite(STDOUT, 0, 1);
+    if ($pal_out) {
+      fwrite($pal_out, chr(0), 1);
+    } else {
+      fwrite(STDOUT, chr(0), 1);
+    }
   }
+} else if ($colors > 4) {
+  fprintf(STDERR, "Woah, %d colors!\n", $colors);
+}
+
+if ($pal_out) {
+  fclose($pal_out);
 }
 
 /* FIXME: This function shouldn't be necessary...? */
