@@ -2,9 +2,19 @@
 <?php
 /* Skip header; assuming:
 P6
-160 192
+160 {something}
 255
 */
+
+$height = 192;
+
+if ($argc == 2) {
+  $height = intval($argv[1]);
+  if (!$height) {
+    fprintf(STDERR, "Usage: %s {height}\n", $argv[0]);
+    exit(1);
+  }
+}
 
 for ($i = 0; $i < 3; $i++) {
   fgets(STDIN);
@@ -12,7 +22,7 @@ for ($i = 0; $i < 3; $i++) {
 
 /* Generate array to store image, so we can go over it a few times */
 $px = array();
-for ($y = 0; $y < 192; $y++) {
+for ($y = 0; $y < $height; $y++) {
   $px[$y] = array();
   for ($x = 0; $x < 160; $x++) {
     $px[$y][$x] = array(0, 0, 0);
@@ -24,7 +34,7 @@ for ($y = 0; $y < 192; $y++) {
 $colors = array();
 
 /* Load the image */
-for ($y = 0; $y < 192; $y++) {
+for ($y = 0; $y < $height; $y++) {
   for ($x = 0; $x < 160; $x++) {
     $r = ord(fgetc(STDIN));
     $g = ord(fgetc(STDIN));
@@ -50,7 +60,7 @@ foreach ($colors as $c) {
 
 $b = array(0, 0, 0, 0);
 
-for ($y = 0; $y < 192; $y++) {
+for ($y = 0; $y < $height; $y++) {
   for ($x = 0; $x < 160; $x += 4) {
     for ($i = 0; $i < 4; $i++) {
       $color = sprintf("%02x%02x%02x",
@@ -73,7 +83,7 @@ for ($y = 0; $y < 192; $y++) {
 $fi = fopen("atari128.ppm", "r");
 /* Skip header; assuming:
 P6
-80 192
+8 16
 255
 */
 
