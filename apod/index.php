@@ -237,9 +237,11 @@ if (!$sample) {
     }
   }
 } else {
-  /* This is kinda dumb, but `wget` can't fetch via `file` scheme */
-  $sample_img = "http://billsgames.com/fujinet/apod/samples/" . $sample_files[$sample - 1];
-  system("./fetch_and_cvt.sh '$sample_img' '$mode' '$outfile'");
+  if (!file_exists($outfile)) {
+    /* This is kinda dumb, but `wget` can't fetch via `file` scheme */
+    $sample_img = "http://billsgames.com/fujinet/apod/samples/" . $sample_files[$sample - 1];
+    system("./fetch_and_cvt.sh '$sample_img' '$mode' '$outfile'");
+  }
 }
 
 /* Get the image */
