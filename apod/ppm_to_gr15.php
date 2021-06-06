@@ -102,6 +102,7 @@ for ($i = 0; $i < 128; $i++) {
 }
 fclose($fi);
 
+$colors = 0;
 foreach ($palette as $rgb => $_) {
   if (!array_key_exists($rgb, $atari_colors)) {
     fprintf(STDERR, "color $rgb doesn't exist\n");
@@ -110,6 +111,14 @@ foreach ($palette as $rgb => $_) {
     $c = chr($atari_colors[$rgb]);
     fprintf(STDERR, "Atari color $rgb = %s\n", $atari_colors[$rgb]);
     fwrite(STDOUT, $c, 1);
+    $colors++;
+  }
+}
+
+if ($colors < 4) {
+  fprintf(STDERR, "Adding %d buffer colors\n", 4 - $colors);
+  for ($i = $colors; $i < 4; $i++) {
+    fwrite(STDOUT, 0, 1);
   }
 }
 
