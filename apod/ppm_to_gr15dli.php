@@ -6,7 +6,7 @@ P6
 255
 */
 
-$DEBUG = true;
+$DEBUG = false; // true;
 
 if ($argc != 4) {
   fprintf(STDERR, "Usage: %s input_ppm_image output_atari_image output_atari_palette\n", $argv[0]);
@@ -37,8 +37,14 @@ for ($i = 0; $i < 128; $i++) {
   $g = $pal_px[$i * 3 + 1];
   $b = $pal_px[$i * 3 + 2];
 
-  $c = sprintf("%02x%02x%02x", $r, $g, $b);
-  $atari_colors[$c] = ($i * 2);
+  if (!array_key_exists($r, $atari_colors)) {
+    $atari_colors[$r] = array();
+  }
+  if (!array_key_exists($g, $atari_colors[$r])) {
+    $atari_colors[$r][$g] = array();
+  }
+
+  $atari_colors[$r][$g][$b] = ($i * 2);
 }
 
 /* Open the output files */
@@ -55,11 +61,7 @@ if ($pal_out == NULL) {
 }
 
 for ($y = 0; $y < 192; $y++) {
-
   if ($DEBUG) fprintf(STDERR, "Row %d...\n", $y);
-
-#  | convert - -depth 8 +dither -colors 4 pnm:- \
-#  | convert - +dither -remap atari128.ppm -interpolate nearest pnm:- \
 
   /* Grab a single scanline (row) strip o fthe image */
   $im_strip = clone $im;
@@ -77,74 +79,79 @@ for ($y = 0; $y < 192; $y++) {
   /* Map to the Atari palette */
   $im_strip->remapImage($im_pal, true /* dither */);
 
-  $pixels = $im_strip->exportImagePixels(0, 0, 160, 1, "RGB", Imagick::PIXEL_CHAR);
-
+  /* Export the pixels */
+  $pixels = $im_strip->exportImagePixels(
+    0, 0, 160, 1, "RGB", Imagick::PIXEL_CHAR
+  );
   $px = array();
-  $colors = array();
 
+  /* Process the row */ 
+  $palette = array();
+  $idx = 0;
+
+  /* First gather the colors and build a palette... */
   for ($x = 0; $x < 160; $x++) {
+    /* Get the pixel, and store it (as RGB) for later export
+       (as a palette index) */
     $r = $pixels[$x * 3];
     $g = $pixels[$x * 3 + 1];
     $b = $pixels[$x * 3 + 2];
     $px[$x] = array($r, $g, $b);
 
-    $c = sprintf("%02x%02x%02x", $r, $g, $b);
+    /* Capture the colors (as RGB) into a palette, and write to the
+       palette file */
+    if (!array_key_exists($r, $palette)) {
+      $palette[$r] = array();
+    }
+    if (!array_key_exists($g, $palette[$r])) {
+      $palette[$r][$g] = array();
+    }
+    if (!array_key_exists($b, $palette[$r][$g])) {
+      if ($idx < 4) {
+        $c = chr($atari_colors[$r][$g][$b]);
 
-    if (!in_array($c, $colors)) {
-      if ($DEBUG) fprintf(STDERR, "Adding color $c\n");
-      $colors[] = $c;
+        if ($DEBUG) {
+          fprintf(STDERR, "Adding color #%d: %d,%d,%d (atari color %d)\n",
+            $idx, $r, $g, $b, $atari_colors[$r][$g][$b]);
+        }
+
+        $palette[$r][$g][$b] = $idx;
+
+        fwrite($pal_out, $c, 1);
+
+        $idx++;
+      } else {
+        fprintf(STDERR, "Too many colors! (%d,%d,%d)\n", $r, $g, $b);
+      }
+    }
+  }
+
+  /* Pad the palette, so it's always 4 bytes */
+  if ($idx < 4) {
+    if ($DEBUG) fprintf(STDERR, "Adding %d buffer colors\n", 4 - $idx);
+    for ($i = $idx; $i < 4; $i++) {
+      fwrite($pal_out, chr(0), 1);
     }
   }
 
   if ($DEBUG) fprintf(STDERR, "\n");
 
-  $palette = array();
-  $idx = 0;
-  foreach ($colors as $c) {
-    $palette[$c] = $idx++;
-  }
 
-  $b = array(0, 0, 0, 0);
+  /* ...Then, map all pixels in the image from RGB triplets to a single
+     byte containing 4 palette index values */
+  $byt = array(0, 0, 0, 0);
 
   for ($x = 0; $x < 160; $x += 4) {
     for ($i = 0; $i < 4; $i++) {
-      $color = sprintf("%02x%02x%02x",
-        $px[$x + $i][0],
-        $px[$x + $i][1],
-        $px[$x + $i][2]
-      );
+      $r = $px[$x + $i][0];
+      $g = $px[$x + $i][1];
+      $b = $px[$x + $i][2];
 
-      $b[$i] = $palette[$color];
+      $byt[$i] = $palette[$r][$g][$b];
     }
 
-    $c = chr(($b[0] * 64) + ($b[1] * 16) + ($b[2] * 4) + $b[3]);
+    $c = chr(($byt[0] * 64) + ($byt[1] * 16) + ($byt[2] * 4) + $byt[3]);
     fwrite($img_out, $c, 1);
-  }
-
-  /* Determine the Atari colors utilize, so we can send bytes for the four
-     color palette entries */
-
-  $colors = 0;
-  foreach ($palette as $rgb => $_) {
-    if (!array_key_exists($rgb, $atari_colors)) {
-      if ($DEBUG) fprintf(STDERR, "color $rgb doesn't exist\n");
-      fwrite($pal_out, chr(0), 1);
-    } else {
-      $c = chr($atari_colors[$rgb]);
-      if ($DEBUG) fprintf(STDERR, "Atari color $rgb = %s\n", $atari_colors[$rgb]);
-      fwrite($pal_out, $c, 1);
-    }
-    $colors++;
-  }
-
-  if ($colors < 4) {
-    if ($DEBUG) fprintf(STDERR, "Adding %d buffer colors\n", 4 - $colors);
-    for ($i = $colors; $i < 4; $i++) {
-      fwrite($pal_out, chr(0), 1);
-    }
-  } else if ($colors > 4) {
-    fprintf(STDERR, "Woah, %d colors!\n", $colors);
-    exit(1);
   }
 }
 
