@@ -1,6 +1,6 @@
 # APOD for Fujinet
 
-by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-03-31
+by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-06-05
 
 ## Purpose
 Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
@@ -98,7 +98,8 @@ depending on the "mode" argument sent to the script
 (e.g., "...?mode=15")
 
  * 8 - "GRAPHICS 8" -- 320x192, monochrome (black & white)
- * 15 - "GRAPHICS 15" (aka "7+") -- 160x192, 4 greys
+ * 15 - "GRAPHICS 15" (aka "7+") -- 160x192, 4 (best) colors
+ * 15dli - same as above, but with 4 best colors _per scanline_
  * 9 - "GRAPHICS 9" -- 80x192, 16 greys
  * rgb9 -- "ColorView 9" -- 80x192, 4096 colors (via 16 shades * 3 (red, green, and blue))
 
