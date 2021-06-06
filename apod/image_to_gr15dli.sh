@@ -36,6 +36,7 @@ for i in `seq 0 191`; do
 done
 
 rm img/${fname}.pnm
+rm img/${fname}.gr15dli.line
 
 cat img/${fname}.gr15dli.img
 cat img/${fname}.gr15dli.pal
