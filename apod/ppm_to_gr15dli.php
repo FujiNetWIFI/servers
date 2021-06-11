@@ -6,7 +6,7 @@ P6
 255
 */
 
-$DEBUG = false; // true;
+$DEBUG = false;
 
 if ($argc != 4) {
   fprintf(STDERR, "Usage: %s input_ppm_image output_atari_image output_atari_palette\n", $argv[0]);
@@ -50,7 +50,7 @@ for ($i = 0; $i < 128; $i++) {
 /* Open the output files */
 $img_out = fopen($argv[2], "w");
 if ($img_out == NULL) {
-  fprintf(STDERR, "Error opening palette output '%s'\n", $argv[2]);
+  fprintf(STDERR, "Error opening image output '%s'\n", $argv[2]);
   exit(1);
 }
 
@@ -61,25 +61,31 @@ if ($pal_out == NULL) {
 }
 
 for ($y = 0; $y < 192; $y++) {
-  if ($DEBUG) fprintf(STDERR, "Row %d...\n", $y);
+  if ($DEBUG) fprintf(STDERR, "%d: Row %d...\n", hrtime(true), $y);
+
+  if ($DEBUG) fprintf(STDERR, "%d: Cropping...\n", hrtime(true));
 
   /* Grab a single scanline (row) strip o fthe image */
   $im_strip = clone $im;
   $im_strip->cropImage(160, 1, 0, $y);
+
+  if ($DEBUG) fprintf(STDERR, "%d: Quantizing...\n", hrtime(true));
 
   /* Reduce it to 4 colors */
   $im_strip->quantizeImage(
     4, /* 4 colors */
     Imagick::COLORSPACE_RGB,
     0, /* tree depth (fastest) */
-    true, /* dither */
+    false, /* dither is VERY slow :( */
     false /* measure error */
   );
 
   /* Map to the Atari palette */
+  if ($DEBUG) fprintf(STDERR, "%d: Remapping...\n", hrtime(true));
   $im_strip->remapImage($im_pal, true /* dither */);
 
   /* Export the pixels */
+  if ($DEBUG) fprintf(STDERR, "%d: Exporting...\n", hrtime(true));
   $pixels = $im_strip->exportImagePixels(
     0, 0, 160, 1, "RGB", Imagick::PIXEL_CHAR
   );
@@ -90,6 +96,7 @@ for ($y = 0; $y < 192; $y++) {
   $idx = 0;
 
   /* First gather the colors and build a palette... */
+  if ($DEBUG) fprintf(STDERR, "%d: Building palette...\n", hrtime(true));
   for ($x = 0; $x < 160; $x++) {
     /* Get the pixel, and store it (as RGB) for later export
        (as a palette index) */
@@ -111,8 +118,8 @@ for ($y = 0; $y < 192; $y++) {
         $c = chr($atari_colors[$r][$g][$b]);
 
         if ($DEBUG) {
-          fprintf(STDERR, "Adding color #%d: %d,%d,%d (atari color %d)\n",
-            $idx, $r, $g, $b, $atari_colors[$r][$g][$b]);
+          fprintf(STDERR, "%d: Adding color #%d: %d,%d,%d (atari color %d)\n",
+            hrtime(true), $idx, $r, $g, $b, $atari_colors[$r][$g][$b]);
         }
 
         $palette[$r][$g][$b] = $idx;
@@ -128,7 +135,7 @@ for ($y = 0; $y < 192; $y++) {
 
   /* Pad the palette, so it's always 4 bytes */
   if ($idx < 4) {
-    if ($DEBUG) fprintf(STDERR, "Adding %d buffer colors\n", 4 - $idx);
+    if ($DEBUG) fprintf(STDERR, "%d: Adding %d buffer colors\n", hrtime(true), 4 - $idx);
     for ($i = $idx; $i < 4; $i++) {
       fwrite($pal_out, chr(0), 1);
     }
