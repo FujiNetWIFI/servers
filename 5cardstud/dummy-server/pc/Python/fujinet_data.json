@@ -1,0 +1,86 @@
+{
+                "num_of_players": 8,
+                "round" : 4,
+                "active_player": 1,
+
+                "validMoves": [
+                  {"move":"H",
+                   "name" :"Check"},
+                  {"move":"F",
+                   "name" :"Fold"},
+                  {"move":"C",
+                   "name" :"Call"},
+                  {"move":"RL",
+                   "name" :"Raise 5"}, 
+                  {"move":"RH",
+                   "name" :"Raise 10"}, 
+                  {"move":"BL",
+                   "name" :"Bet 5"},
+                  {"move":"BH",
+                   "name" :"Bet 10"}
+                ],
+                
+                "player":
+                  [
+                      {
+                      "name"   : "Thom",
+                      "bet"    : 105,
+                      "purse"  : 95,
+                      "hand"   : "ADKDAS8C",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "Norman",
+                      "bet"    : 50,
+                      "purse"  : 195,
+                      "hand"   : "??8DJH",
+                      "fold"   : 0
+                      
+                      },
+                      {
+                      "name"   : "Eric",
+                      "bet"    : 50,
+                      "purse"  : 15,
+                      "hand"   : "??4H2S4H",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "Roger",
+                      "bet"    : 50,
+                      "purse"  : 15,
+                      "hand"   : "??9C6S2H",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "mozzwald",
+                      "bet"    : 50,
+                      "purse"  : 95,
+                      "hand"   : "??KDAS",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "Andy",
+                      "bet"    : 50,
+                      "purse"  : 195,
+                      "hand"   : "??8DJH8C",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "Scoth42",
+                      "bet"    : 50,
+                      "purse"  : 15,
+                      "hand"   : "??3H2S4H",
+                      "fold"   : 0
+                      },
+                      {
+                      "name"   : "eagle",
+                      "bet"    : 50,
+                      "purse"  : 15,
+                      "hand"   : "??9C6S",
+                      "fold"   : 1
+                      }
+                      
+                    
+                  ]
+              }
+              
