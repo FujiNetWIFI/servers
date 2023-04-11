@@ -54,7 +54,7 @@ class Poker(object):
     
     common_vars.first_card_hidden = True
     
-    url = 'file:///home/ndavie/Documents/Projects/funinet-5cardstud/fujinet_data.json'
+    url = 'http://127.0.0.1:5000/5cardstud'
 
     fujinet = json_handler(url)      
     

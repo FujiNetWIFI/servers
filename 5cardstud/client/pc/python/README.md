@@ -15,6 +15,9 @@ There is no logic in code and simply displays the current
 state provided from the server.  State is provided as a
 json document.
 
+### Python version
+3.10
+
 ### Credits and Acknowledgments 
 
 Quite a few resources and routines were "acquired" from this
