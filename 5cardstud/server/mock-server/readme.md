@@ -1,0 +1,1 @@
+An incomplete JSON Api server written in GO for the purposes of writing/testing 5 Card Stud clients
