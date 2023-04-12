@@ -11,3 +11,6 @@ Source to servers for games and apps that work with FujiNet
 
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
+- "5cardstud" - Multiplayer Poker Server and Clients for various platforms
+-  
+
