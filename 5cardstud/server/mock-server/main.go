@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/exp/slices"
 )
 
 var suitLookup = []string{"C", "D", "H", "S"}
@@ -55,8 +56,8 @@ type gameState struct {
 	// Internal
 	deck       []card
 	deckIndex  int
-	frame      int
 	currentBid int
+	gameOver   bool
 }
 
 // Forcing player index right now
@@ -86,15 +87,13 @@ func initGameState() {
 	}
 
 	state.deck = deck
-	state.frame = 0
-
 	state.Round = 0
 	state.StartingPlayer = -1
 	state.Players = []player{
-		{Name: "Thom Bot", Purse: 150},
-		{Name: "ChatGTP", Purse: 150},
-		{Name: "Player", Purse: 150},
-		{Name: "Mozz Bot", Purse: 150},
+		{Name: "Thom Bot", Purse: 500},
+		{Name: "Chat GPT", Purse: 500},
+		{Name: "Player", Purse: 500},
+		{Name: "Mozz Bot", Purse: 500},
 	}
 	newRound()
 }
@@ -113,6 +112,7 @@ func newRound() {
 			// First round of a new game? Reset player state
 			player.Status = 1
 			player.cards = []card{}
+
 		}
 
 		// Reset player's last move/bet for this round
@@ -137,26 +137,68 @@ func newRound() {
 		dealCards()
 	}
 
+	// Set the starting player, but run logic to skip over them if they folded
+	state.ActivePlayer = state.StartingPlayer - 1
+	nextValidPlayer()
+
 	dealCards()
 }
 
 func dealCards() {
 	for i, player := range state.Players {
-		player.cards = append(player.cards, state.deck[state.deckIndex])
-		state.Players[i] = player
-		state.deckIndex++
+		if player.Status == 1 {
+			player.cards = append(player.cards, state.deck[state.deckIndex])
+			state.Players[i] = player
+			state.deckIndex++
+		}
 	}
 }
 
-// Emulates player/logic on a simplified 5 card stud server
+func endGame() {
+	// A real server would compare hands to see who won and give the pot to the winner.
+	// For now, we just set gameOver so play can start over
+	// The next request for /state will start a new game
+	state.gameOver = true
+	state.LastResult = "LOOK WHO WON"
+	state.Round = 5
+
+	for _, player := range state.Players {
+		state.Pot += player.Bet
+	}
+}
+
+// Emulates simplified player/logic for 5 card stud
 func emulateGame(checkForRoundOnly bool) {
+
+	if state.gameOver {
+		state.Round = 0
+		state.gameOver = false
+		newRound()
+	}
+
+	// Check if only one player is left
+	playersLeft := 0
+	for _, player := range state.Players {
+		if player.Status == 1 {
+			playersLeft++
+		}
+	}
+
+	if playersLeft == 1 {
+		endGame()
+		return
+	}
 
 	// Check if we should start the next round. One of the following must be true
 	// 1. We got back to the player who made the most recent bet/raise
 	// 2. There were checks/folds around the table
 	if (state.currentBid > 0 && state.Players[state.ActivePlayer].Bet == state.currentBid) ||
 		(state.currentBid == 0 && state.Players[state.ActivePlayer].Move != "") {
-		newRound()
+		if state.Round == 4 {
+			endGame()
+		} else {
+			newRound()
+		}
 		return
 	}
 
@@ -164,21 +206,35 @@ func emulateGame(checkForRoundOnly bool) {
 		return
 	}
 
-	// Peform a move for this player if they are in the game and have not folded
+	// Peform a move for this BOT if they are in the game and have not folded
 	if state.Players[state.ActivePlayer].Status == 1 {
 		moves := getValidMoves()
 
+		// Default to FOLD
 		choice := 0
-		if len(moves) > 1 {
-			// Choose something other than FOLD (always the first option)
-			// Avoid endless raises - Only raise up to 10
-			if state.currentBid >= 10 || rand.Intn(2) == 1 {
+
+		// Never fold if CHECK is an option. These BOTs are smarter than the average bear.
+		if len(moves) > 1 && moves[1].move == "CH" {
+			choice = 1
+		}
+
+		// Never fold if a BOT has a jack or higher. Why not, right?
+		if len(moves) > 1 && slices.IndexFunc(state.Players[state.ActivePlayer].cards, func(c card) bool { return c.value > 10 }) > -1 {
+			choice = 1
+		}
+
+		// Most of the time, consider bet/call/raise
+		if len(moves) > 1 && rand.Intn(3) > 0 {
+
+			// Avoid endless raises - BOTs only raise up to 10
+			if state.currentBid >= 10 || rand.Intn(3) > 0 {
 				choice = 1
 			} else {
 				choice = rand.Intn(len(moves)-1) + 1
 			}
 
 		}
+
 		move := moves[choice]
 
 		performMove(state.ActivePlayer, move.move)
@@ -188,14 +244,15 @@ func emulateGame(checkForRoundOnly bool) {
 
 // Performs the requested move, checking if allowed, and returns true if successful
 func performMove(playerNum int, move string) bool {
-	// Sanity check - make sure the active player is attempting the move
+
+	// Sanity check - only the the active player can perform a move
 	if playerNum != state.ActivePlayer {
 		return false
 	}
 
 	player := state.Players[state.ActivePlayer]
 
-	// Sanity Check 2 - Player not allowed to move. In theory they would never be active
+	// Sanity Check 2 - Player status should be 1 to move. In theory they should never be active if their status is != 1
 	if player.Status != 1 {
 		return false
 	}
@@ -204,16 +261,16 @@ func performMove(playerNum int, move string) bool {
 	completedMove := false
 
 	switch move {
-	case "FO":
+	case "FO": // FOLD
 		player.Status = 2
 		completedMove = true
-	case "CH":
+	case "CH": // CHECK
 		if state.currentBid == 0 {
 			completedMove = true
 		}
-	case "BL":
+	case "BL": // BET LOW (5)
 		fallthrough
-	case "RL":
+	case "RL": // RAISE LOW (5)
 		delta := state.currentBid + 5 - player.Bet
 		if (state.currentBid == 0 || move == "RL") && player.Purse >= delta {
 			state.currentBid += 5
@@ -221,7 +278,7 @@ func performMove(playerNum int, move string) bool {
 			player.Purse -= delta
 			completedMove = true
 		}
-	case "CA":
+	case "CA": // CALL
 		delta := state.currentBid - player.Bet
 		if player.Purse >= delta {
 			player.Bet += delta
@@ -233,17 +290,21 @@ func performMove(playerNum int, move string) bool {
 	if completedMove {
 		player.Move = moveLookup[move]
 		state.Players[state.ActivePlayer] = player
+		nextValidPlayer()
 
-		// Move to next player
-		state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
-
-		// Skip over player if not in this game (joined late / folded)
-		for state.Players[state.ActivePlayer].Status != 1 {
-			state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
-		}
 	}
 
 	return completedMove
+}
+
+func nextValidPlayer() {
+	// Move to next player
+	state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
+
+	// Skip over player if not in this game (joined late / folded)
+	for state.Players[state.ActivePlayer].Status != 1 {
+		state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
+	}
 }
 
 func getValidMoves() []validMove {
@@ -257,7 +318,7 @@ func getValidMoves() []validMove {
 		moves = append(moves, validMove{move: "CH", name: "Check"})
 
 		if player.Purse >= 5 {
-			moves = append(moves, validMove{move: "BL", name: "Bid 5"})
+			moves = append(moves, validMove{move: "BL", name: "Bet 5"})
 		}
 	} else {
 		if player.Purse >= state.currentBid-player.Bet {
@@ -296,8 +357,9 @@ func returnGameState(c *gin.Context, thisPlayer int) {
 	stateCopy := state
 	setActivePlayer := false
 
-	// Check if we are at the end of the round, if so, no player is active, it is end of the round delay
-	if (state.currentBid > 0 && state.Players[state.ActivePlayer].Bet == state.currentBid) ||
+	// Check if we are at the end of the game, round, if so, no player is active, it is end of the round delay
+	if (state.gameOver ||
+		state.currentBid > 0 && state.Players[state.ActivePlayer].Bet == state.currentBid) ||
 		(state.currentBid == 0 && state.Players[state.ActivePlayer].Move != "") {
 		stateCopy.ActivePlayer = -1
 		setActivePlayer = true
@@ -325,14 +387,19 @@ func returnGameState(c *gin.Context, thisPlayer int) {
 		player := statePlayers[playerIndex]
 		player.Hand = ""
 
-		// Loop through and build hand string, taking
-		// care to not disclose the first card of a hand to other players
-		for cardIndex, card := range player.cards {
-			if cardIndex > 0 || playerIndex == thisPlayer {
-				player.Hand += valueLookup[card.value] + suitLookup[card.suit]
-			} else {
-				player.Hand += "??"
+		switch player.Status {
+		case 1:
+			// Loop through and build hand string, taking
+			// care to not disclose the first card of a hand to other players
+			for cardIndex, card := range player.cards {
+				if cardIndex > 0 || playerIndex == thisPlayer || state.gameOver {
+					player.Hand += valueLookup[card.value] + suitLookup[card.suit]
+				} else {
+					player.Hand += "??"
+				}
 			}
+		case 2:
+			player.Hand = "??"
 		}
 
 		// Add this player to the copy of the state going out
