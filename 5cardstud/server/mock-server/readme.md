@@ -2,7 +2,7 @@
 This is an incomplete 5 Card Stud server written in GO for the purposes of writing/testing 5 Card Stud clients. This is my first project in GO, so do not expect expert use of the language.  
 
 As this is focused on assisting in designing a client, it currently:
-* Provides bots that simulate a game
+* Provides bots that simulate a game (They will CHECK whenever they can, and occasionally bet/raise or fold)
 * Provides end of game detection and starting a new game
 * Provides only legal moves to each player
 * **Does not** support multiple clients
@@ -28,9 +28,19 @@ These are GETs to easily test in the browser in addition to the client. `/move/`
 ## State Structure
 This is highly subject to change, but focused on a low nested structyre and speed of parsing for 8-bit clients.
 
-* `lastResult` - Will be filled in when round=5 and the game is over
+* `lastResult` - Will be filled in when round=5 to signal the current game is over
 * `validMoves` - An array of strings, each string is a 2 character code (to send to `/move`), followed by a space, followed by friendly text to show onscreen in the client.
 * `activePlayer` - The currently active player. Your client is always player 0. This will be `-1` at the end of a round (or end of game) to allow the client to show the last move before clearing and starting on the net round.
+* `players/status` - The player's current in-game status
+    * 0 - Waiting to play the next game (joined the table late - future use)
+    * 1 - In Game, playing
+    * 2 - In Game, Folded
+* `players/hand` - List of 2 digit representation of cards in the player's hand:
+    * `??` - A hidden card. Also represents a folded hand when `hand` is just `??` and followed by no other cards
+    * First char - Value : 2 to 9, 0=10, J=Jack, Q=Queen, K=King, A=Ace
+    * Second char - Suit : C,S,D,H stand for Clubs, Spades, Diamonds, and Hearts (pretty cryptic, I know)
+* `players/bet` - The total of the player's bet for the current round
+* `players/move` - Friendly text of the player's most recent move this round
 
 ```json
 {
