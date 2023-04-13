@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +12,8 @@ import (
 var stateMap sync.Map
 
 func main() {
+	log.Print("starting server...")
+
 	router := gin.Default()
 
 	router.GET("/view", apiView)
@@ -20,7 +24,14 @@ func main() {
 	router.GET("/move/:move", apiMove)
 	router.POST("/move/:move", apiMove)
 
-	router.Run("192.168.2.41:8080")
+	// Determine port for HTTP service.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		log.Printf("defaulting to port %s", port)
+	}
+
+	router.Run(":8080")
 }
 
 // Api Request steps
@@ -41,7 +52,7 @@ func apiMove(c *gin.Context) {
 		saveState(state)
 	}
 
-	c.IndentedJSON(http.StatusOK, state.createClientState())
+	c.JSON(http.StatusOK, state.createClientState())
 }
 
 // Steps forward in the emulated game and returns the updated state
@@ -51,7 +62,7 @@ func apiState(c *gin.Context) {
 	state.emulateGame()
 	saveState(state)
 
-	c.IndentedJSON(http.StatusOK, state.createClientState())
+	c.JSON(http.StatusOK, state.createClientState())
 }
 
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client

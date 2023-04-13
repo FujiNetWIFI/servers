@@ -1,4 +1,4 @@
-## 5 Card Stud Server
+# 5 Card Stud Server
 This is an incomplete 5 Card Stud server written in GO for the purpose of writing/testing 5 Card Stud clients. This is my first project in GO, so do not expect expert use of the language.  
 
 As this is focused on assisting in designing a client, it currently:
@@ -20,14 +20,16 @@ You can view the state as-is by calling `/view` . This could be useful when comp
 
 The game currently does not determine the winner, so while each player's purse will shrink, nobody will win the pot.
 
-The server supports multiple concurrent games (tables) going at once. Simply pass `?table=[AlphaNumeric Value]` to all calls, otherwise it will assume `default` as the value and return that table.
+### Concurrent Games
 
-## Endpoints
-The following endpoints are available:
+The server supports unlimited concurrent games (tables) going at once. Simply pass `?table=[AlphaNumeric Name]` to all calls to test in an isolated table, otherwise it will assume a table name of `default`. This is mostly 
 
-* GET `/state` - Advance forward (AI/Game Logic) and return updated state
-* GET `/view` - View the current state as-is without advancing. Useful for debugging in a browser alongside the client
-* GET ``/move/[code]`` - Apply your player's move and return updated state. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
+###Endpoints
+The following endpoints are available.
+
+* GET `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
+* GET `/view` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client
+* GET ``/move/[code]`` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
 
 These are GETs to easily test in the browser in addition to the client. `/move/` also supports POST.
 
