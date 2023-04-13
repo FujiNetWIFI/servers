@@ -10,7 +10,7 @@ import (
 )
 
 var suitLookup = []string{"C", "D", "H", "S"}
-var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "Q"}
+var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A"}
 var moveLookup = map[string]string{
 	"FO": "FOLD",
 	"CH": "CHECK",
@@ -18,7 +18,7 @@ var moveLookup = map[string]string{
 	"Bh": "BET", // BET HIGH (e.g. 10)
 	"CA": "CALL",
 	"RL": "RAISE",
-	"Rh": "RAISE",
+	"RH": "RAISE",
 }
 
 type validMove struct {
@@ -158,6 +158,11 @@ func endGame() {
 	// A real server would compare hands to see who won and give the pot to the winner.
 	// For now, we just set gameOver so play can start over
 	// The next request for /state will start a new game
+
+	// Hand rank details (for future)
+	// Rank: SF, 4K, FH, F, S, 3K, 2P, 1P, HC
+	// Suit Rank: S,H,D,C
+
 	state.gameOver = true
 	state.LastResult = "LOOK WHO WON"
 	state.Round = 5

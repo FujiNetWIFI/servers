@@ -1,5 +1,5 @@
 ## 5 Card Stud Server
-This is an incomplete 5 Card Stud server written in GO for the purposes of writing/testing 5 Card Stud clients. This is my first project in GO, so do not expect expert use of the language.  
+This is an incomplete 5 Card Stud server written in GO for the purpose of writing/testing 5 Card Stud clients. This is my first project in GO, so do not expect expert use of the language.  
 
 As this is focused on assisting in designing a client, it currently:
 * Provides bots that simulate a game (They will CHECK whenever they can, and occasionally bet/raise or fold)
@@ -29,7 +29,7 @@ These are GETs to easily test in the browser in addition to the client. `/move/`
 This is highly subject to change, but focused on a low nested structyre and speed of parsing for 8-bit clients.
 
 * `lastResult` - Will be filled in when round=5 to signal the current game is over
-* `validMoves` - An array of strings, each string is a 2 character code (to send to `/move`), followed by a space, followed by friendly text to show onscreen in the client.
+* `validMoves` - An array of strings. Each string is a 2 character code (to send to `/move`), followed by a space, followed by friendly text to show onscreen in the client.
 * `activePlayer` - The currently active player. Your client is always player 0. This will be `-1` at the end of a round (or end of game) to allow the client to show the last move before clearing and starting on the net round.
 * `players/status` - The player's current in-game status
     * 0 - Waiting to play the next game (joined the table late - future use)
