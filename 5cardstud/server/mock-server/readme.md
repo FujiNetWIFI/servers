@@ -20,11 +20,11 @@ You can view the state as-is by calling `/view` . This could be useful when comp
 
 The game currently does not determine the winner, so while each player's purse will shrink, nobody will win the pot.
 
-### Concurrent Games
+## Concurrent games support
 
 The server supports unlimited concurrent games (tables) going at once. Simply pass `?table=[AlphaNumeric Name]` to all calls to test in an isolated table, otherwise it will assume a table name of `default`. This is mostly 
 
-###Public Endpoint
+## Public endpoint
 
 As an alternative to running locally, use the latest api is running here:
 
@@ -32,7 +32,7 @@ https://mock-server-7udvkexssq-uc.a.run.app/
 
 **TIP:** If using the public endpoint, append each call with your own table name, e.g. `?table=Eric123` 
 
-###Api Paths
+### Api paths
 
 * GET `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
 * GET ``/move/[code]`` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
@@ -40,7 +40,7 @@ https://mock-server-7udvkexssq-uc.a.run.app/
 
 Both `state` and `move` accept GET or POST.
 
-## State Structure
+## State structure
 This is highly subject to change, but focused on a low nested structure and speed of parsing for 8-bit clients.
 
 A client centric state is returned. This means that your client will only see the values of cards it is meant to see, and the player array will always start with your client's player first.
