@@ -8,6 +8,10 @@ import (
 )
 
 /*
+5 Card Stud Rules below to serve as guideline.
+
+The logic to support below is not all implemented, and will be done as time allows.
+
 Rules -  Assume Limit betting: Anti 1, Bringin 2,  Low 5, High 10
 Suit Rank (for comparing first to act): S,H,D,C
 
@@ -24,7 +28,6 @@ Winning hands - tied hands split the pot, remainder is discarded
 	- Player with highest ranked visible hand goes first
 	- 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
 	- 4th street - 10
-
 */
 
 var suitLookup = []string{"C", "D", "H", "S"}
@@ -37,6 +40,17 @@ var moveLookup = map[string]string{
 	"CA": "CALL",
 	"RL": "RAISE",
 	"RH": "RAISE",
+}
+
+var playerPool = []player{
+	{Name: "Thom", Purse: 500},
+	{Name: "Player", Purse: 500},
+	{Name: "Norm", Purse: 500},
+	{Name: "Mozzwald", Purse: 500},
+	{Name: "TCowboy", Purse: 500},
+	{Name: "Andy", Purse: 500},
+	{Name: "Decipher", Purse: 500},
+	{Name: "Eric", Purse: 500},
 }
 
 type validMove struct {
@@ -79,7 +93,7 @@ type gameState struct {
 	table        string
 }
 
-func initGameState() *gameState {
+func createGameState(playerCount int) *gameState {
 	deck := []card{}
 
 	// Create deck of 52 cards
@@ -95,13 +109,35 @@ func initGameState() *gameState {
 	state.Round = 0
 	state.ActivePlayer = -1
 	state.Players = []player{
-		{Name: "Thom Bot", Purse: 500},
-		{Name: "Chat GPT", Purse: 500},
+		{Name: "Thom", Purse: 500},
 		{Name: "Player", Purse: 500},
-		{Name: "Mozz Bot", Purse: 500},
+		{Name: "Norman", Purse: 500},
+		{Name: "Mozzwald", Purse: 500},
+		{Name: "TCowboy", Purse: 500},
+		{Name: "Andy", Purse: 500},
+		{Name: "Decipher", Purse: 500},
+		{Name: "Eric", Purse: 500},
+	}
+	if playerCount > 1 && playerCount < 8 {
+		state.Players = state.Players[0:playerCount]
 	}
 	state.newRound()
 	return &state
+}
+
+func (state *gameState) updatePlayerCount(playerCount int) {
+	if playerCount <= len(state.Players) || playerCount > 8 {
+		return
+	}
+
+	delta := playerCount - len(state.Players)
+	for i := 0; i < delta; i++ {
+		// Create a player that is waiting to play the next game
+		player := playerPool[len(state.Players)]
+		player.Status = 0
+		player.cards = []card{}
+		state.Players = append(state.Players, player)
+	}
 }
 
 func (state *gameState) newRound() {
@@ -109,7 +145,9 @@ func (state *gameState) newRound() {
 
 	// Reset players for this round
 	for i := 0; i < len(state.Players); i++ {
-		player := state.Players[i]
+
+		// Get pointer to player
+		player := &state.Players[i]
 
 		if state.Round > 1 {
 			// If not the first round, add any bets into the pot
@@ -124,8 +162,6 @@ func (state *gameState) newRound() {
 		// Reset player's last move/bet for this round
 		player.Move = ""
 		player.Bet = 0
-
-		state.Players[i] = player
 	}
 
 	state.currentBid = 0
@@ -254,7 +290,8 @@ func (state *gameState) emulateGame() {
 // Performs the requested move for the active player, and returns true if successful
 func (state *gameState) performMove(move string) bool {
 
-	player := state.Players[state.ActivePlayer]
+	// Get pointer to player
+	player := &state.Players[state.ActivePlayer]
 
 	// Sanity Check 2 - Player status should be 1 to move. In theory they should never be active if their status is != 1
 	if player.Status != 1 {
@@ -293,7 +330,6 @@ func (state *gameState) performMove(move string) bool {
 
 	if completedMove {
 		player.Move = moveLookup[move]
-		state.Players[state.ActivePlayer] = player
 		state.nextValidPlayer()
 	}
 
@@ -335,16 +371,16 @@ func (state *gameState) getValidMoves() []validMove {
 	return moves
 }
 
+// Creates a copy of the state and modifies it to be from the
+// perspective of this client (e.g. player array, visible cards)
 func (state *gameState) createClientState() gameState {
-
-	// Create a copy of the state and construct a view of the state from the
-	// perspective of this client (e.g. player array, visible cards)
 
 	stateCopy := *state
 
 	setActivePlayer := false
 
-	// Check if we are at the end of the game, round, if so, no player is active, it is end of the round delay
+	// Check if we are at the end of a round, or the game. If so, no player is active. This lets the client perform
+	// end of round/game tasks/animation
 	if (state.gameOver ||
 		state.currentBid > 0 && state.Players[state.ActivePlayer].Bet == state.currentBid) ||
 		(state.currentBid == 0 && state.Players[state.ActivePlayer].Move != "") {

@@ -22,7 +22,7 @@ The game currently does not determine the winner, so while each player's purse w
 
 ## Concurrent games support
 
-The server supports unlimited concurrent games (tables) going at once. Simply pass `?table=[AlphaNumeric Name]` to all calls to test in an isolated table, otherwise it will assume a table name of `default`. This is mostly 
+The server supports unlimited concurrent games (tables) going at once. Simply pass `?table=[AlphaNumeric Name]` to all calls to test in an isolated table, otherwise it will assume a table name of `default`.
 
 ## Public endpoint
 
@@ -32,13 +32,19 @@ https://mock-server-7udvkexssq-uc.a.run.app/
 
 **TIP:** If using the public endpoint, append each call with your own table name, e.g. `?table=Eric123` 
 
-### Api paths
+## Api paths
 
 * GET `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
 * GET ``/move/[code]`` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
 * GET `/view` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time.
 
 Both `state` and `move` accept GET or POST.
+
+## Query Parameters
+* `table=[Alphanumeric]` - Use to play in an isolated game
+* `count=[2-8]` - Include on the `/state` call to set the number of players in a game. 
+    * If the number is larger than the current player count, new players will join, waiting until the next game.
+    * If the number is smaller, a new game will start.
 
 ## State structure
 This is highly subject to change, but focused on a low nested structure and speed of parsing for 8-bit clients.
