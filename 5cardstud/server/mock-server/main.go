@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +44,7 @@ func main() {
 // Executes a move for the client player, if that player is currently active
 func apiMove(c *gin.Context) {
 
-	state := getState(c)
+	state := getState(c, 0)
 
 	// Access check - only move if the client is the active player
 	if state.clientPlayer == state.ActivePlayer {
@@ -57,8 +58,8 @@ func apiMove(c *gin.Context) {
 
 // Steps forward in the emulated game and returns the updated state
 func apiState(c *gin.Context) {
-
-	state := getState(c)
+	playerCount, _ := strconv.Atoi(c.DefaultQuery("count", "0"))
+	state := getState(c, playerCount)
 	state.emulateGame()
 	saveState(state)
 
@@ -68,12 +69,12 @@ func apiState(c *gin.Context) {
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
 func apiView(c *gin.Context) {
 
-	state := getState(c)
+	state := getState(c, 0)
 	c.IndentedJSON(http.StatusOK, state.createClientState())
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it
-func getState(c *gin.Context) *gameState {
+func getState(c *gin.Context, playerCount int) *gameState {
 	table := c.Query("table")
 	if table == "" {
 		table = "default"
@@ -84,13 +85,21 @@ func getState(c *gin.Context) *gameState {
 
 	if ok {
 		state = value.(*gameState)
+		if playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
+			if len(state.Players) > playerCount {
+				state = createGameState(playerCount)
+				state.table = table
+			} else {
+				state.updatePlayerCount(playerCount)
+			}
+		}
 	} else {
-		state = initGameState()
+		state = createGameState(playerCount)
 		state.table = table
 	}
 
 	//player := c.Query("player")
-	state.clientPlayer = 2
+	state.clientPlayer = 1
 	return state
 }
 
