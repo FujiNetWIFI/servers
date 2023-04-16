@@ -11,3 +11,9 @@ Source to servers for games and apps that work with FujiNet
 
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
+- "5cardstud" - A collection of client and servers that impliment 5 Card Stud poker game. This is very much a work in progress.
+  - Clients
+    - "client/pc/python" - PC client, written in Python.
+  - Servers
+    - "dummy-server/pc/Python" - Json server written in Python, serves random hands for client testing.
+    - "server/mock-server" - Json Api server written in Go, emulates much of the game server logic, including player bots to assist in writing/testing persisted play over multiple games on a single client.
