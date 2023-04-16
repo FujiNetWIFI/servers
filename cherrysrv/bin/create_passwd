@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]
+  then
+    echo "create_passwd <passwd>"
+    exit 
+fi
+
+if ! command -v htpasswd &> /dev/null
+then
+    echo "please install htpasswd"
+    exit
+fi
+
+htpasswd -bnBC 10 "" $1 | tr -d ':\n' | sed 's/$2y/$2a/'
