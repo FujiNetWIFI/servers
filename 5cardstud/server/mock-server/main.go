@@ -85,7 +85,7 @@ func getState(c *gin.Context, playerCount int) *gameState {
 
 	if ok {
 		state = value.(*gameState)
-		if playerCount > 1 && playerCount < 9 {
+		if playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
 			if len(state.Players) > playerCount {
 				state = createGameState(playerCount)
 				state.table = table
