@@ -60,7 +60,7 @@ A client centric state is returned. This means that your client will only see th
     * 2 - In Game, Folded
 * `players/hand` - A string of multiple 2 character representation of cards in the player's hand:
     * `??` - A hidden card. Also represents a folded hand when `hand` is just `??` and followed by no other cards
-    * First char - Value : 2 to 9, 0=10, J=Jack, Q=Queen, K=King, A=Ace
+    * First char - Value : 2 to 9, T=10, J=Jack, Q=Queen, K=King, A=Ace
     * Second char - Suit : C,S,D,H stand for Clubs, Spades, Diamonds, and Hearts (pretty cryptic, I know)
 * `players/bet` - The total of the player's bet for the current round
 * `players/move` - Friendly text of the player's most recent move this round

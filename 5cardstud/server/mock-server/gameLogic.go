@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"math"
 	"math/rand"
+	"strings"
 
+	"github.com/cardrank/cardrank"
 	"golang.org/x/exp/slices"
 )
 
@@ -30,8 +34,14 @@ Winning hands - tied hands split the pot, remainder is discarded
 	- 4th street - 10
 */
 
+const ANTI = 1
+const BRINGIN = 2
+const LOW = 5
+const HIGH = 10
+const STARTING_PURSE = 200
+
 var suitLookup = []string{"C", "D", "H", "S"}
-var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A"}
+var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"}
 var moveLookup = map[string]string{
 	"FO": "FOLD",
 	"CH": "CHECK",
@@ -43,14 +53,14 @@ var moveLookup = map[string]string{
 }
 
 var playerPool = []player{
-	{Name: "Thom", Purse: 500},
-	{Name: "Player", Purse: 500},
-	{Name: "Norm", Purse: 500},
-	{Name: "Mozzwald", Purse: 500},
-	{Name: "TCowboy", Purse: 500},
-	{Name: "Andy", Purse: 500},
-	{Name: "Decipher", Purse: 500},
-	{Name: "Eric", Purse: 500},
+	{Name: "Thom"},
+	{Name: "You"},
+	{Name: "Norman"},
+	{Name: "Mozzwald"},
+	{Name: "TCowboy"},
+	{Name: "Andy"},
+	{Name: "Decipher"},
+	{Name: "Eric"},
 }
 
 type validMove struct {
@@ -91,6 +101,7 @@ type gameState struct {
 	gameOver     bool
 	clientPlayer int
 	table        string
+	wonByFolds   bool
 }
 
 func createGameState(playerCount int) *gameState {
@@ -108,20 +119,16 @@ func createGameState(playerCount int) *gameState {
 	state.deck = deck
 	state.Round = 0
 	state.ActivePlayer = -1
-	state.Players = []player{
-		{Name: "Thom", Purse: 500},
-		{Name: "Player", Purse: 500},
-		{Name: "Norman", Purse: 500},
-		{Name: "Mozzwald", Purse: 500},
-		{Name: "TCowboy", Purse: 500},
-		{Name: "Andy", Purse: 500},
-		{Name: "Decipher", Purse: 500},
-		{Name: "Eric", Purse: 500},
+
+	// Force between 2 and 8 players
+	playerCount = int(math.Min(math.Max(2, float64(playerCount)), 8))
+
+	state.Players = playerPool[0:playerCount]
+	for i := 0; i < playerCount; i++ {
+		state.Players[i].Purse = STARTING_PURSE
 	}
-	if playerCount > 1 && playerCount < 8 {
-		state.Players = state.Players[0:playerCount]
-	}
-	state.newRound()
+
+	log.Print("Created GameState")
 	return &state
 }
 
@@ -135,6 +142,7 @@ func (state *gameState) updatePlayerCount(playerCount int) {
 		// Create a player that is waiting to play the next game
 		player := playerPool[len(state.Players)]
 		player.Status = 0
+		player.Purse = STARTING_PURSE
 		player.cards = []card{}
 		state.Players = append(state.Players, player)
 	}
@@ -153,10 +161,15 @@ func (state *gameState) newRound() {
 			// If not the first round, add any bets into the pot
 			state.Pot += player.Bet
 		} else {
-			// First round of a new game? Reset player state
-			player.Status = 1
-			player.cards = []card{}
 
+			// First round of a new game? Reset player status and take the ANTI
+			if player.Purse > 5 {
+				player.Status = 1
+				player.Purse -= ANTI
+			} else {
+				player.Status = 0
+			}
+			player.cards = []card{}
 		}
 
 		// Reset player's last move/bet for this round
@@ -203,16 +216,65 @@ func (state *gameState) endGame() {
 	// Rank: SF, 4K, FH, F, S, 3K, 2P, 1P, HC
 
 	state.gameOver = true
-	state.LastResult = "LOOK WHO WON"
+	state.ActivePlayer = -1
 	state.Round = 5
 
-	for _, player := range state.Players {
+	remainingPlayers := []int{}
+	pockets := [][]cardrank.Card{}
+
+	for index, player := range state.Players {
 		state.Pot += player.Bet
+		if player.Status == 1 {
+			remainingPlayers = append(remainingPlayers, index)
+			hand := ""
+			// Loop through and build hand string
+			for _, card := range player.cards {
+				hand += valueLookup[card.value] + suitLookup[card.suit]
+			}
+			pockets = append(pockets, cardrank.Must(hand))
+		}
 	}
+
+	evs := cardrank.StudFive.EvalPockets(pockets, nil)
+	order, pivot := cardrank.Order(evs, false)
+
+	// Int divide, so "house" takes remainder
+	perPlayerWinnings := state.Pot / pivot
+
+	result := ""
+
+	for i := 0; i < pivot; i++ {
+		player := &state.Players[remainingPlayers[order[i]]]
+
+		// Award winnings to player's purse
+		player.Purse += int(perPlayerWinnings)
+
+		// Add player's name to result
+		if result != "" {
+			result += " and "
+		}
+		result += player.Name
+	}
+
+	if len(remainingPlayers) > 1 {
+		state.wonByFolds = false
+		result += strings.Join(strings.Split(strings.Split(fmt.Sprintf(" won with %s", evs[order[0]]), " [")[0], ",")[0:2], ",")
+	} else {
+		state.wonByFolds = true
+		result += " won by default"
+	}
+	state.LastResult = result
+	log.Println(result)
 }
 
 // Emulates simplified player/logic for 5 card stud
 func (state *gameState) emulateGame() {
+
+	// Very first call of state? Initialize first round but do not play for any BOTs.
+	if state.Round == 0 {
+		state.newRound()
+		return
+	}
 
 	checkForRoundOnly := state.ActivePlayer == state.clientPlayer
 	if state.gameOver {
@@ -271,8 +333,8 @@ func (state *gameState) emulateGame() {
 		// Most of the time, consider bet/call/raise
 		if len(moves) > 1 && rand.Intn(3) > 0 {
 
-			// Avoid endless raises - BOTs only raise up to 10
-			if state.currentBid >= 10 || rand.Intn(3) > 0 {
+			// Avoid endless raises - BOTs only raise up to HIGH
+			if state.currentBid >= HIGH || rand.Intn(3) > 0 {
 				choice = 1
 			} else {
 				choice = rand.Intn(len(moves)-1) + 1
@@ -312,9 +374,9 @@ func (state *gameState) performMove(move string) bool {
 	case "BL": // BET LOW (5)
 		fallthrough
 	case "RL": // RAISE LOW (5)
-		delta := state.currentBid + 5 - player.Bet
+		delta := state.currentBid + LOW - player.Bet
 		if (state.currentBid == 0 || move == "RL") && player.Purse >= delta {
-			state.currentBid += 5
+			state.currentBid += LOW
 			player.Bet += delta
 			player.Purse -= delta
 			completedMove = true
@@ -356,15 +418,15 @@ func (state *gameState) getValidMoves() []validMove {
 	if state.currentBid == 0 {
 		moves = append(moves, validMove{move: "CH", name: "Check"})
 
-		if player.Purse >= 5 {
-			moves = append(moves, validMove{move: "BL", name: "Bet 5"})
+		if player.Purse >= LOW {
+			moves = append(moves, validMove{move: "BL", name: fmt.Sprint("Bet ", LOW)})
 		}
 	} else {
 		if player.Purse >= state.currentBid-player.Bet {
 			moves = append(moves, validMove{move: "CA", name: "Call"})
 		}
-		if state.Players[state.ActivePlayer].Purse >= state.currentBid-player.Bet+5 {
-			moves = append(moves, validMove{move: "RL", name: "Raise 5"})
+		if state.Players[state.ActivePlayer].Purse >= state.currentBid-player.Bet+LOW {
+			moves = append(moves, validMove{move: "RL", name: fmt.Sprint("Raise ", LOW)})
 		}
 	}
 
@@ -415,7 +477,7 @@ func (state *gameState) createClientState() gameState {
 			// Loop through and build hand string, taking
 			// care to not disclose the first card of a hand to other players
 			for cardIndex, card := range player.cards {
-				if cardIndex > 0 || playerIndex == state.clientPlayer || state.gameOver {
+				if cardIndex > 0 || playerIndex == state.clientPlayer || (state.gameOver && !state.wonByFolds) {
 					player.Hand += valueLookup[card.value] + suitLookup[card.suit]
 				} else {
 					player.Hand += "??"
