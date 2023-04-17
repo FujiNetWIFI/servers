@@ -40,6 +40,7 @@ var (
 	CLIENTS   cmap.Map[string, *Client] // CLIENTS  cmap.Cmap
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
+	VERSION   = "1.0.1"
 )
 
 func main() {
