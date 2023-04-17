@@ -44,7 +44,7 @@ func (clt *Client) Close() {
 
 	clt.status = USER_LOGGINOUT
 	clt.conn.Close()
-	INFO.Printf("%s disconnected (%s)", clt.name, clt.conn.RemoteAddr())
+	INFO.Printf("%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
 	CLIENTS.Delete(clt.name)
 }
 
