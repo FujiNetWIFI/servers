@@ -56,7 +56,11 @@ func main() {
 	flag.StringVar(&srvaddr, "srvaddr", "localhost:1512", "<address:port> for tcp4 server")
 	flag.Parse()
 
-	TCPAddr, _ := net.ResolveTCPAddr("tcp", "srvaddr")
+	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
+	if err != nil {
+		ERROR.Fatalf("Unable to resolve address on tcp4://%s (%s)", srvaddr, err)
+		return
+	}
 
 	server, err := net.ListenTCP("tcp4", TCPAddr)
 	if err != nil {
