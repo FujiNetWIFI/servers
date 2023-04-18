@@ -18,8 +18,8 @@ const (
 
 // Client connection storing basic PC data
 type Client struct {
-	conn       *net.TCPConn  // websocket connection.
-	name       string        // Name of the PC.
+	conn       *net.TCPConn  // tcpsocket connection.
+	name       string        // Name of the user.
 	status     player_status // Current status of player's connection (Not logged, Playing and Logging out)
 	conn_mutex sync.Mutex    // gorilla websocket does not allow concurrent writes, use a mutex for writing conn
 }
@@ -51,7 +51,7 @@ func (clt *Client) Close() {
 // https://github.com/uber-go/ratelimit
 func (clt *Client) clientLoop() {
 
-	clt.OKPrintf("welcome to cherry server %s > %s", clt.name, STRINGVER)
+	clt.OKPrintf("welcome to cherry server %s # %s", clt.name, STRINGVER)
 
 	for {
 
@@ -89,19 +89,19 @@ func (clt *Client) OKPrintf(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	clt.Write(line + "\n")
+	clt.Write(">info>srv>" + line + "\n")
 }
 
 func (clt *Client) FAILPrintf(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	clt.Write(line + "\n")
+	clt.Write(">info>srv>" + line + "\n")
 }
 
 func (clt *Client) OKPrintfN(Lines []string) {
 
-	clt.Write(strings.Join(Lines, "\n") + "\n")
+	clt.Write(">info>srv>" + strings.Join(Lines, "\n") + "\n")
 }
 
 // Write a message to the client to be sent back to the player via websocket
@@ -189,7 +189,7 @@ func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
 		}
 
 		if clt.status == USER_LOGGED { // we want to send the message only to
-			client.Write(line + "\n")
+			client.Write(">main>" + clt.name + ">" + line + "\n")
 		}
 
 		return true

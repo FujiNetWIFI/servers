@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
-	"time"
 )
 
 func init_commands() {
@@ -71,10 +69,7 @@ func do_nusers(clt *Client, args string) {
 // talk to other logged users
 func do_say(clt *Client, args string) {
 
-	now := time.Now().Format("15:04:05")
-	line := fmt.Sprintf("%s : %s : %s\n", clt.name, now, args)
-
-	clt.SayToAllButMe(line)
+	clt.SayToAllButMe(args)
 }
 
 // update login levels. Unused for now
