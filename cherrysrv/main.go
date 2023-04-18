@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -40,7 +41,11 @@ var (
 	CLIENTS   cmap.Map[string, *Client] // CLIENTS  cmap.Cmap
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
+)
+
+const (
 	VERSION   = "1.0.1"
+	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
 func main() {
@@ -70,6 +75,7 @@ func main() {
 	}
 	defer server.Close()
 
+	INFO.Printf("Started %s", STRINGVER)
 	INFO.Printf("Ready to serve on tcp://%s (tcp)", srvaddr)
 
 	for {

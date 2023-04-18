@@ -51,7 +51,7 @@ func (clt *Client) Close() {
 // https://github.com/uber-go/ratelimit
 func (clt *Client) clientLoop() {
 
-	clt.OKPrintf("welcome to cherry server %s v. %s", clt.name, VERSION)
+	clt.OKPrintf("welcome to cherry server %s > %s", clt.name, STRINGVER)
 
 	for {
 
