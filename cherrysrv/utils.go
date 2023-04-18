@@ -13,8 +13,9 @@ import (
 )
 
 // Gensym creates a random sting pre-fixing the parameter provided.
-// yes, I and O are missing not to confuse them with 1 and 0
 func gensym(prefix string) string {
+	// yes, I and O are missing not to confuse them with 1 and 0
+
 	return prefix + "-" + uniuri.NewLenChars(8, []byte("ABCDEFGHJKLMNPQRSTUVWXYZ0123456789"))
 }
 
@@ -31,16 +32,6 @@ func encrypt(password string) string {
 // check if passwd submitted for player is correct
 func check_passwd(bcrypt_hash string, passwd string) error {
 	return bcrypt.CompareHashAndPassword([]byte(bcrypt_hash), []byte(passwd))
-}
-
-func ToIntOrError(raw string, error_rc int) int {
-	i, err := strconv.Atoi(raw)
-
-	if err != nil {
-		return error_rc
-	}
-
-	return i
 }
 
 // difference returns the elements in `a` that aren't in `b`. Tables need to be sorted.
