@@ -28,6 +28,7 @@ func do_help(clt *Client, args string) {
 
 }
 
+// show internal timer
 func do_clock(clt *Client, args string) {
 
 	if !clt.isLogged() {
@@ -67,6 +68,7 @@ func do_nusers(clt *Client, args string) {
 	clt.OKPrintf("%d", NumUsers)
 }
 
+// talk to other logged users
 func do_say(clt *Client, args string) {
 
 	now := time.Now().Format("15:04:05")
@@ -75,6 +77,7 @@ func do_say(clt *Client, args string) {
 	clt.SayToAllButMe(line)
 }
 
+// update login levels. Unused for now
 func sys_log(clt *Client, args string) {
 
 	if no(args) {
@@ -103,6 +106,7 @@ func sys_log(clt *Client, args string) {
 
 }
 
+// show logged users
 func do_users(clt *Client, args string) {
 
 	if !clt.isLogged() {
@@ -116,7 +120,10 @@ func do_users(clt *Client, args string) {
 	var out []string
 
 	print_key := func(key string, v *Client) bool {
-		out = append(out, key)
+
+		if v.status != USER_LOGGINOUT {
+			out = append(out, key)
+		}
 		return true
 	}
 
@@ -125,6 +132,7 @@ func do_users(clt *Client, args string) {
 	clt.OKPrintfN(out)
 }
 
+// login user. No password required
 func do_login(clt *Client, args string) {
 
 	/* Check params */
@@ -167,6 +175,7 @@ func do_login(clt *Client, args string) {
 	INFO.Printf("%s has logged in as %s", oldName, clt.name)
 }
 
+// logoff user
 func do_logoff(clt *Client, args string) {
 
 	/* Do command */
@@ -183,6 +192,7 @@ func do_logoff(clt *Client, args string) {
 	runtime.Goexit()
 }
 
+// show name of logged user
 func do_who(clt *Client, args string) {
 	clt.OKPrintf(clt.name)
 }
