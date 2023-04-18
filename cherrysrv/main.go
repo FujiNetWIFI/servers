@@ -1,12 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -41,6 +43,11 @@ var (
 	TIME      uint64
 )
 
+const (
+	VERSION   = "1.0.1"
+	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
+)
+
 func main() {
 
 	init_logger()
@@ -50,16 +57,26 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	ServerAddr, _ := net.ResolveTCPAddr("tcp", ":1512")
+	var srvaddr string
 
-	server, err := net.ListenTCP("tcp4", ServerAddr)
+	flag.StringVar(&srvaddr, "srvaddr", "localhost:1512", "<address:port> for tcp4 server")
+	flag.Parse()
+
+	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
-		ERROR.Fatalf("Unable to serve on localhost:1512 (%s)", err)
+		ERROR.Fatalf("Unable to resolve address on tcp4://%s (%s)", srvaddr, err)
+		return
+	}
+
+	server, err := net.ListenTCP("tcp4", TCPAddr)
+	if err != nil {
+		ERROR.Fatalf("Unable to serve on tcp4://%s (%s)", srvaddr, err)
 		return
 	}
 	defer server.Close()
 
-	INFO.Println("Ready to serve on localhost:1512")
+	INFO.Printf("Started %s", STRINGVER)
+	INFO.Printf("Ready to serve on tcp://%s (tcp)", srvaddr)
 
 	for {
 		conn, err := server.AcceptTCP()
