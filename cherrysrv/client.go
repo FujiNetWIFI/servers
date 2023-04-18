@@ -39,12 +39,11 @@ func newClient(conn *net.TCPConn) *Client {
 	return client
 }
 
-// Close a websocket connection following ws protocol plus removing the internal handlers in the mud.
+// Close a client connection following ws protocol plus removing the internal handlers in the mud.
 func (clt *Client) Close() {
 
 	clt.status = USER_LOGGINOUT
 	clt.conn.Close()
-	INFO.Printf("%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
 	CLIENTS.Delete(clt.name)
 }
 
@@ -55,6 +54,12 @@ func (clt *Client) clientLoop() {
 	clt.OKPrintf("welcome to cherry server %s v. %s", clt.name, VERSION)
 
 	for {
+
+		// we don't want to read from a socket that is logging out
+		if clt.status == USER_LOGGINOUT {
+			return
+		}
+
 		line, err := clt.read()
 		if err != nil {
 			INFO.Printf("%s disconnected (%s)", clt.name, clt.conn.RemoteAddr())

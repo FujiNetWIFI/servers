@@ -132,8 +132,8 @@ func do_login(clt *Client, args string) {
 
 	/* Update player */
 
-	clt.OKPrintf("you're new account is %s", clt.name)
-	clt.SayToAllButMe(clt.name + "has joined the room")
+	clt.OKPrintf("you're now %s", clt.name)
+	clt.SayToAllButMe(clt.name + " has joined the room")
 
 	INFO.Printf("%s has logged in as %s", oldName, clt.name)
 }
@@ -146,6 +146,8 @@ func do_logoff(clt *Client, args string) {
 	clt.OKPrintf("Goodbye %s", clt.name)
 
 	clt.SayToAllButMe(clt.name + "is leaving")
+
+	INFO.Printf("%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
 
 	clt.Close()
 
