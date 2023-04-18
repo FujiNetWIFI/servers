@@ -11,6 +11,7 @@ func init_commands() {
 	COMMANDS["logoff"] = do_logoff
 	COMMANDS["who"] = do_who
 	COMMANDS["users"] = do_users
+	COMMANDS["nusers"] = do_nusers
 	COMMANDS["say"] = do_say
 	COMMANDS["clock"] = do_clock
 	COMMANDS["help"] = do_help
@@ -36,6 +37,34 @@ func do_clock(clt *Client, args string) {
 	}
 
 	clt.OKPrintf("%d", TIME)
+}
+
+// count number of users logged
+func do_nusers(clt *Client, args string) {
+
+	if !clt.isLogged() {
+		clt.FAILPrintf("/users requires you to be logged")
+
+		return
+	}
+
+	/* Do command */
+
+	NumUsers := 0
+
+	CountUsers := func(key string, v *Client) bool {
+
+		// we don't want to count users that are logging out
+		if v.status != USER_LOGGINOUT {
+			NumUsers++
+		}
+
+		return true
+	}
+
+	CLIENTS.Range(CountUsers)
+
+	clt.OKPrintf("%d", NumUsers)
 }
 
 func do_say(clt *Client, args string) {
