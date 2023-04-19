@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 )
 
@@ -101,7 +100,10 @@ func (clt *Client) FAILPrintf(format string, args ...interface{}) {
 
 func (clt *Client) OKPrintfN(Lines []string) {
 
-	clt.Write(">info>srv>" + strings.Join(Lines, "\n") + "\n")
+	for _, line := range Lines {
+		clt.Write(">info>srv>" + line + "\n")
+	}
+
 }
 
 // Write a message to the client to be sent back to the player via websocket
@@ -188,7 +190,7 @@ func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
 			return true
 		}
 
-		if clt.status == USER_LOGGED { // we want to send the message only to
+		if clt.isLogged() { // we want to send the message only to
 			client.Write(">main>" + clt.name + ">" + line + "\n")
 		}
 
