@@ -190,7 +190,7 @@ func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
 			return true
 		}
 
-		if clt.status == USER_LOGGED { // we want to send the message only to
+		if clt.isLogged() { // we want to send the message only to
 			client.Write(">main>" + clt.name + ">" + line + "\n")
 		}
 
