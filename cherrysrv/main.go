@@ -94,12 +94,11 @@ func main() {
 
 func init_logger() {
 
-	INFO = NewCustomLogger("info", "\u001b[32mINFO: \u001B[0m", log.LstdFlags)
-	WARN = NewCustomLogger("warn", "\u001b[33mWARN: \u001B[0m", log.LstdFlags)
-	ERROR = NewCustomLogger("error", "\u001b[31mERROR: \u001B[0m", log.LstdFlags)
-	LOGGER = NewCustomLogger("logger", "\u001b[35mLOGGER: \u001B[0m", log.LstdFlags)
-	DB = NewCustomLogger("db", "\u001b[31mDB: \u001B[0m", log.LstdFlags)
-	DEBUG = NewCustomLogger("debug", "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+	INFO = NewCustomLogger("info", "INFO: ", log.LstdFlags)
+	WARN = NewCustomLogger("warn", "WARN: ", log.LstdFlags)
+	ERROR = NewCustomLogger("error", "ERROR: ", log.LstdFlags)
+	LOGGER = NewCustomLogger("logger", "LOGGER: ", log.LstdFlags)
+	DEBUG = NewCustomLogger("debug", "DEBUG: ", log.LstdFlags|log.Lshortfile)
 
 	value, ok := os.LookupEnv("LOG_LEVEL")
 
