@@ -5,7 +5,7 @@ build:
 	go build .
 
 run: build
-	cherrysrv
+	./cherrysrv
 
 backup:
 	cd .. && tar cvzf `date "+%Y-%m-%d"`-cherrysrv.tar.gz cherrysrv && cd cherrysrv
