@@ -59,7 +59,7 @@ func main() {
 
 	var srvaddr string
 
-	flag.StringVar(&srvaddr, "srvaddr", "localhost:1512", "<address:port> for tcp4 server")
+	flag.StringVar(&srvaddr, "srvaddr", "0.0.0.0:1512", "<address:port> for tcp4 server")
 	flag.Parse()
 
 	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
