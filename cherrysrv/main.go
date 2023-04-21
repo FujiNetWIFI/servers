@@ -30,7 +30,6 @@ var (
 	ERROR  CustomLogger
 	DEBUG  CustomLogger
 	LOGGER CustomLogger
-	DB     CustomLogger
 )
 
 type do_command func(*Client, string)
