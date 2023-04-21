@@ -18,7 +18,7 @@ func init_commands() {
 
 func do_help(clt *Client, args string) {
 
-	clt.OKPrintfN([]string{"/login <email> - login to cherry server",
+	clt.SayN(">/help>", []string{"/login <email> - login to cherry server",
 		"/who                       - show my nickname",
 		"/help                      - this command",
 		"/users                     - who is logged?",
@@ -30,19 +30,19 @@ func do_help(clt *Client, args string) {
 func do_clock(clt *Client, args string) {
 
 	if !clt.isLogged() {
-		clt.FAILPrintf("/clock requires you to be logged")
+		clt.Say(">/clock>0>/clock requires you to be logged")
 
 		return
 	}
 
-	clt.OKPrintf("%d", TIME)
+	clt.Say(">/clock>0>%d", TIME)
 }
 
 // count number of users logged
 func do_nusers(clt *Client, args string) {
 
 	if !clt.isLogged() {
-		clt.FAILPrintf("/users requires you to be logged")
+		clt.Say(">/nusers>0>/nusers requires you to be logged")
 
 		return
 	}
@@ -63,7 +63,7 @@ func do_nusers(clt *Client, args string) {
 
 	CLIENTS.Range(CountUsers)
 
-	clt.OKPrintf("%d", NumUsers)
+	clt.Say(">/nusers>0>%d", NumUsers)
 }
 
 // talk to other logged users
@@ -78,10 +78,10 @@ func sys_log(clt *Client, args string) {
 	if no(args) {
 		status := []string{INFO.String(),
 			WARN.String(), ERROR.String(),
-			LOGGER.String(), DB.String(),
+			LOGGER.String(),
 			DEBUG.String(), LOGGER.String()}
 
-		clt.OKPrintfN(status)
+		clt.SayN(">/log>", status)
 
 		return
 	}
@@ -93,11 +93,11 @@ func sys_log(clt *Client, args string) {
 	err := update_log_level(logger, onoff)
 
 	if err != nil {
-		clt.FAILPrintf("unable to change %s to %s", logger, onoff)
+		clt.Say(">/log>0>unable to change %s to %s", logger, onoff)
 		return
 	}
 
-	clt.OKPrintf("loglevel updated: %s to %s", logger, onoff)
+	clt.Say(">/log>0>loglevel updated: %s to %s", logger, onoff)
 
 }
 
@@ -105,7 +105,7 @@ func sys_log(clt *Client, args string) {
 func do_users(clt *Client, args string) {
 
 	if !clt.isLogged() {
-		clt.FAILPrintf("/users requires you to be logged")
+		clt.Say(">/users>0>/users requires you to be logged")
 
 		return
 	}
@@ -117,14 +117,14 @@ func do_users(clt *Client, args string) {
 	print_key := func(key string, v *Client) bool {
 
 		if v.status != USER_LOGGINOUT {
-			out = append(out, key)
+			out = append(out, "@"+key)
 		}
 		return true
 	}
 
 	CLIENTS.Range(print_key)
 
-	clt.OKPrintfN(out)
+	clt.SayN(">/users>", out)
 }
 
 // login user. No password required
@@ -133,13 +133,13 @@ func do_login(clt *Client, args string) {
 	/* Check params */
 
 	if clt.isLogged() {
-		clt.FAILPrintf("you're already logged in")
+		clt.Say(">/login>0>you're already logged in")
 
 		return
 	}
 
 	if no(args) {
-		clt.OKPrintf("/login <email>")
+		clt.Say(">/login>0>/login <account>")
 
 		return
 	}
@@ -147,8 +147,8 @@ func do_login(clt *Client, args string) {
 	username, err := ValidUsername(args)
 
 	if err != nil {
-		clt.FAILPrintf(err.Error())
-		WARN.Printf("User %s unable to login due to: %s", args, err.Error())
+		clt.Say(err.Error())
+		WARN.Printf(">/login>0>@user %s unable to login due to: %s", args, err.Error())
 
 		return
 	}
@@ -164,10 +164,10 @@ func do_login(clt *Client, args string) {
 
 	/* Update player */
 
-	clt.OKPrintf("you're now %s", clt.name)
-	clt.SayToAllButMe("%s has joined the room", clt.name)
+	clt.Say("/login>0>you're now @%s", clt.name)
+	clt.BroadcastButMe(">#main>!login>@%s has joined the room", clt.name)
 
-	INFO.Printf("%s has logged in as %s", oldName, clt.name)
+	INFO.Printf("%s has logged in as @%s", oldName, clt.name)
 }
 
 // logoff user
@@ -176,11 +176,11 @@ func do_logoff(clt *Client, args string) {
 	/* Do command */
 	clt.status = USER_LOGGINOUT
 
-	clt.OKPrintf("Goodbye %s", clt.name)
+	clt.Say(">/logoff>0>Goodbye @%s", clt.name)
 
-	clt.SayToAllButMe("%s is leaving", clt.name)
+	clt.BroadcastButMe(">#main>!logoff>@%s is leaving", clt.name)
 
-	INFO.Printf("%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
+	INFO.Printf("@%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
 
 	clt.Close()
 
@@ -189,5 +189,5 @@ func do_logoff(clt *Client, args string) {
 
 // show name of logged user
 func do_who(clt *Client, args string) {
-	clt.OKPrintf(clt.name)
+	clt.Say(">/who>0>@%s", clt.name)
 }

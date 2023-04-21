@@ -72,6 +72,10 @@ func ValidUsername(username string) (validusername string, err error) {
 
 	var notvalid string
 
+	if username[0] == '@' {
+		username = username[1:]
+	}
+
 	if len(username) > 16 {
 		return notvalid, fmt.Errorf("username cannot be longer than 16 chars")
 	}

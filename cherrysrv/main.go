@@ -30,7 +30,6 @@ var (
 	ERROR  CustomLogger
 	DEBUG  CustomLogger
 	LOGGER CustomLogger
-	DB     CustomLogger
 )
 
 type do_command func(*Client, string)
@@ -44,7 +43,7 @@ var (
 )
 
 const (
-	VERSION   = "1.0.1"
+	VERSION   = "2.0.0"
 	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -58,9 +57,18 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	var srvaddr string
+	var help bool
 
-	flag.StringVar(&srvaddr, "srvaddr", "0.0.0.0:1512", "<address:port> for tcp4 server")
+
+	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
+	flag.BoolVar(&help, "help", false, "show this help")
+
 	flag.Parse()
+
+	if help || len(srvaddr) == 0 {
+		flag.PrintDefaults()
+		return
+	}
 
 	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
@@ -82,7 +90,7 @@ func main() {
 		conn, err := server.AcceptTCP()
 		if err != nil {
 			WARN.Printf("Unable to accept connection on localhost:1512 (%s)", err)
-			return
+			continue
 		}
 		go newClient(conn).clientLoop()
 	}
@@ -136,8 +144,6 @@ func update_log_level(logger string, onoff string) error {
 		WARN.SetActive(newstatus)
 	case "error":
 		ERROR.SetActive(newstatus)
-	case "db":
-		DB.SetActive(newstatus)
 	case "debug":
 		DEBUG.SetActive(newstatus)
 
@@ -193,12 +199,12 @@ func SignalHandler(sigchan chan os.Signal) {
 
 		case syscall.SIGTERM:
 			WARN.Println("Got SIGTERM. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
+			os.Exit(143)
 		case syscall.SIGINT:
 			WARN.Println("Got SIGINT. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
+			os.Exit(137)
 		default:
 			INFO.Printf("Received signal %s. No action taken.", signal)
 		}
