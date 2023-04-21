@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -50,7 +51,7 @@ func (clt *Client) Close() {
 // https://github.com/uber-go/ratelimit
 func (clt *Client) clientLoop() {
 
-	clt.OKPrintf("welcome to cherry server %s # %s", clt.name, STRINGVER)
+	clt.Say(">#main>!welcome>welcome to cherry server %s # %s", clt.name, STRINGVER)
 
 	for {
 
@@ -61,7 +62,8 @@ func (clt *Client) clientLoop() {
 
 		line, err := clt.read()
 		if err != nil {
-			INFO.Printf("%s disconnected (%s)", clt.name, clt.conn.RemoteAddr())
+			INFO.Printf("@%s disconnected (%s)", clt.name, clt.conn.RemoteAddr())
+			clt.BroadcastButMe(">#main>!disconnect>@%s disconnected", clt.name)
 			clt.Close()
 
 			return
@@ -76,59 +78,68 @@ func (clt *Client) clientLoop() {
 		command, err = exec(clt, command, args)
 
 		if err != nil {
-			clt.FAILPrintf("command %s does not exist", command)
+			clt.Say(">/%s>0>command %s does not exist", command, command)
 
 			continue // no really needed, but for consistency.
 		}
 	}
 }
 
-// func (clt *Client) OKPrintf(Line string) {
-func (clt *Client) OKPrintf(format string, args ...interface{}) {
+// Send a message to the client
+func (clt *Client) Say(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	clt.Write(">info>srv>" + line + "\n")
+	clt.Write(line + "\n")
 }
 
-func (clt *Client) FAILPrintf(format string, args ...interface{}) {
+// Send len(Lines) with a lead message to the client
+func (clt *Client) SayN(lead string, Lines []string) {
 
-	line := fmt.Sprintf(format, args...)
+	NumElems := len(Lines)
 
-	clt.Write(">info>srv>" + line + "\n")
-}
-
-func (clt *Client) OKPrintfN(Lines []string) {
+	if NumElems == 0 {
+		return
+	}
+	var output strings.Builder
+	NumElems -= 1 // we count from NumElems-1 to 0
 
 	for _, line := range Lines {
-		clt.Write(">info>srv>" + line + "\n")
+		num := fmt.Sprintf("%d", NumElems)
+		output.WriteString(lead + num + ">" + line + "\n")
+		NumElems -= 1
 	}
+
+	clt.Write(output.String())
 
 }
 
-// Write a message to the client to be sent back to the player via websocket
+// Write a message to the client. Limited to 255 chars.
 func (clt *Client) Write(line string) (n int, err error) {
+
+	if len(line) == 0 {
+		return
+	}
 
 	data := []byte(line)
 
-	length := len(data)
-
-	if length != 0 {
-		clt.conn_mutex.Lock() // TODO: do we need this lock? We needed if for websocket.
-		clt.conn.Write(data)
-		clt.conn_mutex.Unlock()
+	if len(data) > 255 {
+		data = data[:255]
 	}
 
-	return length, nil
+	clt.conn_mutex.Lock() // TODO: do we need this lock? We needed if for websocket.
+	DataLength, err := clt.conn.Write(data)
+	clt.conn_mutex.Unlock()
 
+	return DataLength, err
 }
 
 // check if client is logged
-
 func (clt *Client) isLogged() bool {
 	return clt.status == USER_LOGGED
 }
 
+// Read message sent by client, limited to 255 chars
 func (client *Client) read() (string, error) {
 
 	netData, err := bufio.NewReader(client.conn).ReadString('\n')
@@ -141,24 +152,18 @@ func (client *Client) read() (string, error) {
 }
 
 // to be used by the server, send a message to everyone connected (including the sender)
-func (clt *Client) Broadcast(format string, args ...interface{}) {
-
-	Broadcast(format, args...)
-}
-
-// to be used by the server, send a message to everyone connected (including the sender)
 // when there's no client associated (CRTL-C)
 
 func Broadcast(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	OobBroadcast := func(key string, clt *Client) bool {
-		clt.OKPrintf(line + "\n")
+	broadcast := func(key string, clt *Client) bool {
+		clt.Say(line + "\n")
 		return true
 	}
 
-	CLIENTS.Range(OobBroadcast)
+	CLIENTS.Range(broadcast)
 }
 
 // to be user by the server, send a message to everyone connected (excluding the sender)
@@ -166,7 +171,7 @@ func (clt *Client) BroadcastButMe(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	OobBroadcast := func(key string, client *Client) bool {
+	broadcast := func(key string, client *Client) bool {
 
 		if clt == client { // we don't want to send the message to us
 			return true
@@ -176,7 +181,7 @@ func (clt *Client) BroadcastButMe(format string, args ...interface{}) {
 		return true
 	}
 
-	CLIENTS.Range(OobBroadcast)
+	CLIENTS.Range(broadcast)
 }
 
 // to be user by the users, send a message to everyone USER_LOGGED but the client.
@@ -184,18 +189,18 @@ func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	OobBroadcast := func(key string, client *Client) bool {
+	say := func(key string, client *Client) bool {
 
 		if clt == client { // we don't want to send the message to us
 			return true
 		}
 
 		if clt.isLogged() { // we want to send the message only to
-			client.Write(">main>" + clt.name + ">" + line + "\n")
+			client.Write(">main>@" + clt.name + ">" + line + "\n")
 		}
 
 		return true
 	}
 
-	CLIENTS.Range(OobBroadcast)
+	CLIENTS.Range(say)
 }
