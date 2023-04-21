@@ -44,7 +44,7 @@ var (
 )
 
 const (
-	VERSION   = "1.0.1"
+	VERSION   = "2.0.0"
 	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -193,11 +193,11 @@ func SignalHandler(sigchan chan os.Signal) {
 
 		case syscall.SIGTERM:
 			WARN.Println("Got SIGTERM. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
 			os.Exit(0)
 		case syscall.SIGINT:
 			WARN.Println("Got SIGINT. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
 			os.Exit(0)
 		default:
 			INFO.Printf("Received signal %s. No action taken.", signal)
