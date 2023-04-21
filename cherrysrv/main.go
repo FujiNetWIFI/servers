@@ -88,7 +88,7 @@ func main() {
 		conn, err := server.AcceptTCP()
 		if err != nil {
 			WARN.Printf("Unable to accept connection on localhost:1512 (%s)", err)
-			return
+			continue
 		}
 		go newClient(conn).clientLoop()
 	}
@@ -198,11 +198,11 @@ func SignalHandler(sigchan chan os.Signal) {
 		case syscall.SIGTERM:
 			WARN.Println("Got SIGTERM. Program will terminate cleanly now.")
 			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			os.Exit(143)
 		case syscall.SIGINT:
 			WARN.Println("Got SIGINT. Program will terminate cleanly now.")
 			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			os.Exit(137)
 		default:
 			INFO.Printf("Received signal %s. No action taken.", signal)
 		}
