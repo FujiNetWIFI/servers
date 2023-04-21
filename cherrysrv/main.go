@@ -142,8 +142,6 @@ func update_log_level(logger string, onoff string) error {
 		WARN.SetActive(newstatus)
 	case "error":
 		ERROR.SetActive(newstatus)
-	case "db":
-		DB.SetActive(newstatus)
 	case "debug":
 		DEBUG.SetActive(newstatus)
 

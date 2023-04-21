@@ -78,7 +78,7 @@ func sys_log(clt *Client, args string) {
 	if no(args) {
 		status := []string{INFO.String(),
 			WARN.String(), ERROR.String(),
-			LOGGER.String(), DB.String(),
+			LOGGER.String(),
 			DEBUG.String(), LOGGER.String()}
 
 		clt.SayN(">/log>", status)
