@@ -58,9 +58,16 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	var srvaddr string
+	var help bool
 
-	flag.StringVar(&srvaddr, "srvaddr", "localhost:1512", "<address:port> for tcp4 server")
+	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
+	flag.BoolVar(&help, "help", false, "show this help")
 	flag.Parse()
+
+	if help || len(srvaddr) == 0 {
+		flag.PrintDefaults()
+		return
+	}
 
 	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
