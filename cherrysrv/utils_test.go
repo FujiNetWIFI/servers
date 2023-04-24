@@ -120,6 +120,7 @@ func Test_no(t *testing.T) {
 		{"Empty map int->string", map[int]string{}, true},
 		{"Slice of ints", []int{1, 2, 33}, false},
 		{"Map int->int", map[int]int{2: 3, 4: 5}, false},
+		{"Nil", nil, false},
 		{"Empty string", "", true},
 		{"String", "casa", false},
 	}

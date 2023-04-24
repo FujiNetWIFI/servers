@@ -32,7 +32,7 @@ func newClient(conn *net.TCPConn) *Client {
 		status: USER_NOTLOGGED,
 	}
 
-	INFO.Printf("%s has connected (%s)", client.name, client.conn.RemoteAddr())
+	INFO.Printf("@%s has connected (%s)", client.name, client.conn.RemoteAddr())
 
 	CLIENTS.Store(client.name, client)
 
