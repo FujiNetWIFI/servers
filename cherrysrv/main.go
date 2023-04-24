@@ -59,8 +59,10 @@ func main() {
 	var srvaddr string
 	var help bool
 
+
 	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
 	flag.BoolVar(&help, "help", false, "show this help")
+
 	flag.Parse()
 
 	if help || len(srvaddr) == 0 {
