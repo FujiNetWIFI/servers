@@ -120,13 +120,14 @@ func Test_no(t *testing.T) {
 		{"Empty map int->string", map[int]string{}, true},
 		{"Slice of ints", []int{1, 2, 33}, false},
 		{"Map int->int", map[int]int{2: 3, 4: 5}, false},
+		{"Nil", nil, true},
 		{"Empty string", "", true},
 		{"String", "casa", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := no(tt.x); got != tt.want {
-				t.Errorf("no2() = %v, want %v", got, tt.want)
+				t.Errorf("no() = %v, want %v", got, tt.want)
 			}
 		})
 	}

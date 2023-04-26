@@ -170,6 +170,10 @@ func contains[T comparable](haystack []T, needle T) bool {
 
 func no(x interface{}) bool {
 
+	if x == nil { // to check for nil interface
+		return true
+	}
+
 	v := reflect.ValueOf(x)
 	k := v.Kind()
 

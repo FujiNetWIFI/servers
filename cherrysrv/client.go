@@ -32,7 +32,7 @@ func newClient(conn *net.TCPConn) *Client {
 		status: USER_NOTLOGGED,
 	}
 
-	INFO.Printf("%s has connected (%s)", client.name, client.conn.RemoteAddr())
+	INFO.Printf("@%s has connected (%s)", client.name, client.conn.RemoteAddr())
 
 	CLIENTS.Store(client.name, client)
 
@@ -196,7 +196,7 @@ func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
 		}
 
 		if clt.isLogged() { // we want to send the message only to
-			client.Write(">main>@" + clt.name + ">" + line + "\n")
+			client.Write(">#main>@" + clt.name + ">" + line + "\n")
 		}
 
 		return true

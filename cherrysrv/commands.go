@@ -147,9 +147,16 @@ func do_login(clt *Client, args string) {
 	username, err := ValidUsername(args)
 
 	if err != nil {
-		clt.Say(err.Error())
-		WARN.Printf(">/login>0>@user %s unable to login due to: %s", args, err.Error())
+		clt.Say(">/login>0>@%s is not a valid username because %s", args, err.Error())
+		WARN.Printf("user %s unable to login due to: %s", args, err.Error())
 
+		return
+	}
+
+	_, ok := CLIENTS.Load(username)
+
+	if ok {
+		clt.Say(">/login>0>@%s is already taken, please select another @name", username)
 		return
 	}
 
