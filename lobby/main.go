@@ -57,11 +57,8 @@ func main() {
 
 	router.GET("/view", ShowServers)
 
-	err := router.Run(srvaddr)
+	router.Run(srvaddr)
 
-	if err != nil {
-		ERROR.Fatalf("Unable to start %s (%s)", srvaddr, err.Error())
-	}
 }
 
 /*
