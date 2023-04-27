@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type GameServer struct {
@@ -30,12 +28,26 @@ func newServer(gamename, servername, instance, status string, maxplayers, curpla
 	}
 }
 
-func init_dummy_servers() {
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Thom's Corner (demo)", "Table A - Humans", "Online", 8, 4, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Eric's Mock Server (demo)", "Table A - Bots!", "Online", 8, 1, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Eric's Backup Server (demo)", "Table C", "(Offline)", 0, 0, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("Battleship", "8bitBattleship.com (demo)", "Server A", "Online", 2, 1, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("Battleship", "8bitBattleship.com (demo)", "Server B", "Online", 2, 0, time.Now()))
+// servername + "#" + Instance
+func (s *GameServer) Key() string {
+	return s.Servername + "#" + s.Instance
+}
+
+func init_dummy_servers() int {
+
+	var DummyServers = []*GameServer{
+		newServer("5 CARD STUD (demo)", "thomcorner.com", "Table A - Humans", "online", 8, 4, time.Now()),
+		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table A - Bots!", "online", 8, 1, time.Now()),
+		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table C", "offline", 0, 0, time.Now()),
+		newServer("Battleship (demo)", "8bitBattleship.com", "Server A", "online", 2, 1, time.Now()),
+		newServer("Battleship (demo)", "8bitBattleship.com", "Server B", "online", 2, 0, time.Now()),
+	}
+
+	for _, server := range DummyServers {
+		GAMESRV.Store(server.Key(), server)
+	}
+
+	return GAMESRV.Count()
 }
 
 // Do additional checking
