@@ -1,22 +1,22 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type GameServer struct {
-	Gamename   string    `json:"gamename"`
-	Servername string    `json:"server"` // IP or name
-	Instance   string    `json:"instance"`
-	Status     string    `json:"status"`
-	Maxplayers int       `json:"maxplayers"`
-	Curplayers int       `json:"curplayers"`
-	Checked_at time.Time `json:"checkedat"`
+	Gamename   string    `json:"gamename" binding:"required,printascii"`
+	Servername string    `json:"server" binding:"required,hostname_rfc1123"`
+	Instance   string    `json:"instance" binding:"required,printascii"`
+	Status     string    `json:"status" binding:"required,oneof=online offline"`
+	Maxplayers int       `json:"maxplayers" binding:"required,numeric"`
+	Curplayers int       `json:"curplayers" binding:"required,numeric"`
+	LastPing   time.Time `json:"lastping" binding:"omitempty" `
 }
 
-func newServer(gamename, servername, instance, status string, maxplayers, curplayers int, checked_at time.Time) *GameServer {
+func newServer(gamename, servername, instance, status string, maxplayers, curplayers int, lastPing time.Time) *GameServer {
 	return &GameServer{
 		Gamename:   gamename,
 		Servername: servername,
@@ -24,14 +24,47 @@ func newServer(gamename, servername, instance, status string, maxplayers, curpla
 		Status:     status,
 		Maxplayers: maxplayers,
 		Curplayers: curplayers,
-		Checked_at: checked_at,
+		LastPing:   lastPing,
 	}
 }
 
-func init_dummy_servers() {
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Thom's Corner", "Table A - Humans", "Online", 8, 4, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Eric's Mock Server", "Table A - Bots!", "Online", 8, 1, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("5 CARD STUD", "Eric's Backup Server", "Table C", "(Offline)", 0, 0, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("Battleship", "8bitBattleship.com", "Server A", "Online", 2, 1, time.Now()))
-	GAMESRV.Store(uuid.New().String(), newServer("Battleship", "8bitBattleship.com", "Server B", "Online", 2, 0, time.Now()))
+// servername + "#" + Instance
+func (s *GameServer) Key() string {
+	return s.Servername + "#" + s.Instance
+}
+
+func init_dummy_servers() int {
+
+	var DummyServers = []*GameServer{
+		newServer("5 CARD STUD (demo)", "thomcorner.com", "Table A - Humans", "online", 8, 4, time.Now()),
+		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table A - Bots!", "online", 8, 1, time.Now()),
+		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table C", "offline", 0, 0, time.Now()),
+		newServer("Battleship (demo)", "8bitBattleship.com", "Server A", "online", 2, 1, time.Now()),
+		newServer("Battleship (demo)", "8bitBattleship.com", "Server B", "online", 2, 0, time.Now()),
+	}
+
+	for _, server := range DummyServers {
+		GAMESRV.Store(server.Key(), server)
+	}
+
+	return GAMESRV.Count()
+}
+
+// Do additional checking
+func (s *GameServer) CheckInput() (err error) {
+
+	// Key: 'GameServer.Gamename' Error:Field validation for 'Gamename' failed on the 'printascii' tag",
+	if s.Curplayers < 0 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' Error:Field validation for 'Curplayers' cannot be negative (%d)", s.Curplayers))
+	}
+
+	if s.Maxplayers < 0 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Maxplayers' Error:Field validation for 'Maxplayers' cannot be negative (%d)", s.Maxplayers))
+	}
+
+	if s.Curplayers > s.Maxplayers {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers and GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers))
+	}
+
+	return err
 }

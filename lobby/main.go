@@ -56,12 +56,10 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/view", ShowServers)
+	router.POST("/server", UpsertServer)
 
-	err := router.Run(srvaddr)
+	router.Run(srvaddr)
 
-	if err != nil {
-		ERROR.Fatalf("Unable to start %s (%s)", srvaddr, err.Error())
-	}
 }
 
 /*
