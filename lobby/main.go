@@ -56,6 +56,7 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/view", ShowServers)
+	router.POST("/server", UpsertServer)
 
 	router.Run(srvaddr)
 
