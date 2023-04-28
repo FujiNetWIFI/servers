@@ -35,14 +35,16 @@ func ShowServers(c *gin.Context) {
 func UpsertServer(c *gin.Context) {
 
 	/* JSON expected is:
-		{
-	    "gamename": "Battleship",
-	    "server": "8bitBattleship.com",
-	    "instance": "Server A",
-	    "status": "online",
-	    "maxplayers": 2,
-	    "curplayers": 1
-		}
+	    {
+	        "gametype": 1,
+	        "server": "Super Chess",
+	        "region": "eu",
+	        "serverurl": "chess.rogersm.net",
+	        "status": "online",
+	        "maxplayers": 2,
+	        "curplayers": 1,
+	        "lastping": "2023-04-28T11:43:32.242816+02:00"
+	    }
 
 		See check rules in model.go file.
 	*/

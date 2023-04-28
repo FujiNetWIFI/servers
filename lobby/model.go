@@ -47,7 +47,7 @@ func init_dummy_servers() int {
 		newServer(1, "5 CARD STUD (demo)", "us", "http://erichomeserver.com", "online", 8, 1, time.Now()),
 		newServer(1, "5 CARD STUD (demo)", "eu", "tcp://erichomeserver.com", "offline", 0, 0, time.Now()),
 		newServer(1, "Battleship (demo)", "asia", "tcps://8bitBattleship.com", "online", 2, 1, time.Now()),
-		newServer(1, "Battleship (demo)", "australia", "8bitBattleship.com", "online", 6, 1, time.Now()),
+		newServer(1, "Battleship (demo)", "au", "8bitBattleship.com", "online", 6, 1, time.Now()),
 	}
 
 	for _, server := range DummyServers {
