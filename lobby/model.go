@@ -7,26 +7,28 @@ import (
 )
 
 type GameServer struct {
-	Gametype   int       `json:"gametype" binding:"required,numeric"`
-	Server     string    `json:"server" binding:"required,printascii"`
-	Region     string    `json:"region" binding:"required,printascii"`
-	Serverurl  string    `json:"serverurl" binding:"required,hostname_rfc1123"`
-	Status     string    `json:"status" binding:"required,oneof=online offline"`
-	Maxplayers int       `json:"maxplayers" binding:"required,numeric"`
-	Curplayers int       `json:"curplayers" binding:"required,numeric"`
-	LastPing   time.Time `json:"lastping" binding:"omitempty" `
+	Gametype      int       `json:"gametype" binding:"required,numeric"`
+	Server        string    `json:"server" binding:"required,printascii"`
+	Region        string    `json:"region" binding:"required,printascii"`
+	Serverurl     string    `json:"serverurl" binding:"required,hostname_rfc1123"`
+	Gameclienturl string    `json:"gameclienturl" binding:"required,hostname_rfc1123"`
+	Status        string    `json:"status" binding:"required,oneof=online offline"`
+	Maxplayers    int       `json:"maxplayers" binding:"required,numeric"`
+	Curplayers    int       `json:"curplayers" binding:"required,numeric"`
+	LastPing      time.Time `json:"lastping" binding:"omitempty" `
 }
 
-func newServer(gametype int, server, region, url, status string, maxplayers, curplayers int, lastPing time.Time) *GameServer {
+func newServer(gametype int, server, region, serverurl, clienturl, status string, maxplayers, curplayers int, lastPing time.Time) *GameServer {
 	return &GameServer{
-		Gametype:   gametype,
-		Server:     server,
-		Region:     region,
-		Serverurl:  url,
-		Status:     status,
-		Maxplayers: maxplayers,
-		Curplayers: curplayers,
-		LastPing:   lastPing,
+		Gametype:      gametype,
+		Server:        server,
+		Region:        region,
+		Serverurl:     serverurl,
+		Gameclienturl: clienturl,
+		Status:        status,
+		Maxplayers:    maxplayers,
+		Curplayers:    curplayers,
+		LastPing:      lastPing,
 	}
 }
 
@@ -43,11 +45,11 @@ func (s *GameServer) Order() string {
 func init_dummy_servers() int {
 
 	var DummyServers = []*GameServer{
-		newServer(1, "5 CARD STUD (demo)", "us", "https://thomcorner.com", "online", 8, 4, time.Now()),
-		newServer(1, "5 CARD STUD (demo)", "us", "http://erichomeserver.com", "online", 8, 1, time.Now()),
-		newServer(1, "5 CARD STUD (demo)", "eu", "tcp://erichomeserver.com", "offline", 0, 0, time.Now()),
-		newServer(1, "Battleship (demo)", "asia", "tcps://8bitBattleship.com", "online", 2, 1, time.Now()),
-		newServer(1, "Battleship (demo)", "au", "8bitBattleship.com", "online", 6, 1, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "us", "https://thomcorner.com", "TNFS://tnfs.carr-designs.com/5card.xex", "online", 8, 4, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "us", "http://erichomeserver.com", "TNFS://tnfs.carr-designs.com/5card.xex", "online", 8, 1, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "eu", "tcp://erichomeserver.com", "TNFS://tnfs.carr-designs.com/5card.xex", "offline", 0, 0, time.Now()),
+		newServer(1, "Battleship (demo)", "asia", "tcps://8bitBattleship.com", "TNFS://tnfs.8bitBattleship.com/battleship.xex", "online", 2, 1, time.Now()),
+		newServer(1, "Battleship (demo)", "au", "8bitBattleship.com", "TNFS://tnfs.8bitBattleship.com/battleship.xex", "online", 6, 1, time.Now()),
 	}
 
 	for _, server := range DummyServers {
