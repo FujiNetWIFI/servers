@@ -33,6 +33,11 @@ func (s *GameServer) Key() string {
 	return s.Servername + "#" + s.Instance
 }
 
+// create a order for sorting
+func (s *GameServer) Order() string {
+	return s.Status + "#" + s.LastPing.String()
+}
+
 func init_dummy_servers() int {
 
 	var DummyServers = []*GameServer{

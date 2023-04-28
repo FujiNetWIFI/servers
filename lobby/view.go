@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,14 +15,18 @@ func ShowServers(c *gin.Context) {
 
 	var output []GameServer
 
-	broadcast := func(key string, server *GameServer) bool {
+	servers := func(key string, server *GameServer) bool {
 
 		output = append(output, *server)
 
 		return true
 	}
 
-	GAMESRV.Range(broadcast)
+	GAMESRV.Range(servers)
+
+	sort.SliceStable(output, func(i, j int) bool {
+		return output[i].Order() > output[j].Order()
+	})
 
 	c.IndentedJSON(http.StatusOK, output)
 }
@@ -34,7 +39,7 @@ func UpsertServer(c *gin.Context) {
 	    "gamename": "Battleship",
 	    "server": "8bitBattleship.com",
 	    "instance": "Server A",
-	    "status": "Online",
+	    "status": "online",
 	    "maxplayers": 2,
 	    "curplayers": 1
 		}
