@@ -7,20 +7,22 @@ import (
 )
 
 type GameServer struct {
-	Gamename   string    `json:"gamename" binding:"required,printascii"`
-	Servername string    `json:"server" binding:"required,hostname_rfc1123"`
-	Instance   string    `json:"instance" binding:"required,printascii"`
+	Gametype   int       `json:"gametype" binding:"required,numeric"`
+	Server     string    `json:"server" binding:"required,printascii"`
+	Region     string    `json:"region" binding:"required,printascii"`
+	Serverurl  string    `json:"serverurl" binding:"required,hostname_rfc1123"`
 	Status     string    `json:"status" binding:"required,oneof=online offline"`
 	Maxplayers int       `json:"maxplayers" binding:"required,numeric"`
 	Curplayers int       `json:"curplayers" binding:"required,numeric"`
 	LastPing   time.Time `json:"lastping" binding:"omitempty" `
 }
 
-func newServer(gamename, servername, instance, status string, maxplayers, curplayers int, lastPing time.Time) *GameServer {
+func newServer(gametype int, server, region, url, status string, maxplayers, curplayers int, lastPing time.Time) *GameServer {
 	return &GameServer{
-		Gamename:   gamename,
-		Servername: servername,
-		Instance:   instance,
+		Gametype:   gametype,
+		Server:     server,
+		Region:     region,
+		Serverurl:  url,
 		Status:     status,
 		Maxplayers: maxplayers,
 		Curplayers: curplayers,
@@ -28,9 +30,9 @@ func newServer(gamename, servername, instance, status string, maxplayers, curpla
 	}
 }
 
-// servername + "#" + Instance
+// we index by Serverurl because it's unique
 func (s *GameServer) Key() string {
-	return s.Servername + "#" + s.Instance
+	return s.Serverurl
 }
 
 // create a order for sorting
@@ -41,11 +43,11 @@ func (s *GameServer) Order() string {
 func init_dummy_servers() int {
 
 	var DummyServers = []*GameServer{
-		newServer("5 CARD STUD (demo)", "thomcorner.com", "Table A - Humans", "online", 8, 4, time.Now()),
-		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table A - Bots!", "online", 8, 1, time.Now()),
-		newServer("5 CARD STUD (demo)", "erichomeserver.com", "Table C", "offline", 0, 0, time.Now()),
-		newServer("Battleship (demo)", "8bitBattleship.com", "Server A", "online", 2, 1, time.Now()),
-		newServer("Battleship (demo)", "8bitBattleship.com", "Server B", "online", 2, 0, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "us", "https://thomcorner.com", "online", 8, 4, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "us", "http://erichomeserver.com", "online", 8, 1, time.Now()),
+		newServer(1, "5 CARD STUD (demo)", "eu", "tcp://erichomeserver.com", "offline", 0, 0, time.Now()),
+		newServer(1, "Battleship (demo)", "asia", "tcps://8bitBattleship.com", "online", 2, 1, time.Now()),
+		newServer(1, "Battleship (demo)", "australia", "8bitBattleship.com", "online", 6, 1, time.Now()),
 	}
 
 	for _, server := range DummyServers {
@@ -58,7 +60,6 @@ func init_dummy_servers() int {
 // Do additional checking
 func (s *GameServer) CheckInput() (err error) {
 
-	// Key: 'GameServer.Gamename' Error:Field validation for 'Gamename' failed on the 'printascii' tag",
 	if s.Curplayers < 0 {
 		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' Error:Field validation for 'Curplayers' cannot be negative (%d)", s.Curplayers))
 	}
