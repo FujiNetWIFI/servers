@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +23,6 @@ func ShowServersLobbyClient(c *gin.Context, sortedServerList []GameServer, platf
 
 				// Create a copy of the server to change for this client's response
 				serverMin := GameServerMin{
-					Id:         server.Id,
 					Game:       server.Game,
 					Gametype:   server.Gametype,
 					Serverurl:  server.Serverurl,
@@ -108,9 +106,7 @@ func UpsertServer(c *gin.Context) {
 	}
 
 	server.LastPing = time.Now()
-	if server.Id == 0 {
-		server.Id = int(atomic.AddInt32(&SERVER_ID_COUNTER, 1))
-	}
+
 	GAMESRV.Store(server.Key(), &server)
 
 	c.JSON(http.StatusAccepted, gin.H{"success": true,

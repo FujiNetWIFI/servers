@@ -23,10 +23,9 @@ var (
 )
 
 var (
-	GAMESRV           cmap.Map[string, *GameServer] // to store game servers
-	SCHEDULER         *tasks.Scheduler
-	TIME              uint64
-	SERVER_ID_COUNTER int32
+	GAMESRV   cmap.Map[string, *GameServer] // to store game servers
+	SCHEDULER *tasks.Scheduler
+	TIME      uint64
 )
 
 const (

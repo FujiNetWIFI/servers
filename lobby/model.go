@@ -3,13 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 )
 
 type GameServer struct {
 	// Internally added properties
-	Id       int
 	LastPing time.Time `json:"lastping" binding:"omitempty" `
 
 	// Properties being sent from Game Server
@@ -31,7 +29,6 @@ type GameClient struct {
 
 // Minified Structure to send to 8-bit Lobby Client
 type GameServerMin struct {
-	Id         int    `json:"i"`
 	Game       string `json:"g"`
 	Gametype   int    `json:"t"`
 	Serverurl  string `json:"u"`
@@ -56,7 +53,6 @@ func newServer(game string, gametype int, server, region, url, status string, ma
 		Curplayers: curplayers,
 		LastPing:   LastPing,
 		Clients:    clients,
-		Id:         int(atomic.AddInt32(&SERVER_ID_COUNTER, 1)),
 	}
 }
 
