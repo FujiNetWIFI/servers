@@ -24,6 +24,7 @@ func ShowServers(c *gin.Context) {
 
 	GAMESRV.Range(servers)
 
+	// output should be: online first, offline last. Inside each category, newer last ping goes first
 	sort.SliceStable(output, func(i, j int) bool {
 		return output[i].Order() > output[j].Order()
 	})
