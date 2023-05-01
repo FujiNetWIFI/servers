@@ -5,23 +5,60 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+func ShowServersLobbyClient(c *gin.Context, sortedServerList []GameServer, platform string) {
+
+	var serverList []GameServerMin
+
+	for _, server := range sortedServerList {
+		// We only return this server if a game client for this platform exists
+
+		// Find the appropriate client for this platform
+		for _, client := range server.Clients {
+			if strings.EqualFold(client.Platform, platform) {
+
+				// Create a copy of the server to change for this client's response
+				serverMin := GameServerMin{
+					Id:         server.Id,
+					Game:       server.Game,
+					Gametype:   server.Gametype,
+					Serverurl:  server.Serverurl,
+					Client:     client.Url,
+					Server:     server.Server,
+					Region:     server.Region,
+					Maxplayers: server.Maxplayers,
+					Curplayers: server.Curplayers,
+					Pingage:    int(time.Since(server.LastPing).Seconds()),
+				}
+
+				if strings.EqualFold(server.Status, "online") {
+					serverMin.Online = 1
+				}
+
+				serverList = append(serverList, serverMin)
+				break
+			}
+		}
+
+	}
+
+	c.JSON(http.StatusOK, serverList)
+}
+
 // sent the game servers stored to the client
 func ShowServers(c *gin.Context) {
 
+	// Created sorted list of servers
 	var output []GameServer
-
 	servers := func(key string, server *GameServer) bool {
-
 		output = append(output, *server)
-
 		return true
 	}
-
 	GAMESRV.Range(servers)
 
 	// output should be: online first, offline last. Inside each category, newer last ping goes first
@@ -29,7 +66,13 @@ func ShowServers(c *gin.Context) {
 		return output[i].Order() > output[j].Order()
 	})
 
-	c.IndentedJSON(http.StatusOK, output)
+	// Return minified server result for 8-Bit Lobby Clients
+	platform := c.Query("platform")
+	if len(platform) > 0 {
+		ShowServersLobbyClient(c, output, platform)
+	} else {
+		c.IndentedJSON(http.StatusOK, output)
+	}
 }
 
 // insert/update uploaded server to the database
@@ -44,7 +87,6 @@ func UpsertServer(c *gin.Context) {
 	        "status": "online",
 	        "maxplayers": 2,
 	        "curplayers": 1,
-	        "lastping": "2023-04-28T11:43:32.242816+02:00"
 	    }
 
 		See check rules in model.go file.
@@ -66,7 +108,9 @@ func UpsertServer(c *gin.Context) {
 	}
 
 	server.LastPing = time.Now()
-
+	if server.Id == 0 {
+		server.Id = int(atomic.AddInt32(&SERVER_ID_COUNTER, 1))
+	}
 	GAMESRV.Store(server.Key(), &server)
 
 	c.JSON(http.StatusAccepted, gin.H{"success": true,

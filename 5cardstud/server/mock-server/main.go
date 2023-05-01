@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +33,9 @@ func main() {
 		log.Printf("defaulting to port %s", port)
 	}
 
-	router.Run(":8080")
+	createInitialTables()
+
+	router.Run(":" + port)
 }
 
 // Api Request steps
@@ -79,6 +82,10 @@ func getState(c *gin.Context, playerCount int) *gameState {
 	if table == "" {
 		table = "default"
 	}
+	return getTableState(table, playerCount)
+}
+
+func getTableState(table string, playerCount int) *gameState {
 	value, ok := stateMap.Load(table)
 
 	var state *gameState
@@ -92,10 +99,12 @@ func getState(c *gin.Context, playerCount int) *gameState {
 			} else {
 				state.updatePlayerCount(playerCount)
 			}
+			updateLobby(state, table)
 		}
 	} else {
 		state = createGameState(playerCount)
 		state.table = table
+		updateLobby(state, table)
 	}
 
 	//player := c.Query("player")
@@ -105,4 +114,16 @@ func getState(c *gin.Context, playerCount int) *gameState {
 
 func saveState(state *gameState) {
 	stateMap.Store(state.table, state)
+}
+
+func updateLobby(state *gameState, table string) {
+	sendStateToLobby(8, len(state.Players)-1, true, " Table "+table, "?table="+table+"&count="+strconv.Itoa(len(state.Players)))
+}
+
+func createInitialTables() {
+	getTableState("2", 8)
+	time.Sleep(time.Second)
+	getTableState("1", 4)
+	time.Sleep(time.Second)
+	sendStateToLobby(2, 0, false, " Test", "?table=bu")
 }

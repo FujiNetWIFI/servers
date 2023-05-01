@@ -482,6 +482,11 @@ func (state *gameState) performMove(move string) bool {
 			raise = HIGH
 		} else if move == "BL" || move == "RL" {
 			raise = LOW
+			if state.Pot == BRINGIN {
+				// If betting LOW the very first time and the pot is BRINGIN
+				// just make their bet enough to make the total bet LOW
+				raise = -BRINGIN
+			}
 		} else if move == "BB" {
 			raise = BRINGIN
 		}
