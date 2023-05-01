@@ -66,25 +66,6 @@ func (s *GameServer) Order() string {
 	return s.Status + "#" + s.LastPing.String()
 }
 
-func init_dummy_servers() int {
-
-	var DummyServers = []*GameServer{
-		/*
-			newServer("5 Card Stud", 1, "Mock Server (Bots) Table 1", "us", "https://5card.carr-designs.com/?table=1&count=3", "online", 4, 3, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"}}),
-			newServer("5 Card Stud", 1, "Mock Server (Bots) Table 2", "au", "https://5card.carr-designs.com/?table=2&count=7", "online", 8, 7, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"}}),
-			newServer("Battleship", 1, "8-Bit BattleServer", "eu", "https://localhost#1", "offline", 0, 0, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-			newServer("Connect 4", 1, "Thom's Corner", "us", "https://localhost#2", "online", 2, 1, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-			newServer("Light Cycle", 1, "TRON Fan Group Server", "us", "https://localhost#3", "online", 2, 0, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-		*/
-	}
-
-	for _, server := range DummyServers {
-		GAMESRV.Store(server.Key(), server)
-	}
-
-	return GAMESRV.Count()
-}
-
 // Do additional checking
 func (s *GameServer) CheckInput() (err error) {
 

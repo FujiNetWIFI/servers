@@ -38,7 +38,6 @@ func main() {
 	init_logger()
 	init_os_signal()
 	init_scheduler()
-	init_dummy_servers()
 
 	var srvaddr string
 	var help bool
