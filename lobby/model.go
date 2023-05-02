@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 	"time"
 )
@@ -116,24 +117,28 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	if s.Gametype < 1 || s.Gametype > 255 {
-		err = errors.Join(err, fmt.Errorf("'gametype' must be between 1 and 255"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GamServer.Gametype' Error: Field validation length must be between 1 and 255"))
 	}
 
 	if len(s.Game) > 12 {
-		err = errors.Join(err, fmt.Errorf("'game' must be 12 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be 12 or less characters"))
 	}
 
 	if len(s.Server) > 32 {
-		err = errors.Join(err, fmt.Errorf("'server' must be 12 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.Server' Error: Field validation length must be 12 or less characters"))
 	}
 
 	if len(s.Serverurl) > 64 {
-		err = errors.Join(err, fmt.Errorf("'serverurl' must be 64 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters"))
 	}
 
 	for _, client := range s.Clients {
+
+		if _, err1 := url.ParseRequestURI(client.Url); err1 != nil {
+			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation has to be a valid url"))
+		}
 		if len(client.Url) > 64 {
-			err = errors.Join(err, fmt.Errorf("clients.url must be 64 or less characters"))
+			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation lentgh must be 64 or less characters"))
 		}
 	}
 
