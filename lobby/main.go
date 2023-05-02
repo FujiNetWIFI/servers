@@ -54,7 +54,8 @@ func main() {
 
 	router := gin.Default()
 
-	router.GET("/view", ShowServers)
+	router.GET("/viewFull", ShowServers)
+	router.GET("/view", ShowServersMinimised)
 	router.POST("/server", UpsertServer)
 
 	router.Run(srvaddr)

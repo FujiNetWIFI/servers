@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -41,21 +42,6 @@ type GameServerMin struct {
 	Pingage    int    `json:"a"`
 }
 
-func newServer(game string, gametype int, server, region, url, status string, maxplayers, curplayers int, LastPing time.Time, clients []GameClient) *GameServer {
-	return &GameServer{
-		Game:       game,
-		Gametype:   gametype,
-		Server:     server,
-		Region:     region,
-		Serverurl:  url,
-		Status:     status,
-		Maxplayers: maxplayers,
-		Curplayers: curplayers,
-		LastPing:   LastPing,
-		Clients:    clients,
-	}
-}
-
 // we index by Serverurl because it's unique
 func (s *GameServer) Key() string {
 	return s.Serverurl
@@ -64,6 +50,44 @@ func (s *GameServer) Key() string {
 // create a order for sorting
 func (s *GameServer) Order() string {
 	return s.Status + "#" + s.LastPing.String()
+}
+
+// output should be: online first, offline last. Inside each category, newer last ping goes first
+func SortServerSlice(gs *[]GameServer) {
+
+	sort.SliceStable(*gs, func(i, j int) bool {
+		return (*gs)[i].Order() > (*gs)[j].Order()
+	})
+}
+
+// Select platform and minimize file to send to 8 bit client
+func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool) {
+
+	for _, client := range s.Clients {
+		if client.Platform == platform {
+
+			online := 0
+
+			if s.Status == "online" {
+				online = 1
+			}
+
+			return GameServerMin{
+				Game:       s.Game,
+				Gametype:   s.Gametype,
+				Serverurl:  s.Serverurl,
+				Client:     client.Platform,
+				Server:     s.Server,
+				Region:     s.Region,
+				Online:     online,
+				Maxplayers: s.Maxplayers,
+				Curplayers: s.Curplayers,
+				Pingage:    int(time.Since(s.LastPing).Seconds()),
+			}, true
+		}
+	}
+
+	return minimised, false
 }
 
 // Do additional checking

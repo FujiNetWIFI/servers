@@ -3,92 +3,79 @@ package main
 import (
 	"errors"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ShowServersLobbyClient(c *gin.Context, sortedServerList []GameServer, platform string) {
+// send the game servers stored to the client minimised
+func ShowServersMinimised(c *gin.Context) {
 
-	var serverList []GameServerMin
+	// Return minified server result for 8-Bit Lobby Clients
+	platform := c.Query("platform")
+	if len(platform) == 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest,
+			gin.H{
+				"success": false, "message": "You need to submit a platform"})
 
-	for _, server := range sortedServerList {
-		// We only return this server if a game client for this platform exists
-
-		// Find the appropriate client for this platform
-		for _, client := range server.Clients {
-			if strings.EqualFold(client.Platform, platform) {
-
-				// Create a copy of the server to change for this client's response
-				serverMin := GameServerMin{
-					Game:       server.Game,
-					Gametype:   server.Gametype,
-					Serverurl:  server.Serverurl,
-					Client:     client.Url,
-					Server:     server.Server,
-					Region:     server.Region,
-					Maxplayers: server.Maxplayers,
-					Curplayers: server.Curplayers,
-					Pingage:    int(time.Since(server.LastPing).Seconds()),
-				}
-
-				if strings.EqualFold(server.Status, "online") {
-					serverMin.Online = 1
-				}
-
-				serverList = append(serverList, serverMin)
-				break
-			}
-		}
-
+		return
 	}
 
-	c.JSON(http.StatusOK, serverList)
-}
-
-// sent the game servers stored to the client
-func ShowServers(c *gin.Context) {
-
-	// Created sorted list of servers
-	var output []GameServer
+	var ServerSlice []GameServer
 	servers := func(key string, server *GameServer) bool {
-		output = append(output, *server)
+		ServerSlice = append(ServerSlice, *server)
 		return true
 	}
 	GAMESRV.Range(servers)
 
-	// output should be: online first, offline last. Inside each category, newer last ping goes first
-	sort.SliceStable(output, func(i, j int) bool {
-		return output[i].Order() > output[j].Order()
-	})
+	SortServerSlice(&ServerSlice)
 
-	// Return minified server result for 8-Bit Lobby Clients
-	platform := c.Query("platform")
-	if len(platform) > 0 {
-		ShowServersLobbyClient(c, output, platform)
-	} else {
-		c.IndentedJSON(http.StatusOK, output)
+	var ServerMinSlice []GameServerMin
+
+	for _, server := range ServerSlice {
+		if ServerMinimised, ok := server.Minimize(platform); ok {
+			ServerMinSlice = append(ServerMinSlice, ServerMinimised)
+		}
 	}
+
+	if len(ServerMinSlice) == 0 {
+		c.AbortWithStatusJSON(http.StatusNoContent,
+			gin.H{
+				"success": false, "message": "No servers available for " + platform})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, ServerMinSlice)
+}
+
+// send the game servers stored to the client in full
+func ShowServers(c *gin.Context) {
+
+	if GAMESRV.Count() == 0 {
+		c.AbortWithStatusJSON(http.StatusNoContent,
+			gin.H{
+				"success": false, "message": "No servers available"})
+
+		return
+	}
+
+	var ServerSlice []GameServer
+	servers := func(key string, server *GameServer) bool {
+		ServerSlice = append(ServerSlice, *server)
+		return true
+	}
+	GAMESRV.Range(servers)
+
+	SortServerSlice(&ServerSlice)
+
+	c.IndentedJSON(http.StatusOK, ServerSlice)
 }
 
 // insert/update uploaded server to the database
 func UpsertServer(c *gin.Context) {
 
-	/* JSON expected is:
-	    {
-	        "gametype": 1,
-	        "server": "Super Chess",
-	        "region": "eu",
-	        "serverurl": "chess.rogersm.net",
-	        "status": "online",
-	        "maxplayers": 2,
-	        "curplayers": 1,
-	    }
-
-		See check rules in model.go file.
-	*/
 	server := GameServer{}
 
 	err1 := c.ShouldBindJSON(&server)
