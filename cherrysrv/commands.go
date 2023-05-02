@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
-	"time"
 )
 
 func init_commands() {
@@ -11,6 +9,7 @@ func init_commands() {
 	COMMANDS["logoff"] = do_logoff
 	COMMANDS["who"] = do_who
 	COMMANDS["users"] = do_users
+	COMMANDS["nusers"] = do_nusers
 	COMMANDS["say"] = do_say
 	COMMANDS["clock"] = do_clock
 	COMMANDS["help"] = do_help
@@ -19,7 +18,7 @@ func init_commands() {
 
 func do_help(clt *Client, args string) {
 
-	clt.OKPrintfN([]string{"/login <email> - login to cherry server",
+	clt.SayN(">/help>", []string{"/login <email> - login to cherry server",
 		"/who                       - show my nickname",
 		"/help                      - this command",
 		"/users                     - who is logged?",
@@ -27,34 +26,62 @@ func do_help(clt *Client, args string) {
 
 }
 
+// show internal timer
 func do_clock(clt *Client, args string) {
 
 	if !clt.isLogged() {
-		clt.FAILPrintf("/clock requires you to be logged")
+		clt.Say(">/clock>0>/clock requires you to be logged")
 
 		return
 	}
 
-	clt.OKPrintf("%d", TIME)
+	clt.Say(">/clock>0>%d", TIME)
 }
 
+// count number of users logged
+func do_nusers(clt *Client, args string) {
+
+	if !clt.isLogged() {
+		clt.Say(">/nusers>0>/nusers requires you to be logged")
+
+		return
+	}
+
+	/* Do command */
+
+	NumUsers := 0
+
+	CountUsers := func(key string, v *Client) bool {
+
+		// we don't want to count users that are logging out
+		if v.status != USER_LOGGINOUT {
+			NumUsers++
+		}
+
+		return true
+	}
+
+	CLIENTS.Range(CountUsers)
+
+	clt.Say(">/nusers>0>%d", NumUsers)
+}
+
+// talk to other logged users
 func do_say(clt *Client, args string) {
 
-	now := time.Now().Format("15:04:05")
-	line := fmt.Sprintf("%s : %s : %s\n", clt.name, now, args)
-
-	clt.SayToAllButMe(line)
+	clt.SayToAllButMe(args)
 }
 
+// update login levels. Unused for now
 func sys_log(clt *Client, args string) {
 
 	if no(args) {
 		status := []string{INFO.String(),
 			WARN.String(), ERROR.String(),
-			LOGGER.String(), DB.String(),
+			LOGGER.String(),
 			DEBUG.String(), LOGGER.String()}
 
-		clt.OKPrintfN(status)
+		clt.SayN(">/log>", status)
 
 		return
 	}
@@ -66,18 +93,19 @@ func sys_log(clt *Client, args string) {
 	err := update_log_level(logger, onoff)
 
 	if err != nil {
-		clt.FAILPrintf("unable to change %s to %s", logger, onoff)
+		clt.Say(">/log>0>unable to change %s to %s", logger, onoff)
 		return
 	}
 
-	clt.OKPrintf("loglevel updated: %s to %s", logger, onoff)
+	clt.Say(">/log>0>loglevel updated: %s to %s", logger, onoff)
 
 }
 
+// show logged users
 func do_users(clt *Client, args string) {
 
 	if !clt.isLogged() {
-		clt.FAILPrintf("/users requires you to be logged")
+		clt.Say(">/users>0>/users requires you to be logged")
 
 		return
 	}
@@ -87,27 +115,31 @@ func do_users(clt *Client, args string) {
 	var out []string
 
 	print_key := func(key string, v *Client) bool {
-		out = append(out, key)
+
+		if v.status != USER_LOGGINOUT {
+			out = append(out, "@"+key)
+		}
 		return true
 	}
 
 	CLIENTS.Range(print_key)
 
-	clt.OKPrintfN(out)
+	clt.SayN(">/users>", out)
 }
 
+// login user. No password required
 func do_login(clt *Client, args string) {
 
 	/* Check params */
 
 	if clt.isLogged() {
-		clt.FAILPrintf("you're already logged in")
+		clt.Say(">/login>0>you're already logged in")
 
 		return
 	}
 
 	if no(args) {
-		clt.OKPrintf("/login <email>")
+		clt.Say(">/login>0>/login <account>")
 
 		return
 	}
@@ -115,9 +147,16 @@ func do_login(clt *Client, args string) {
 	username, err := ValidUsername(args)
 
 	if err != nil {
-		clt.FAILPrintf(err.Error())
-		WARN.Printf("User %s unable to login due to: %s", args, err.Error())
+		clt.Say(">/login>0>@%s is not a valid username because %s", args, err.Error())
+		WARN.Printf("user %s unable to login due to: %s", args, err.Error())
 
+		return
+	}
+
+	_, ok := CLIENTS.Load(username)
+
+	if ok {
+		clt.Say(">/login>0>@%s is already taken, please select another @name", username)
 		return
 	}
 
@@ -132,26 +171,30 @@ func do_login(clt *Client, args string) {
 
 	/* Update player */
 
-	clt.OKPrintf("you're new account is %s", clt.name)
-	clt.SayToAllButMe(clt.name + "has joined the room")
+	clt.Say("/login>0>you're now @%s", clt.name)
+	clt.BroadcastButMe(">#main>!login>@%s has joined the room", clt.name)
 
-	INFO.Printf("%s has logged in as %s", oldName, clt.name)
+	INFO.Printf("%s has logged in as @%s", oldName, clt.name)
 }
 
+// logoff user
 func do_logoff(clt *Client, args string) {
 
 	/* Do command */
 	clt.status = USER_LOGGINOUT
 
-	clt.OKPrintf("Goodbye %s", clt.name)
+	clt.Say(">/logoff>0>Goodbye @%s", clt.name)
 
-	clt.SayToAllButMe(clt.name + "is leaving")
+	clt.BroadcastButMe(">#main>!logoff>@%s is leaving", clt.name)
+
+	INFO.Printf("@%s logged off (%s)", clt.name, clt.conn.RemoteAddr())
 
 	clt.Close()
 
 	runtime.Goexit()
 }
 
+// show name of logged user
 func do_who(clt *Client, args string) {
-	clt.OKPrintf(clt.name)
+	clt.Say(">/who>0>@%s", clt.name)
 }

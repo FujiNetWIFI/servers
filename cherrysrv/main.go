@@ -1,12 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -28,7 +30,6 @@ var (
 	ERROR  CustomLogger
 	DEBUG  CustomLogger
 	LOGGER CustomLogger
-	DB     CustomLogger
 )
 
 type do_command func(*Client, string)
@@ -41,6 +42,11 @@ var (
 	TIME      uint64
 )
 
+const (
+	VERSION   = "2.0.0"
+	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
+)
+
 func main() {
 
 	init_logger()
@@ -50,22 +56,41 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	ServerAddr, _ := net.ResolveTCPAddr("tcp", ":1512")
+	var srvaddr string
+	var help bool
 
-	server, err := net.ListenTCP("tcp4", ServerAddr)
+
+	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
+	flag.BoolVar(&help, "help", false, "show this help")
+
+	flag.Parse()
+
+	if help || len(srvaddr) == 0 {
+		flag.PrintDefaults()
+		return
+	}
+
+	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
-		ERROR.Fatalf("Unable to serve on localhost:1512 (%s)", err)
+		ERROR.Fatalf("Unable to resolve address on tcp4://%s (%s)", srvaddr, err)
+		return
+	}
+
+	server, err := net.ListenTCP("tcp4", TCPAddr)
+	if err != nil {
+		ERROR.Fatalf("Unable to serve on tcp4://%s (%s)", srvaddr, err)
 		return
 	}
 	defer server.Close()
 
-	INFO.Println("Ready to serve on localhost:1512")
+	INFO.Printf("Started %s", STRINGVER)
+	INFO.Printf("Ready to serve on tcp://%s (tcp)", srvaddr)
 
 	for {
 		conn, err := server.AcceptTCP()
 		if err != nil {
 			WARN.Printf("Unable to accept connection on localhost:1512 (%s)", err)
-			return
+			continue
 		}
 		go newClient(conn).clientLoop()
 	}
@@ -77,12 +102,11 @@ func main() {
 
 func init_logger() {
 
-	INFO = NewCustomLogger("info", "\u001b[32mINFO: \u001B[0m", log.LstdFlags)
-	WARN = NewCustomLogger("warn", "\u001b[33mWARN: \u001B[0m", log.LstdFlags)
-	ERROR = NewCustomLogger("error", "\u001b[31mERROR: \u001B[0m", log.LstdFlags)
-	LOGGER = NewCustomLogger("logger", "\u001b[35mLOGGER: \u001B[0m", log.LstdFlags)
-	DB = NewCustomLogger("db", "\u001b[31mDB: \u001B[0m", log.LstdFlags)
-	DEBUG = NewCustomLogger("debug", "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+	INFO = NewCustomLogger("info", "INFO: ", log.LstdFlags)
+	WARN = NewCustomLogger("warn", "WARN: ", log.LstdFlags)
+	ERROR = NewCustomLogger("error", "ERROR: ", log.LstdFlags)
+	LOGGER = NewCustomLogger("logger", "LOGGER: ", log.LstdFlags)
+	DEBUG = NewCustomLogger("debug", "DEBUG: ", log.LstdFlags|log.Lshortfile)
 
 	value, ok := os.LookupEnv("LOG_LEVEL")
 
@@ -120,8 +144,6 @@ func update_log_level(logger string, onoff string) error {
 		WARN.SetActive(newstatus)
 	case "error":
 		ERROR.SetActive(newstatus)
-	case "db":
-		DB.SetActive(newstatus)
 	case "debug":
 		DEBUG.SetActive(newstatus)
 
@@ -177,12 +199,12 @@ func SignalHandler(sigchan chan os.Signal) {
 
 		case syscall.SIGTERM:
 			WARN.Println("Got SIGTERM. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
+			os.Exit(143)
 		case syscall.SIGINT:
 			WARN.Println("Got SIGINT. Program will terminate cleanly now.")
-			Broadcast("Shutting down the server, it will re-start in a few minutes")
-			os.Exit(0)
+			Broadcast(">#main>!shutdown>Shutting down the server, it will re-start in a few minutes")
+			os.Exit(137)
 		default:
 			INFO.Printf("Received signal %s. No action taken.", signal)
 		}

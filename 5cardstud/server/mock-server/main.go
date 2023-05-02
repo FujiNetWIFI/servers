@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +33,9 @@ func main() {
 		log.Printf("defaulting to port %s", port)
 	}
 
-	router.Run(":8080")
+	createInitialTables()
+
+	router.Run(":" + port)
 }
 
 // Api Request steps
@@ -43,7 +47,7 @@ func main() {
 // Executes a move for the client player, if that player is currently active
 func apiMove(c *gin.Context) {
 
-	state := getState(c)
+	state := getState(c, 0)
 
 	// Access check - only move if the client is the active player
 	if state.clientPlayer == state.ActivePlayer {
@@ -57,8 +61,8 @@ func apiMove(c *gin.Context) {
 
 // Steps forward in the emulated game and returns the updated state
 func apiState(c *gin.Context) {
-
-	state := getState(c)
+	playerCount, _ := strconv.Atoi(c.DefaultQuery("count", "0"))
+	state := getState(c, playerCount)
 	state.emulateGame()
 	saveState(state)
 
@@ -68,32 +72,58 @@ func apiState(c *gin.Context) {
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
 func apiView(c *gin.Context) {
 
-	state := getState(c)
+	state := getState(c, 0)
 	c.IndentedJSON(http.StatusOK, state.createClientState())
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it
-func getState(c *gin.Context) *gameState {
+func getState(c *gin.Context, playerCount int) *gameState {
 	table := c.Query("table")
 	if table == "" {
 		table = "default"
 	}
+	return getTableState(table, playerCount)
+}
+
+func getTableState(table string, playerCount int) *gameState {
 	value, ok := stateMap.Load(table)
 
 	var state *gameState
 
 	if ok {
 		state = value.(*gameState)
+		if playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
+			if len(state.Players) > playerCount {
+				state = createGameState(playerCount)
+				state.table = table
+			} else {
+				state.updatePlayerCount(playerCount)
+			}
+			updateLobby(state, table)
+		}
 	} else {
-		state = initGameState()
+		state = createGameState(playerCount)
 		state.table = table
+		updateLobby(state, table)
 	}
 
 	//player := c.Query("player")
-	state.clientPlayer = 2
+	state.clientPlayer = 1
 	return state
 }
 
 func saveState(state *gameState) {
 	stateMap.Store(state.table, state)
+}
+
+func updateLobby(state *gameState, table string) {
+	sendStateToLobby(8, len(state.Players)-1, true, " Table "+table, "?table="+table+"&count="+strconv.Itoa(len(state.Players)))
+}
+
+func createInitialTables() {
+	getTableState("2", 8)
+	time.Sleep(time.Second)
+	getTableState("1", 4)
+	time.Sleep(time.Second)
+	sendStateToLobby(2, 0, false, " Test", "?table=bu")
 }
