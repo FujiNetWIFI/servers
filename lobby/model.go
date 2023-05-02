@@ -3,13 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"sync/atomic"
+	"net/url"
+	"sort"
 	"time"
 )
 
 type GameServer struct {
 	// Internally added properties
-	Id       int
 	LastPing time.Time `json:"lastping" binding:"omitempty" `
 
 	// Properties being sent from Game Server
@@ -31,7 +31,6 @@ type GameClient struct {
 
 // Minified Structure to send to 8-bit Lobby Client
 type GameServerMin struct {
-	Id         int    `json:"i"`
 	Game       string `json:"g"`
 	Gametype   int    `json:"t"`
 	Serverurl  string `json:"u"`
@@ -44,22 +43,6 @@ type GameServerMin struct {
 	Pingage    int    `json:"a"`
 }
 
-func newServer(game string, gametype int, server, region, url, status string, maxplayers, curplayers int, LastPing time.Time, clients []GameClient) *GameServer {
-	return &GameServer{
-		Game:       game,
-		Gametype:   gametype,
-		Server:     server,
-		Region:     region,
-		Serverurl:  url,
-		Status:     status,
-		Maxplayers: maxplayers,
-		Curplayers: curplayers,
-		LastPing:   LastPing,
-		Clients:    clients,
-		Id:         int(atomic.AddInt32(&SERVER_ID_COUNTER, 1)),
-	}
-}
-
 // we index by Serverurl because it's unique
 func (s *GameServer) Key() string {
 	return s.Serverurl
@@ -70,23 +53,42 @@ func (s *GameServer) Order() string {
 	return s.Status + "#" + s.LastPing.String()
 }
 
-func init_dummy_servers() int {
+// output should be: online first, offline last. Inside each category, newer last ping goes first
+func SortServerSlice(gs *[]GameServer) {
 
-	var DummyServers = []*GameServer{
-		/*
-			newServer("5 Card Stud", 1, "Mock Server (Bots) Table 1", "us", "https://5card.carr-designs.com/?table=1&count=3", "online", 4, 3, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"}}),
-			newServer("5 Card Stud", 1, "Mock Server (Bots) Table 2", "au", "https://5card.carr-designs.com/?table=2&count=7", "online", 8, 7, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"}}),
-			newServer("Battleship", 1, "8-Bit BattleServer", "eu", "https://localhost#1", "offline", 0, 0, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-			newServer("Connect 4", 1, "Thom's Corner", "us", "https://localhost#2", "online", 2, 1, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-			newServer("Light Cycle", 1, "TRON Fan Group Server", "us", "https://localhost#3", "online", 2, 0, time.Now(), []GameClient{{Platform: "atari", Url: "TNFS://192.168.2.41/atari/bship.xex"}}),
-		*/
+	sort.SliceStable(*gs, func(i, j int) bool {
+		return (*gs)[i].Order() > (*gs)[j].Order()
+	})
+}
+
+// Select platform and minimize file to send to 8 bit client
+func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool) {
+
+	for _, client := range s.Clients {
+		if client.Platform == platform {
+
+			online := 0
+
+			if s.Status == "online" {
+				online = 1
+			}
+
+			return GameServerMin{
+				Game:       s.Game,
+				Gametype:   s.Gametype,
+				Serverurl:  s.Serverurl,
+				Client:     client.Url,
+				Server:     s.Server,
+				Region:     s.Region,
+				Online:     online,
+				Maxplayers: s.Maxplayers,
+				Curplayers: s.Curplayers,
+				Pingage:    int(time.Since(s.LastPing).Seconds()),
+			}, true
+		}
 	}
 
-	for _, server := range DummyServers {
-		GAMESRV.Store(server.Key(), server)
-	}
-
-	return GAMESRV.Count()
+	return minimised, false
 }
 
 // Do additional checking
@@ -115,24 +117,28 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	if s.Gametype < 1 || s.Gametype > 255 {
-		err = errors.Join(err, fmt.Errorf("'gametype' must be between 1 and 255"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GamServer.Gametype' Error: Field validation length must be between 1 and 255"))
 	}
 
 	if len(s.Game) > 12 {
-		err = errors.Join(err, fmt.Errorf("'game' must be 12 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be 12 or less characters"))
 	}
 
 	if len(s.Server) > 32 {
-		err = errors.Join(err, fmt.Errorf("'server' must be 12 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.Server' Error: Field validation length must be 12 or less characters"))
 	}
 
 	if len(s.Serverurl) > 64 {
-		err = errors.Join(err, fmt.Errorf("'serverurl' must be 64 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters"))
 	}
 
 	for _, client := range s.Clients {
+
+		if _, err1 := url.ParseRequestURI(client.Url); err1 != nil {
+			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation has to be a valid url"))
+		}
 		if len(client.Url) > 64 {
-			err = errors.Join(err, fmt.Errorf("clients.url must be 64 or less characters"))
+			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation lentgh must be 64 or less characters"))
 		}
 	}
 
