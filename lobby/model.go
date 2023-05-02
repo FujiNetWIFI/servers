@@ -76,7 +76,7 @@ func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool
 				Game:       s.Game,
 				Gametype:   s.Gametype,
 				Serverurl:  s.Serverurl,
-				Client:     client.Platform,
+				Client:     client.Url,
 				Server:     s.Server,
 				Region:     s.Region,
 				Online:     online,

@@ -118,7 +118,7 @@ func init_os_signal() {
 	//   A. What does ignoring accomplish here? Is it just for your Dev environment (MacOS) ?
 	//   B. Is there anything to clean up before termination, or is this just standard boilerplate code you add to all projects?
 
-	//signal.Ignore(syscall.SIGURG, syscall.SIGWINCH) // SIGURG and SIGWINCH pop in macOS. Filter it out
+	signal.Ignore(syscall.SIGURG, syscall.SIGWINCH) // SIGURG and SIGWINCH pop in macOS. Filter it out
 
 	go SignalHandler(sigchnl)
 }

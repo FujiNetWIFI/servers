@@ -12,6 +12,15 @@ import (
 // send the game servers stored to the client minimised
 func ShowServersMinimised(c *gin.Context) {
 
+	if GAMESRV.Count() == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound,
+			gin.H{
+				"success": false, "message": "No servers available"})
+
+		return
+
+	}
+
 	// Return minified server result for 8-Bit Lobby Clients
 	platform := c.Query("platform")
 	if len(platform) == 0 {
@@ -40,7 +49,7 @@ func ShowServersMinimised(c *gin.Context) {
 	}
 
 	if len(ServerMinSlice) == 0 {
-		c.AbortWithStatusJSON(http.StatusNoContent,
+		c.AbortWithStatusJSON(http.StatusNotFound,
 			gin.H{
 				"success": false, "message": "No servers available for " + platform})
 
@@ -54,11 +63,12 @@ func ShowServersMinimised(c *gin.Context) {
 func ShowServers(c *gin.Context) {
 
 	if GAMESRV.Count() == 0 {
-		c.AbortWithStatusJSON(http.StatusNoContent,
+		c.AbortWithStatusJSON(http.StatusNotFound,
 			gin.H{
 				"success": false, "message": "No servers available"})
 
 		return
+
 	}
 
 	var ServerSlice []GameServer
