@@ -111,15 +111,6 @@ func init_os_signal() {
 	sigchnl := make(chan os.Signal, 1)
 	signal.Notify(sigchnl)
 
-	// (Eric 2023-4-30) Commenting below because SIGURL and SIGWINCH do not exist under Windows (my primary dev environment)
-	// Let's discuss options:
-	// 1. Can we add stub or conditional statement so it compiles?
-	// 2. Do we really need this?
-	//   A. What does ignoring accomplish here? Is it just for your Dev environment (MacOS) ?
-	//   B. Is there anything to clean up before termination, or is this just standard boilerplate code you add to all projects?
-
-	signal.Ignore(syscall.SIGURG, syscall.SIGWINCH) // SIGURG and SIGWINCH pop in macOS. Filter it out
-
 	go SignalHandler(sigchnl)
 }
 
@@ -136,8 +127,6 @@ func SignalHandler(sigchan chan os.Signal) {
 		case syscall.SIGINT:
 			WARN.Println("Got SIGINT. Program will terminate cleanly now.")
 			os.Exit(137)
-		default:
-			INFO.Printf("Received signal %s. No action taken.", signal)
 		}
 	}
 }
