@@ -25,8 +25,8 @@ type GameServer struct {
 }
 
 type GameClient struct {
-	Platform string `json:"platform" binding:"required,printascii`
-	Url      string `json:"url" binding:"required`
+	Platform string `json:"platform" binding:"required,printascii"`
+	Url      string `json:"url" binding:"required"`
 }
 
 // Minified Structure to send to 8-bit Lobby Client
