@@ -30,7 +30,7 @@ var (
 )
 
 const (
-	VERSION   = "3.1.0"
+	VERSION   = "3.1.1"
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 

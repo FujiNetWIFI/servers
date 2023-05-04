@@ -269,6 +269,8 @@ var GameServersOut = `"[
     }
 ]`
 
+var GameServersOutMin = `[{"g":"Battleship","t":1,"u":"https://8bitBattleship.com/battlehuman","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"apac","o":1,"m":2,"p":0},{"g":"5 CARD STUD","t":1,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1},{"g":"Battleship","t":1,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1},{"g":"Super Chess","t":1,"u":"http://chess.rogersm.net/server","c":"http://chess.rogersm.net/speccychess.xex","s":"chess.rogersm.net","r":"eu","o":1,"m":2,"p":1},{"g":"5 CARD STUD","t":1,"u":"tcp://thomcorner.com/server5","c":"tcp://thomcorner.com/specpoker.xex","s":"erichomeserver.com","r":"all","o":0,"m":3,"p":0}]`
+
 func setupRouter() *gin.Engine {
 
 	router := gin.Default()
@@ -276,13 +278,14 @@ func setupRouter() *gin.Engine {
 	router.GET("/viewFull", ShowServers)
 	router.GET("/view", ShowServersMinimised)
 	router.POST("/server", UpsertServer)
+	router.GET("/version", ShowStatus)
 
 	return router
 }
 
 func assertHTTPAnswerJSON(w *httptest.ResponseRecorder, HTTPCode int, HTTPBody string) (err []error) {
 	if w.Code != HTTPCode {
-		err = append(err, fmt.Errorf("Expecing HTTP %d, received HTTP %d", HTTPCode, w.Code))
+		err = append(err, fmt.Errorf("Expecting HTTP %d, received HTTP %d", HTTPCode, w.Code))
 	}
 
 	if w.Body.String() == HTTPBody {
@@ -377,6 +380,7 @@ func TestViewFullInsertAndRetrieveServerN(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
 	req, _ := http.NewRequest("GET", "/viewFull", nil)
 	ROUTER.ServeHTTP(w, req)
 
@@ -388,7 +392,7 @@ func TestViewFullInsertAndRetrieveServerN(t *testing.T) {
 
 }
 
-func TODOTestViewInsertAndRetrieveServerN(t *testing.T) {
+func TestViewInsertAndRetrieveServerN(t *testing.T) {
 
 	for _, ServerJson := range GameServersIn {
 
@@ -405,7 +409,30 @@ func TODOTestViewInsertAndRetrieveServerN(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
 	req, _ := http.NewRequest("GET", "/view", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
+
+	w = httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+	req, _ = http.NewRequest("GET", "/view?platform=NoPlatform", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 404, `{"message":"No servers available for NoPlatform","success":false}`); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
+
+	w = httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+	req, _ = http.NewRequest("GET", "/view?platform=spectrum", nil)
 	ROUTER.ServeHTTP(w, req)
 
 	if errors := assertHTTPAnswerJSON(w, 200, GameServersOut); errors != nil {
@@ -414,4 +441,19 @@ func TODOTestViewInsertAndRetrieveServerN(t *testing.T) {
 		}
 	}
 
+}
+
+func TestVersion(t *testing.T) {
+
+	w := httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+
+	req, _ := http.NewRequest("GET", "/version", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 200, `{"success": true}`); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
 }
