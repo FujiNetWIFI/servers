@@ -106,6 +106,6 @@ func UpsertServer(c *gin.Context) {
 
 	GAMESRV.Store(server.Key(), &server)
 
-	c.JSON(http.StatusAccepted, gin.H{"success": true,
+	c.JSON(http.StatusCreated, gin.H{"success": true,
 		"message": "Server correctly updated"})
 }
