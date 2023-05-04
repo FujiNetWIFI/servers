@@ -109,3 +109,10 @@ func UpsertServer(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true,
 		"message": "Server correctly updated"})
 }
+
+// sends back the current server version + uptime
+func ShowStatus(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"success": true,
+		"version": STRINGVER,
+		"uptime":  uptime(STARTEDON)})
+}

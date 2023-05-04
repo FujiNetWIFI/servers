@@ -26,10 +26,11 @@ var (
 	GAMESRV   cmap.Map[string, *GameServer] // to store game servers
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
+	STARTEDON time.Time
 )
 
 const (
-	VERSION   = "3.0.0"
+	VERSION   = "3.1.0"
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -38,6 +39,7 @@ func main() {
 	init_logger()
 	init_os_signal()
 	init_scheduler()
+	init_time()
 
 	var srvaddr string
 	var help bool
@@ -56,6 +58,7 @@ func main() {
 
 	router.GET("/viewFull", ShowServers)
 	router.GET("/view", ShowServersMinimised)
+	router.GET("/version", ShowStatus)
 	router.POST("/server", UpsertServer)
 
 	router.Run(srvaddr)
@@ -129,4 +132,14 @@ func SignalHandler(sigchan chan os.Signal) {
 			os.Exit(137)
 		}
 	}
+}
+
+// save start of the program time
+func init_time() {
+	STARTEDON = time.Now()
+}
+
+// return how long has the server been runing
+func uptime(start time.Time) string {
+	return time.Since(start).String()
 }
