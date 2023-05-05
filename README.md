@@ -7,10 +7,15 @@ Source to servers for games and apps that work with FujiNet
     80x192 16 grey shade `GRAPHICS 9`), and make it available via HTTP for
     an Atari with a #FujiNet and its `N:` device.
 
+- "cherrysrv" - A simple chat server with a single room that works over TCP.
+
 - "fujinet-game-server" - The beginnings of a multi-player game server that works over UDP.
 
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
-- "5cardstud" - Multiplayer Poker Server and Clients for various platforms
--  
-
+- "5cardstud" - A Multi-player/Multi-Platform Poker Server and Clients that impliment 5 Card Stud poker game. This is very much a work in progress.
+  - Clients
+    - "client/pc/python" - PC client, written in Python.
+  - Servers
+    - "dummy-server/pc/Python" - Json server written in Python, serves random hands for client testing.
+    - "server/mock-server" - Json Api server written in Go, emulates much of the game server logic, including player bots to assist in writing/testing persisted play over multiple games on a single client.
