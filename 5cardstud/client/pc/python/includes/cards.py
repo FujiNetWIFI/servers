@@ -28,6 +28,10 @@ class Cards:
                 filename = IMAGE_PATH_CARDS + str(c) + "_of_" + self.suites[s] + ".png"
                 self.cards[card] = filename
                 
+            c = 10
+            filename = IMAGE_PATH_CARDS + str(c)  + "_of_" + self.suites[s] + ".png"
+            self.cards["T"+s] = filename
+            
             for c in ['jack','queen','king','ace']:
                 card = c[0].upper() + s
                 filename = IMAGE_PATH_CARDS + str(c) + "_of_" + self.suites[s] + ".png"
@@ -75,7 +79,4 @@ class Cards:
     def bottom_of_pool(self,card):
         self.pool.append(card)
         
-    
-    
-
     

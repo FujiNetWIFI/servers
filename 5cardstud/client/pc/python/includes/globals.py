@@ -138,4 +138,3 @@ COUNTING_HELP = False
 
 MAX_PLAYERS = 8
 
-
