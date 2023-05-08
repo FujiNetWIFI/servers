@@ -116,3 +116,7 @@ func ShowStatus(c *gin.Context) {
 		"version": STRINGVER,
 		"uptime":  uptime(STARTEDON)})
 }
+
+func ShowMain(c *gin.Context) {
+	c.Data(http.StatusOK, gin.MIMEHTML, DOCHTML)
+}

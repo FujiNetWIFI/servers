@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +37,11 @@ const (
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
+//go:embed doc.html
+var DOCTPL []byte
+
+var DOCHTML []byte
+
 func main() {
 
 	init_logger()
@@ -54,8 +62,11 @@ func main() {
 		return
 	}
 
+	init_html(srvaddr)
+
 	router := gin.Default()
 
+	router.GET("/", ShowMain)
 	router.GET("/viewFull", ShowServers)
 	router.GET("/view", ShowServersMinimised)
 	router.GET("/version", ShowStatus)
@@ -142,4 +153,20 @@ func init_time() {
 // return how long has the server been runing
 func uptime(start time.Time) string {
 	return time.Since(start).String()
+}
+
+// replace tags on DOCTPL
+func init_html(srvaddr string) {
+
+	srvaddr = strings.ToLower(srvaddr)
+
+	if !strings.HasPrefix(srvaddr, "http://") {
+		srvaddr = "http://" + srvaddr
+	}
+
+	if !strings.HasSuffix(srvaddr, "/") {
+		srvaddr = srvaddr + "/"
+	}
+
+	DOCHTML = bytes.ReplaceAll(DOCTPL, []byte("$$srvaddr$$"), []byte(srvaddr))
 }
