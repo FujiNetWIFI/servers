@@ -8,21 +8,18 @@
 
 </head>
 <body>
-    <header>
-      <h1>🟢 <a href="https://fujinet.online/">Fujinet</a> Lobby server running at $$srvaddr$$</h1>
-    </header>
-  
-    <main>
+     <main>
+      <h1>🟢 <a href="https://fujinet.online/">Fujinet</a> Lobby server on-line</h1>
       <p>Welcome to the Lobby Server for 8 bit computers. Even if this software has been created by as part of the <a href="https://fujinet.online/">Fujinet project</a>, it's not constrained by it.</p>
       <p>The lobby server objective is to publish the availability of third party network games so game clients now where they need to conect. </p>
 
       <h2>So you're a programmer and want to use Lobby Server?</h2>
       <p>Lobby Server uses http json calls to set and update the Game Server status (including server address, game name, number of users, etc) as well as for publishing the status of the games.</p>
 
-      <h3>How do I register a game in Lobby Server?</h3>
+      <h3 id="game-registering">How do I register a game in Lobby Server?</h3>
       <p>You just need to POST a valid json to $$srvaddr$$server, with the correct <code>"Content-Type": "application/json"</code> and the following format:
 
-        <pre>
+        <pre id="server-json">
             <code>
 {
     "game": "5 Card Stud",
@@ -116,16 +113,144 @@
         </pre>
       </p>
 
-      <h3>How do I update game values in Lobby Server?</h3>
+      <h3 id="game-update">How do I update game values in Lobby Server?</h3>
       <p>During the life of the game server, it will probably need to update the data in the Lobby server: availability of free user slots in <code>curplayers</code>, updates to <code>client.url</code>  if a new client is released, or flagging the game server if offline via the <code>status</code> field. </p>
-      <p>For this, the game server will have to resubmit the json via a valid POST to $$srvaddr$$server, with the correct <code>"Content-Type": "application/json"</code>. The format is the same one as adding the server for the first time.</p>
+      <p>For this, the game server will have to resubmit the json via a valid POST to $$srvaddr$$server, with the correct <code>"Content-Type": "application/json"</code>. The format is the same one as adding the <a href="#game-registering">server for the first time.</a></p>
 
-      <h3>How do I retrieve which games are available? (full data)</h3>
+      <h3 id="retrieve-full">How do I retrieve which games are available? (full data)</h3>
+      <p>If your game server or game client require to have a view of all the games served the way to have a full dump of games in the server is to GET to $$srvaddr$$viewFull, with the correct <code>"Content-Type": "application/json"</code>.</p>
+      <p>The server will answer with an <b>array of servers</b> as described in <a href="#server-json">server json structure</a>. In addition to the fields described there, the array will contain an additional field:
+        <table>
+          <thead>
+            <tr><th>Field</th>
+              <th>Value</th>
+              <th>Spec</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>lastping</td>
+              <td>Last time the server data was updated in UTC</td>
+              <td>Always included<br/>format according to RFC3339<br/>2023-05-05T00:37:42.02033875Z</td></tr>
+            </tbody>
+        </table>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
+        <pre>
+          <code>
+{
+  "success": false,
+  "message": "No servers available"
+}
+          </code>
+        </pre>
+      </p>
 
-      <h3>How do I retrieve which games are available? (minimised)</h3>
+
+      </p>
+
+      <h3 id="retrieve-minimised">How do I retrieve which games are available? (minimised)</h3>
+      <p>In addition to being possible to retrieve the Lobby game servers <a href="retrieve-full">in full</a>, Lobby servers allow to do a extraction of the game server data in a minimised format, with the objective of not overloading the 8bit system.</p>
+      <p>The minimisation works at two levels: (a) filtering by client platform and (b) minimising of json structure.</p>
+      <p>The filtering makes sure that the game server data sent back to the client applies only to a certain 8bit platform. For this work, client neets to GET to $$srvaddr$$view?platform=&lt;platform_name&gt; for <code>platform_name</code> games to be returned.</p>
+      <p>If there are any game available for the <code>platform_name</code> the server will return a <b>http status 200</b> and the following payload:
+        <pre id="server-json-minimised">
+          <code>
+[
+{
+    "g": "5 Card Stud",
+    "t": 1,
+    "u": "https://5card.carr-designs.com/?table=NORM&count=2",
+    "c": "TNFS://ec.tnfs.io/atari/5card.xex",
+    "s": "Mock Server (Bots) Table NORM",
+    "r": "us",
+    "o": 1,
+    "m": 8,
+    "p": 1,
+    "a": 301479
+},
+⋯
+]
+          </code>
+        </pre>
+
+          <table>
+            <thead>
+              <tr><th>Field</th>
+                <th>Value</th>
+                <th>Spec</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>g</td>
+                <td>Name of the game to be showed by the game client to the user</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 12</td></tr>
+              <tr><td>t</td>
+                <td>Type of the game (to be defined in the future)</td>
+                <td>always included<br/>integer ⊂ (1, 255)</td></tr>
+              <tr><td>s</td>
+                <td>Name (and version) of the game server used</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 32</td></tr>
+              <tr><td>t</td>
+                <td>Name of the region where the server is hosted</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 12 alphanum chars max</td></tr>
+              <tr><td>u</td>
+                <td>url of the server where game clients will connect</td>
+                <td>always included<br/>valid url<br/>64 url chars max</td></tr>
+              <tr><td>o</td>
+                <td>status of the game server</td>
+                <td>always included<br/>o = 1 (online)|0 (offline)</td></tr>
+              <tr><td>m</td>
+                <td>maximum number of players the server can accept</td>
+                <td>always included<br/>m ≥ 0</td></tr>
+              <tr><td>p</td>
+                <td>current number of players conected to the server</td>
+                <td>always included<br/>integer<br/>p ≥ 0<br/> p ≤ m</td></tr>
+              <tr><td>c</td>
+                <td>platform specific url of the game clinent</td>
+                <td>always included<br/>valid url<br/>64 url chars max</td></tr>
+              <tr><td>a</td>
+                <td>Last time the server data was updated in seconds</td>
+                <td>Always included<br/>integer a ≥ 0 </td></tr>
+            </tbody>
+          </table>
+
+      <p> For errors, see $$srvaddr$$view may return the following errors: </p>
+
+      <p>
+        The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
+        <pre>
+          <code>
+{
+  "success": false,
+  "message": "No servers available"
+}
+          </code>
+        </pre>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 400</code> if no variable <code>platform</code> is sent as part of the endpoint. Additionally, the server will return the following json:
+        <pre>
+          <code>
+{
+  "success": false,
+  "message": "You need to submit a platform"
+}
+          </code>
+        </pre>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 404</code> if servers are available but not for your selected platform. Additionally, the server will return the following json:
+        <pre>
+          <code>
+{
+  "success": false,
+  "message": "No servers available for &lt;platform&gt;"
+}
+          </code>
+        </pre>
+      </p>
 
       <h3>How do I check the status of the server?</h3>
-      <p>You can check this page $$srvaddr$$ where you will find the status of the server, but if you prefer to do it via json, there's an specific POST for this: to $$srvaddr$$version. The POST request does not require a submission of data and if server is online, you'll receive a reponse with <code>http code 200</code> and the following json payload:
+      <p>You can check this page $$srvaddr$$ where you will find the status of the server, but if you prefer to do it via json, there's an specific GET for this: to $$srvaddr$$version. If server is online, you'll receive a reponse with <code>http code 200</code> and the following json payload:
         <pre>
           <code>
 {
