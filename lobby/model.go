@@ -117,11 +117,11 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	if s.Gametype < 1 || s.Gametype > 255 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GamServer.Gametype' Error: Field validation length must be between 1 and 255"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Gametype' Error: Field validation length must be between 1 and 255"))
 	}
 
-	if len(s.Game) > 12 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be 12 or less characters"))
+	if len(s.Game) < 6 || len(s.Game) > 20 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be between 6 and 20 characters"))
 	}
 
 	if len(s.Region) > 12 {
