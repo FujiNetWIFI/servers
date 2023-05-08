@@ -20,7 +20,7 @@ type GameServer struct {
 	Serverurl  string       `json:"serverurl" binding:"required"`
 	Status     string       `json:"status" binding:"required,oneof=online offline"`
 	Maxplayers int          `json:"maxplayers" binding:"required,number"`
-	Curplayers int          `json:"curplayers" binding:"required,number"`
+	Curplayers int          `json:"curplayers" binding:"number"` // golang validator has issues with 0 values
 	Clients    []GameClient `json:"clients" binding:"required"`
 }
 
