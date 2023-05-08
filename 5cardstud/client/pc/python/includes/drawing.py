@@ -17,8 +17,7 @@ from actions import *
 def draw_cards(screen,
                player_pos_start,
                hand,
-               show_card,
-               face_up):
+               show_card):
 
     drawn = False
     if show_card > len(hand):
@@ -32,11 +31,11 @@ def draw_cards(screen,
     for index_y, card in enumerate(hand):
         key = card
         if index_y == show_card-1:
-            if not face_up or key == "??":
-                filename = IMAGE_PATH_CARDS + CARDBACK_FILENAME
+            if key == "??":
+                filename = common_vars.cards.face_down
             else:
                 filename = common_vars.cards.cards[key]
-           
+        
             screen.blit(image_db.get_image(filename), (player_x_pos, player_y_pos))
             drawn = True
                 
@@ -45,9 +44,6 @@ def draw_cards(screen,
 
         x_offset = -50
         y_offset = -40  
-
-    player_x_pos, player_y_pos, horiz, vert  = player_pos_start
-    player_x_pos += GAP_BETWEEN_SPLIT
     
     return drawn
 
@@ -61,7 +57,8 @@ def draw_button(screen, button_x_pos, button_y_pos, button, button_text, routine
     add_button(button_x_pos, button_y_pos,
                button_x_pos+common_vars.button_image_width,
                button_y_pos+common_vars.button_image_height,
-               routine)
+               routine,
+               button)
     filename = active_button
     
     screen.blit(image_db.get_image(filename), (button_x_pos, button_y_pos))
@@ -75,23 +72,12 @@ def draw_buttons(screen, buttons):
     common_vars   = CommonVariables.get_instance()
     button_x_pos, button_y_pos = BUTTONS_START_POS
     
-    routine = {
-                 'H': check_button,
-                 'F': fold_button,
-                 'C': call_button,
-                'RL': raise_lower_button,
-                'RH': raise_higher_button,
-                'BL': bet_lower_button,
-                'BH': bet_higher_button
-                }
-    
-    
     for button in buttons:
 
-        draw_button(screen, button_x_pos, button_y_pos, button, buttons[button], routine[button] )
+        draw_button(screen, button_x_pos, button_y_pos, button, buttons[button], send_action_to_server )
         button_x_pos += GAP_BETWEEN_BUTTONS + common_vars.button_image_width
         
-        if button_x_pos + common_vars.button_image_width > PLAYER_CARD_START_POS[0][0]:
+        if button_x_pos + common_vars.button_image_width > common_vars.player_card_start_pos[0][0]:
             button_x_pos = BUTTONS_START_POS_X
             button_y_pos += common_vars.button_image_height
         
@@ -157,9 +143,7 @@ def draw_purse(screen, player_num):
 def draw_pot(screen):
     
     common_vars   = CommonVariables.get_instance()
-    total = 0
-    for i in range(common_vars.num_players):
-        total += common_vars.player_bet[i]
+    total = common_vars.server.get_pot()
     
      
     

@@ -188,6 +188,12 @@ class CommonVariables:
         self.player_hand			= None
         self.player_purse           = None
         self.font_height			= None
+        self.server					= None
+        self.get_status				= None
+        self.round                  = None
+        self.player_pos_by_count    = None
+        self.player_card_start_pos  = None
+        self.player_name_start_pos  = None
         
         
 
