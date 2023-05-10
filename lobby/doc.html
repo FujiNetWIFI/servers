@@ -53,9 +53,9 @@
                 <tr><td>game</td>
                   <td>Name of the game to be showed by the game client to the user</td>
                   <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 12</td></tr>
-                <tr><td>gametype</td>
-                  <td>Type of the game (to be defined in the future)</td>
-                  <td>required<br/>integer ⊂ (1, 255)</td></tr>
+                <tr><td>appkey</td>
+                  <td>Registerd id of game</td>
+                  <td>required<br/>integer ⊂ [1, 255]</td></tr>
                 <tr><td>server</td>
                   <td>Name (and version) of the game server used</td>
                   <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 32</td></tr>

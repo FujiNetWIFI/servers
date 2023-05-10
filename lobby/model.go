@@ -14,7 +14,7 @@ type GameServer struct {
 
 	// Properties being sent from Game Server
 	Game       string       `json:"game" binding:"required,printascii"`
-	Gametype   int          `json:"gametype" binding:"required,number"`
+	Appkey     int          `json:"appkey" binding:"required,number"`
 	Server     string       `json:"server" binding:"required,printascii"`
 	Region     string       `json:"region" binding:"required,printascii"`
 	Serverurl  string       `json:"serverurl" binding:"required"`
@@ -75,7 +75,7 @@ func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool
 
 			return GameServerMin{
 				Game:       s.Game,
-				Gametype:   s.Gametype,
+				Gametype:   s.Appkey,
 				Serverurl:  s.Serverurl,
 				Client:     client.Url,
 				Server:     s.Server,
@@ -116,7 +116,7 @@ func (s *GameServer) CheckInput() (err error) {
 		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' and 'GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers))
 	}
 
-	if s.Gametype < 1 || s.Gametype > 255 {
+	if s.Appkey < 1 || s.Appkey > 255 {
 		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Gametype' Error: Field validation length must be between 1 and 255"))
 	}
 
