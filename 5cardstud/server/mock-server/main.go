@@ -92,6 +92,8 @@ func getTableState(table string, playerCount int) *gameState {
 
 	if ok {
 		state = value.(*gameState)
+
+		// Update player count for table if changed
 		if playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
 			if len(state.Players) > playerCount {
 				state = createGameState(playerCount)
@@ -102,6 +104,7 @@ func getTableState(table string, playerCount int) *gameState {
 			updateLobby(state, table)
 		}
 	} else {
+		// Create a brand new game
 		state = createGameState(playerCount)
 		state.table = table
 		updateLobby(state, table)

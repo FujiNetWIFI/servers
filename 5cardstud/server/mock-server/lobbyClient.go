@@ -10,11 +10,14 @@ import (
 )
 
 const (
-	LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
+	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
+	LOBBY_ENDPOINT_UPSERT = "http://lobby.rogersm.net:8080/server"
 )
 
+// Defaults for this game server
+// Appkey/game are hard coded, but the others could be read from a config file
 var DefaultGameServerDetails = GameServer{
-	Gametype:  1,
+	Appkey:    1,
 	Game:      "5 Card Stud",
 	Server:    "Mock Server (Bots)",
 	Region:    "us",
@@ -27,7 +30,7 @@ var DefaultGameServerDetails = GameServer{
 type GameServer struct {
 	// Properties being sent from Game Server
 	Game       string       `json:"game" binding:"required,printascii"`
-	Gametype   int          `json:"gametype" binding:"required,numeric"`
+	Appkey     int          `json:"appkey" binding:"required,numeric"`
 	Server     string       `json:"server" binding:"required,printascii"`
 	Region     string       `json:"region" binding:"required,printascii"`
 	Serverurl  string       `json:"serverurl" binding:"required"`
@@ -69,7 +72,8 @@ func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, instanceSer
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
 	defer response.Body.Close()
 
