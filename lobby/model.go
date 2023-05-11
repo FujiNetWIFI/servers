@@ -14,13 +14,13 @@ type GameServer struct {
 
 	// Properties being sent from Game Server
 	Game       string       `json:"game" binding:"required,printascii"`
-	Gametype   int          `json:"gametype" binding:"required,numeric"`
+	Appkey     int          `json:"appkey" binding:"required,number"`
 	Server     string       `json:"server" binding:"required,printascii"`
 	Region     string       `json:"region" binding:"required,printascii"`
 	Serverurl  string       `json:"serverurl" binding:"required"`
 	Status     string       `json:"status" binding:"required,oneof=online offline"`
-	Maxplayers int          `json:"maxplayers" binding:"required,numeric"`
-	Curplayers int          `json:"curplayers" binding:"numeric"`
+	Maxplayers int          `json:"maxplayers" binding:"required,number"`
+	Curplayers int          `json:"curplayers" binding:"number"` // golang validator has issues with 0 values
 	Clients    []GameClient `json:"clients" binding:"required"`
 }
 
@@ -75,7 +75,7 @@ func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool
 
 			return GameServerMin{
 				Game:       s.Game,
-				Gametype:   s.Gametype,
+				Gametype:   s.Appkey,
 				Serverurl:  s.Serverurl,
 				Client:     client.Url,
 				Server:     s.Server,
@@ -116,16 +116,24 @@ func (s *GameServer) CheckInput() (err error) {
 		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' and 'GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers))
 	}
 
-	if s.Gametype < 1 || s.Gametype > 255 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GamServer.Gametype' Error: Field validation length must be between 1 and 255"))
+	if s.Appkey < 1 || s.Appkey > 255 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Gametype' Error: Field validation length must be between 1 and 255"))
 	}
 
-	if len(s.Game) > 12 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be 12 or less characters"))
+	if len(s.Game) < 6 || len(s.Game) > 20 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be between 6 and 20 characters"))
+	}
+
+	if len(s.Region) > 12 {
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Region' Error: Field validation length must be 12 or less characters"))
 	}
 
 	if len(s.Server) > 32 {
-		err = errors.Join(err, fmt.Errorf("Key 'GameServer.Server' Error: Field validation length must be 12 or less characters"))
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.Server' Error: Field validation length must be 32 or less characters"))
+	}
+
+	if _, err1 := url.ParseRequestURI(s.Serverurl); err1 != nil {
+		err = errors.Join(err, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation has to be a valid url"))
 	}
 
 	if len(s.Serverurl) > 64 {
@@ -134,7 +142,7 @@ func (s *GameServer) CheckInput() (err error) {
 
 	for _, client := range s.Clients {
 
-		if _, err1 := url.ParseRequestURI(client.Url); err1 != nil {
+		if _, err2 := url.ParseRequestURI(client.Url); err2 != nil {
 			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation has to be a valid url"))
 		}
 		if len(client.Url) > 64 {

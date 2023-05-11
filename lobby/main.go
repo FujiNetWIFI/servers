@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -26,18 +29,25 @@ var (
 	GAMESRV   cmap.Map[string, *GameServer] // to store game servers
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
+	STARTEDON time.Time
 )
 
 const (
-	VERSION   = "3.0.0"
+	VERSION   = "3.1.2"
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
+
+//go:embed doc.html
+var DOCTPL []byte
+
+var DOCHTML []byte
 
 func main() {
 
 	init_logger()
 	init_os_signal()
 	init_scheduler()
+	init_time()
 
 	var srvaddr string
 	var help bool
@@ -52,10 +62,14 @@ func main() {
 		return
 	}
 
+	init_html(srvaddr)
+
 	router := gin.Default()
 
+	router.GET("/", ShowMain)
 	router.GET("/viewFull", ShowServers)
 	router.GET("/view", ShowServersMinimised)
+	router.GET("/version", ShowStatus)
 	router.POST("/server", UpsertServer)
 
 	router.Run(srvaddr)
@@ -129,4 +143,30 @@ func SignalHandler(sigchan chan os.Signal) {
 			os.Exit(137)
 		}
 	}
+}
+
+// save start of the program time
+func init_time() {
+	STARTEDON = time.Now()
+}
+
+// return how long has the server been runing
+func uptime(start time.Time) string {
+	return time.Since(start).String()
+}
+
+// replace tags on DOCTPL
+func init_html(srvaddr string) {
+
+	srvaddr = strings.ToLower(srvaddr)
+
+	if !strings.HasPrefix(srvaddr, "http://") {
+		srvaddr = "http://" + srvaddr
+	}
+
+	if !strings.HasSuffix(srvaddr, "/") {
+		srvaddr = srvaddr + "/"
+	}
+
+	DOCHTML = bytes.ReplaceAll(DOCTPL, []byte("$$srvaddr$$"), []byte(srvaddr))
 }
