@@ -89,6 +89,15 @@ func UpsertServer(c *gin.Context) {
 	server := GameServer{}
 
 	err1 := c.ShouldBindJSON(&server)
+	if err1 != nil && err1.Error() == "EOF" {
+		c.AbortWithStatusJSON(http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"message": "VALIDATEERR - Invalid Json",
+				"errors":  []string{"Submitted Json cannot be parsed"}})
+		return
+	}
+
 	err2 := server.CheckInput()
 
 	err := errors.Join(err1, err2)
