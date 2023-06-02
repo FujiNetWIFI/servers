@@ -176,6 +176,7 @@ func (state *gameState) newRound() {
 				player.Purse -= ANTI
 				state.Pot += ANTI
 			} else {
+				// Player doesn't have enough money to play
 				player.Status = 0
 			}
 			player.cards = []card{}
@@ -196,8 +197,6 @@ func (state *gameState) newRound() {
 			rand.Shuffle(len(state.deck), func(i, j int) { state.deck[i], state.deck[j] = state.deck[j], state.deck[i] })
 		}
 		state.deckIndex = 0
-		state.Pot = 0
-
 		state.dealCards()
 	}
 
@@ -287,8 +286,6 @@ func (state *gameState) dealCards() {
 }
 
 func (state *gameState) endGame() {
-	// A real server would compare hands to see who won and give the pot to the winner.
-	// For now, we just set gameOver so play can start over
 	// The next request for /state will start a new game
 
 	// Hand rank details (for future)
@@ -355,7 +352,8 @@ func (state *gameState) emulateGame() {
 		return
 	}
 
-	checkForRoundOnly := state.ActivePlayer == state.clientPlayer
+	isHumanPlayer := state.ActivePlayer == state.clientPlayer
+
 	if state.gameOver {
 		state.Round = 0
 		state.gameOver = false
@@ -391,29 +389,34 @@ func (state *gameState) emulateGame() {
 		}
 	}
 
-	if checkForRoundOnly {
+	if isHumanPlayer {
 		return
 	}
 
 	// Peform a move for this BOT if they are in the game and have not folded
 	if state.Players[state.ActivePlayer].Status == 1 {
+		cards := state.Players[state.ActivePlayer].cards
+
 		moves := state.getValidMoves()
 
 		// Default to FOLD
 		choice := 0
+
+		// Potential TODO: If on round 5 and check is not an option, fold if there is a visible hand that beats the bot's hand.
+		//if len(cards) == 5 && len(moves) > 1 && moves[1].Move == "CH" {}
 
 		// Never fold if CHECK is an option. These BOTs are smarter than the average bear.
 		if len(moves) > 1 && moves[1].Move == "CH" {
 			choice = 1
 		}
 
-		// Hardly ever fold early if a BOT has an jack or higher. Why not, right?
-		if state.Round < 3 && len(moves) > 1 && rand.Intn(4) > 0 && slices.IndexFunc(state.Players[state.ActivePlayer].cards, func(c card) bool { return c.value > 10 }) > -1 {
+		// Hardly ever fold early if a BOT has an jack or higher.
+		if state.Round < 3 && len(moves) > 1 && rand.Intn(3) > 0 && slices.IndexFunc(cards, func(c card) bool { return c.value > 10 }) > -1 {
 			choice = 1
 		}
 
 		// Likely Don't fold if BOT has a pair or better
-		rank := getRank(state.Players[state.ActivePlayer].cards)
+		rank := getRank(cards)
 		if rank[0] < 300 && rand.Intn(20) > 0 {
 			choice = 1
 		}
@@ -430,8 +433,12 @@ func (state *gameState) emulateGame() {
 			choice = len(moves) - 1
 		} else {
 
-			// Most of the time, consider bet/call/raise
-			if len(moves) > 1 && rand.Intn(3) > 0 {
+			// Consider bet/call/raise most of the time
+			if len(moves) > 1 && rand.Intn(3) > 0 && (len(cards) > 2 ||
+				cards[0].value == cards[1].value ||
+				math.Abs(float64(cards[1].value-cards[0].value)) < 3 ||
+				cards[0].value > 8 ||
+				cards[1].value > 5) {
 
 				// Avoid endless raises
 				if state.currentBet >= 20 || rand.Intn(3) > 0 {
