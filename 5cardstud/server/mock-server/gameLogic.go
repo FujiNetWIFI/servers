@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cardrank/cardrank"
@@ -49,8 +48,6 @@ const ENDGAME_TIME_LIMIT = time.Second * time.Duration(7)
 
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
-
-var lock sync.Mutex
 
 var suitLookup = []string{"C", "D", "H", "S"}
 var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"}
@@ -345,11 +342,6 @@ func (state *gameState) endGame() {
 
 // Emulates simplified player/logic for 5 card stud
 func (state *gameState) runGameLogic() {
-
-	// Only one thread can execute this at a time, to avoid multiple threads updating the state
-	lock.Lock()
-	defer lock.Unlock()
-
 	state.playerPing()
 
 	// We can't play a game until there are at least 2 players
@@ -494,6 +486,12 @@ func (state *gameState) dropInactivePlayers() {
 
 }
 
+func (state *gameState) clientLeave() {
+	if state.clientPlayer < 0 {
+		return
+	}
+}
+
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
 func (state *gameState) playerPing() {
 	state.Players[state.clientPlayer].lastPing = time.Now()
@@ -505,8 +503,6 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 	// Only one thread can execute this at a time, to avoid multiple threads updating the state
 	// We only need to lock if this is being called directly from main
 	if len(internalCall) == 0 || !internalCall[0] {
-		lock.Lock()
-		defer lock.Unlock()
 
 		state.playerPing()
 	}
