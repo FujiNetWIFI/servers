@@ -19,11 +19,10 @@ const (
 var DefaultGameServerDetails = GameServer{
 	Appkey:    1,
 	Game:      "5 Card Stud",
-	Server:    "Mock Server (Bots)",
 	Region:    "us",
 	Serverurl: "https://5card.carr-designs.com/",
 	Clients: []GameClient{
-		GameClient{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"},
+		{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"},
 	},
 }
 
@@ -45,7 +44,7 @@ type GameClient struct {
 	Url      string `json:"url" binding:"required`
 }
 
-func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, instanceServerSuffix string, instanceUrlSuffix string) {
+func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server string, instanceUrlSuffix string) {
 
 	// Start with copy of default game server details
 	serverDetails := DefaultGameServerDetails
@@ -57,8 +56,8 @@ func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, instanceSer
 		serverDetails.Status = "offline"
 	}
 
+	serverDetails.Server = server
 	serverDetails.Serverurl += instanceUrlSuffix
-	serverDetails.Server += instanceServerSuffix
 
 	jsonPayload, err := json.Marshal(serverDetails)
 	if err != nil {

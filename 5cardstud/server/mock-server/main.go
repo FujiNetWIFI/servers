@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,7 @@ func main() {
 		log.Printf("defaulting to port %s", port)
 	}
 
+	// Create real game tables
 	createInitialTables()
 
 	router.Run(":" + port)
@@ -63,7 +65,7 @@ func apiMove(c *gin.Context) {
 func apiState(c *gin.Context) {
 	playerCount, _ := strconv.Atoi(c.DefaultQuery("count", "0"))
 	state := getState(c, playerCount)
-	state.emulateGame()
+	state.runGameLogic()
 	saveState(state)
 
 	c.JSON(http.StatusOK, state.createClientState())
@@ -82,36 +84,43 @@ func getState(c *gin.Context, playerCount int) *gameState {
 	if table == "" {
 		table = "default"
 	}
-	return getTableState(table, playerCount)
+	player := c.Query("player")
+	return getTableState(table, player, playerCount)
 }
 
-func getTableState(table string, playerCount int) *gameState {
+func getTableState(table string, playerName string, playerCount int) *gameState {
+	table = strings.ToLower(table)
 	value, ok := stateMap.Load(table)
 
 	var state *gameState
 
 	if ok {
-		state = value.(*gameState)
+		stateCopy := *value.(*gameState)
+		state = &stateCopy
 
 		// Update player count for table if changed
-		if playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
+		if state.isMockGame && playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
 			if len(state.Players) > playerCount {
-				state = createGameState(playerCount)
+				state = createGameState(playerCount, true)
 				state.table = table
 			} else {
 				state.updatePlayerCount(playerCount)
 			}
-			updateLobby(state, table)
+			updateLobby(state)
 		}
 	} else {
 		// Create a brand new game
-		state = createGameState(playerCount)
+		state = createGameState(playerCount, true)
 		state.table = table
-		updateLobby(state, table)
+		updateLobby(state)
 	}
 
 	//player := c.Query("player")
-	state.clientPlayer = 1
+	if state.isMockGame {
+		state.clientPlayer = 0
+	} else {
+		state.setClientPlayerByName(playerName)
+	}
 	return state
 }
 
@@ -119,14 +128,30 @@ func saveState(state *gameState) {
 	stateMap.Store(state.table, state)
 }
 
-func updateLobby(state *gameState, table string) {
-	sendStateToLobby(8, len(state.Players)-1, true, " Table "+table, "?table="+table+"&count="+strconv.Itoa(len(state.Players)))
+func updateLobby(state *gameState) {
+	if state.isMockGame {
+		return
+	}
+	sendStateToLobby(8, len(state.Players), true, state.serverName, "?table="+state.table)
 }
 
 func createInitialTables() {
-	getTableState("2", 8)
+	createRealTable("The Garage (6 bots)", "garage", 6)
 	time.Sleep(time.Second)
-	getTableState("1", 4)
+
+	//saveState(getTableState("garage", "johnny", 0))
+
+	createRealTable("The Basement (4 bots)", "basement", 4)
 	time.Sleep(time.Second)
-	sendStateToLobby(2, 0, false, " Test", "?table=bu")
+
+	createRealTable("The Den", "den", 0)
+	time.Sleep(time.Second)
+}
+
+func createRealTable(serverName string, table string, botCount int) {
+	state := createGameState(botCount, false)
+	state.table = table
+	state.serverName = serverName
+	saveState(state)
+	updateLobby(state)
 }

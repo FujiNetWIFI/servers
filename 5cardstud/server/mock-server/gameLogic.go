@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/cardrank/cardrank"
 	"golang.org/x/exp/slices"
@@ -41,6 +43,8 @@ const LOW = 5
 const HIGH = 10
 const STARTING_PURSE = 200
 
+var lock sync.Mutex
+
 var suitLookup = []string{"C", "D", "H", "S"}
 var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"}
 var moveLookup = map[string]string{
@@ -55,14 +59,14 @@ var moveLookup = map[string]string{
 }
 
 var playerPool = []player{
-	{Name: "Thom"},
-	{Name: "You"},
-	{Name: "Norman"},
-	{Name: "Mozzwald"},
-	{Name: "TCowboy"},
-	{Name: "Andy"},
-	{Name: "Decipher"},
-	{Name: "Eric"},
+	{Name: "Clyde BOT"},
+	{Name: "Spock BOT"},
+	{Name: "Kirk BOT"},
+	{Name: "Hulk BOT"},
+	{Name: "Fry BOT"},
+	{Name: "Meg BOT"},
+	{Name: "GI BOT"},
+	{Name: "AI BOT"},
 }
 
 type validMove struct {
@@ -84,18 +88,19 @@ type player struct {
 	Hand   string `json:"hand"`
 
 	// Internal
+	IsBot bool
 	cards []card
 }
 
 type gameState struct {
 	// External (JSON)
-	LastResult   string `json:"lastResult"`
-	Round        int    `json:"round"`
-	Pot          int    `json:"pot"`
-	ActivePlayer int    `json:"activePlayer"`
-	//ValidMoves   []string `json:"validMoves"`
-	ValidMoves []validMove `json:"validMoves"`
-	Players    []player    `json:"players"`
+	LastResult   string      `json:"lastResult"`
+	Round        int         `json:"round"`
+	Pot          int         `json:"pot"`
+	ActivePlayer int         `json:"activePlayer"`
+	ValidMoves   []validMove `json:"validMoves"`
+	Players      []player    `json:"players"`
+	MoveTime     int         `json:"moveTime"`
 
 	// Internal
 	deck         []card
@@ -105,9 +110,12 @@ type gameState struct {
 	clientPlayer int
 	table        string
 	wonByFolds   bool
+	isMockGame   bool
+	moveExpires  time.Time
+	serverName   string
 }
 
-func createGameState(playerCount int) *gameState {
+func createGameState(playerCount int, isMockGame bool) *gameState {
 	deck := []card{}
 
 	// Create deck of 52 cards
@@ -122,13 +130,18 @@ func createGameState(playerCount int) *gameState {
 	state.deck = deck
 	state.Round = 0
 	state.ActivePlayer = -1
+	state.isMockGame = isMockGame
 
-	// Force between 2 and 8 players
-	playerCount = int(math.Min(math.Max(2, float64(playerCount)), 8))
-
+	// Force between 2 and 8 players during mock games
+	if isMockGame {
+		playerCount = int(math.Min(math.Max(2, float64(playerCount)), 8))
+	}
 	state.Players = playerPool[0:playerCount]
 	for i := 0; i < playerCount; i++ {
 		state.Players[i].Purse = STARTING_PURSE
+		if i > 0 || !isMockGame {
+			state.Players[i].IsBot = true
+		}
 	}
 
 	log.Print("Created GameState")
@@ -202,7 +215,7 @@ func (state *gameState) newRound() {
 
 	state.dealCards()
 	state.ActivePlayer = state.getPlayerWithBestVisibleHand(state.Round > 1)
-
+	state.resetPlayerTimer()
 }
 
 func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
@@ -238,43 +251,6 @@ func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
 	}
 }
 
-// Ranks hand as an array of large to small values representing sets of 4 or less. Intended for 4 visible cards or simple AI
-func getRank(cards []card) []int {
-	rank := []int{}
-	rankSuit := []int{}
-	sets := map[int]int{}
-
-	// Loop through hand once to create sets (cards of the same value)
-	for i := 0; i < len(cards); i++ {
-		sets[cards[i].value]++
-	}
-
-	// Loop through a second time to add the rank of each set (or single card)
-	for i := 0; i < len(cards); i++ {
-		val := cards[i].value
-		set := sets[val]
-
-		// Ranking highest value the lowest so ascending sort can be used
-		rank = append(rank, 100*(5-set)-val)
-
-		// Ranking with suit as a tie breaker
-		rankSuit = append(rankSuit, 100*(5-set)-(val*4+cards[i].suit))
-
-	}
-
-	sort.Ints(rank)
-	// Fill out empty 999s to make a 4 length to avoid bounds checks
-	for len(rank) < 4 {
-		rank = append(rank, 999)
-	}
-	sort.Ints(rankSuit)
-	rank = append(rank, rankSuit...)
-	for len(rank) < 8 {
-		rank = append(rank, 999)
-	}
-	return rank
-}
-
 func (state *gameState) dealCards() {
 	for i, player := range state.Players {
 		if player.Status == 1 {
@@ -282,6 +258,24 @@ func (state *gameState) dealCards() {
 			state.Players[i] = player
 			state.deckIndex++
 		}
+	}
+}
+
+func (state *gameState) setClientPlayerByName(playerName string) {
+	state.clientPlayer = slices.IndexFunc(state.Players, func(p player) bool { return strings.EqualFold(p.Name, playerName) })
+
+	// Add new player if there is room
+	if state.clientPlayer < 0 && len(state.Players) < 8 {
+
+		newPlayer := player{
+			Name:   playerName,
+			Status: 0,
+			Purse:  STARTING_PURSE,
+			cards:  []card{},
+		}
+
+		state.Players = append(state.Players, newPlayer)
+		state.clientPlayer = len(state.Players) - 1
 	}
 }
 
@@ -344,15 +338,24 @@ func (state *gameState) endGame() {
 }
 
 // Emulates simplified player/logic for 5 card stud
-func (state *gameState) emulateGame() {
+func (state *gameState) runGameLogic() {
 
-	// Very first call of state? Initialize first round but do not play for any BOTs.
+	// Only one thread can execute this at a time, to avoid multiple threads updating the state
+	lock.Lock()
+	defer lock.Unlock()
+
+	// We can't play a game until there are at least 2 players
+	if len(state.Players) < 2 {
+		return
+	}
+
+	// Very first call of state? Initialize first round but do not play for any BOTs
 	if state.Round == 0 {
 		state.newRound()
 		return
 	}
 
-	isHumanPlayer := state.ActivePlayer == state.clientPlayer
+	//isHumanPlayer := state.ActivePlayer == state.clientPlayer
 
 	if state.gameOver {
 		state.Round = 0
@@ -389,64 +392,71 @@ func (state *gameState) emulateGame() {
 		}
 	}
 
-	if isHumanPlayer {
-		return
+	// If a real game, return if the move timer has not expired
+	if !state.isMockGame {
+		moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
+		if moveTimeRemaining > 0 {
+			return
+		}
 	}
 
-	// Peform a move for this BOT if they are in the game and have not folded
+	// Force a move for this player or BOT if they are in the game and have not folded
 	if state.Players[state.ActivePlayer].Status == 1 {
 		cards := state.Players[state.ActivePlayer].cards
-
 		moves := state.getValidMoves()
 
 		// Default to FOLD
 		choice := 0
 
-		// Potential TODO: If on round 5 and check is not an option, fold if there is a visible hand that beats the bot's hand.
-		//if len(cards) == 5 && len(moves) > 1 && moves[1].Move == "CH" {}
-
-		// Never fold if CHECK is an option. These BOTs are smarter than the average bear.
+		// Never fold if CHECK is an option. This applies to forced player moves as well as bots
 		if len(moves) > 1 && moves[1].Move == "CH" {
 			choice = 1
 		}
 
-		// Hardly ever fold early if a BOT has an jack or higher.
-		if state.Round < 3 && len(moves) > 1 && rand.Intn(3) > 0 && slices.IndexFunc(cards, func(c card) bool { return c.value > 10 }) > -1 {
-			choice = 1
-		}
+		// If this is a bot, pick the best move using some simple logic (sometimes random)
+		if state.Players[state.ActivePlayer].IsBot {
 
-		// Likely Don't fold if BOT has a pair or better
-		rank := getRank(cards)
-		if rank[0] < 300 && rand.Intn(20) > 0 {
-			choice = 1
-		}
+			// Potential TODO: If on round 5 and check is not an option, fold if there is a visible hand that beats the bot's hand.
+			//if len(cards) == 5 && len(moves) > 1 && moves[1].Move == "CH" {}
 
-		// Don't fold if BOT has a 2 pair or better
-		if rank[0] < 200 {
-			choice = 1
-		}
+			// Hardly ever fold early if a BOT has an jack or higher.
+			if state.Round < 3 && len(moves) > 1 && rand.Intn(3) > 0 && slices.IndexFunc(cards, func(c card) bool { return c.value > 10 }) > -1 {
+				choice = 1
+			}
 
-		// Raise the bet if three of a kind or better
-		if len(moves) > 2 && rank[0] < 312 && state.currentBet < LOW {
-			choice = 2
-		} else if len(moves) > 2 && state.getPlayerWithBestVisibleHand(true) == state.ActivePlayer && state.currentBet < HIGH && (rank[0] < 306) {
-			choice = len(moves) - 1
-		} else {
+			// Likely Don't fold if BOT has a pair or better
+			rank := getRank(cards)
+			if rank[0] < 300 && rand.Intn(20) > 0 {
+				choice = 1
+			}
 
-			// Consider bet/call/raise most of the time
-			if len(moves) > 1 && rand.Intn(3) > 0 && (len(cards) > 2 ||
-				cards[0].value == cards[1].value ||
-				math.Abs(float64(cards[1].value-cards[0].value)) < 3 ||
-				cards[0].value > 8 ||
-				cards[1].value > 5) {
+			// Don't fold if BOT has a 2 pair or better
+			if rank[0] < 200 {
+				choice = 1
+			}
 
-				// Avoid endless raises
-				if state.currentBet >= 20 || rand.Intn(3) > 0 {
-					choice = 1
-				} else {
-					choice = rand.Intn(len(moves)-1) + 1
+			// Raise the bet if three of a kind or better
+			if len(moves) > 2 && rank[0] < 312 && state.currentBet < LOW {
+				choice = 2
+			} else if len(moves) > 2 && state.getPlayerWithBestVisibleHand(true) == state.ActivePlayer && state.currentBet < HIGH && (rank[0] < 306) {
+				choice = len(moves) - 1
+			} else {
+
+				// Consider bet/call/raise most of the time
+				if len(moves) > 1 && rand.Intn(3) > 0 && (len(cards) > 2 ||
+					cards[0].value == cards[1].value ||
+					math.Abs(float64(cards[1].value-cards[0].value)) < 3 ||
+					cards[0].value > 8 ||
+					cards[1].value > 5) {
+
+					// Avoid endless raises
+					if state.currentBet >= 20 || rand.Intn(3) > 0 {
+						choice = 1
+					} else {
+						choice = rand.Intn(len(moves)-1) + 1
+					}
+
 				}
-
 			}
 		}
 
@@ -511,6 +521,14 @@ func (state *gameState) performMove(move string) bool {
 	return true
 }
 
+func (state *gameState) resetPlayerTimer() {
+	seconds := 30
+	if state.Players[state.ActivePlayer].IsBot {
+		seconds = 1
+	}
+	state.moveExpires = time.Now().Add(time.Second * time.Duration(seconds))
+}
+
 func (state *gameState) nextValidPlayer() {
 	// Move to next player
 	state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
@@ -519,6 +537,7 @@ func (state *gameState) nextValidPlayer() {
 	for state.Players[state.ActivePlayer].Status != 1 {
 		state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
 	}
+	state.resetPlayerTimer()
 }
 
 func (state *gameState) getValidMoves() []validMove {
@@ -569,10 +588,12 @@ func (state *gameState) createClientState() gameState {
 
 	// Check if we are at the end of a round, or the game. If so, no player is active. This lets the client perform
 	// end of round/game tasks/animation
-	if state.gameOver || (stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
+	if state.gameOver || len(stateCopy.Players) < 2 || (stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
 		(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
 		stateCopy.ActivePlayer = -1
 		setActivePlayer = true
+	} else {
+		stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
 	}
 
 	// Now, store a copy of state players, then loop
@@ -622,4 +643,41 @@ func (state *gameState) createClientState() gameState {
 	}
 
 	return stateCopy
+}
+
+// Ranks hand as an array of large to small values representing sets of 4 or less. Intended for 4 visible cards or simple AI
+func getRank(cards []card) []int {
+	rank := []int{}
+	rankSuit := []int{}
+	sets := map[int]int{}
+
+	// Loop through hand once to create sets (cards of the same value)
+	for i := 0; i < len(cards); i++ {
+		sets[cards[i].value]++
+	}
+
+	// Loop through a second time to add the rank of each set (or single card)
+	for i := 0; i < len(cards); i++ {
+		val := cards[i].value
+		set := sets[val]
+
+		// Ranking highest value the lowest so ascending sort can be used
+		rank = append(rank, 100*(5-set)-val)
+
+		// Ranking with suit as a tie breaker
+		rankSuit = append(rankSuit, 100*(5-set)-(val*4+cards[i].suit))
+
+	}
+
+	sort.Ints(rank)
+	// Fill out empty 999s to make a 4 length to avoid bounds checks
+	for len(rank) < 4 {
+		rank = append(rank, 999)
+	}
+	sort.Ints(rankSuit)
+	rank = append(rank, rankSuit...)
+	for len(rank) < 8 {
+		rank = append(rank, 999)
+	}
+	return rank
 }

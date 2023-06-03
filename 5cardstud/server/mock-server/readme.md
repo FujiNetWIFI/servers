@@ -24,9 +24,9 @@ The server supports unlimited concurrent games (tables) going at once. Simply pa
 
 ## Public endpoint
 
-As an alternative to running locally, use the latest api is running here:
+As an alternative to running locally, use the latest api running here:
 
-https://mock-server-7udvkexssq-uc.a.run.app/
+https://5card.carr-designs.com/
 
 **TIP:** If using the public endpoint, append each call with your own table name, e.g. `?table=Eric123` 
 
