@@ -35,7 +35,7 @@ func main() {
 	}
 
 	// Create real game tables
-	createInitialTables()
+	initializeRealTables()
 
 	router.Run(":" + port)
 }
@@ -53,7 +53,7 @@ func apiMove(c *gin.Context) {
 
 	// Access check - only move if the client is the active player
 	if state.clientPlayer == state.ActivePlayer {
-		move := c.Param("move")
+		move := strings.ToUpper(c.Param("move"))
 		state.performMove(move)
 		saveState(state)
 	}
@@ -104,9 +104,8 @@ func getTableState(table string, playerName string, playerCount int) *gameState 
 				state = createGameState(playerCount, true)
 				state.table = table
 			} else {
-				state.updatePlayerCount(playerCount)
+				state.updateMockPlayerCount(playerCount)
 			}
-			updateLobby(state)
 		}
 	} else {
 		// Create a brand new game
@@ -135,13 +134,11 @@ func updateLobby(state *gameState) {
 	sendStateToLobby(8, len(state.Players), true, state.serverName, "?table="+state.table)
 }
 
-func createInitialTables() {
-	createRealTable("The Garage (6 bots)", "garage", 6)
+func initializeRealTables() {
+	createRealTable("The Basement (6 bots)", "basement", 6)
 	time.Sleep(time.Second)
 
-	//saveState(getTableState("garage", "johnny", 0))
-
-	createRealTable("The Basement (4 bots)", "basement", 4)
+	createRealTable("The Garage (4 bots)", "garage", 4)
 	time.Sleep(time.Second)
 
 	createRealTable("The Den", "den", 0)

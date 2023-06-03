@@ -43,6 +43,13 @@ const LOW = 5
 const HIGH = 10
 const STARTING_PURSE = 200
 
+const BOT_TIME_LIMIT = time.Second * time.Duration(1)
+const PLAYER_TIME_LIMIT = time.Second * time.Duration(30)
+const ENDGAME_TIME_LIMIT = time.Second * time.Duration(7)
+
+// Drop players who do not make a move in 5 minutes
+const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
+
 var lock sync.Mutex
 
 var suitLookup = []string{"C", "D", "H", "S"}
@@ -58,16 +65,7 @@ var moveLookup = map[string]string{
 	"RH": "RAISE",
 }
 
-var playerPool = []player{
-	{Name: "Clyde BOT"},
-	{Name: "Spock BOT"},
-	{Name: "Kirk BOT"},
-	{Name: "Hulk BOT"},
-	{Name: "Fry BOT"},
-	{Name: "Meg BOT"},
-	{Name: "GI BOT"},
-	{Name: "AI BOT"},
-}
+var botNames = []string{"Clyde", "Spock", "Kirk", "Hulk", "Fry", "Meg", "GI", "AI"}
 
 type validMove struct {
 	Move string `json:"move"`
@@ -88,8 +86,9 @@ type player struct {
 	Hand   string `json:"hand"`
 
 	// Internal
-	IsBot bool
-	cards []card
+	IsBot    bool
+	cards    []card
+	lastPing time.Time
 }
 
 type gameState struct {
@@ -136,31 +135,25 @@ func createGameState(playerCount int, isMockGame bool) *gameState {
 	if isMockGame {
 		playerCount = int(math.Min(math.Max(2, float64(playerCount)), 8))
 	}
-	state.Players = playerPool[0:playerCount]
+
+	// Pre-populate player pool with bots
 	for i := 0; i < playerCount; i++ {
-		state.Players[i].Purse = STARTING_PURSE
-		if i > 0 || !isMockGame {
-			state.Players[i].IsBot = true
-		}
+		state.addPlayer(botNames[i], true)
 	}
 
 	log.Print("Created GameState")
 	return &state
 }
 
-func (state *gameState) updatePlayerCount(playerCount int) {
+func (state *gameState) updateMockPlayerCount(playerCount int) {
 	if playerCount <= len(state.Players) || playerCount > 8 {
 		return
 	}
 
+	// Add bot players that are waiting to play the next game
 	delta := playerCount - len(state.Players)
 	for i := 0; i < delta; i++ {
-		// Create a player that is waiting to play the next game
-		player := playerPool[len(state.Players)]
-		player.Status = 0
-		player.Purse = STARTING_PURSE
-		player.cards = []card{}
-		state.Players = append(state.Players, player)
+		state.addPlayer(botNames[len(state.Players)], true)
 	}
 }
 
@@ -261,21 +254,31 @@ func (state *gameState) dealCards() {
 	}
 }
 
+func (state *gameState) addPlayer(playerName string, isBot bool) {
+
+	if isBot {
+		playerName += " BOT"
+	}
+
+	newPlayer := player{
+		Name:   playerName,
+		Status: 0,
+		Purse:  STARTING_PURSE,
+		cards:  []card{},
+		IsBot:  isBot,
+	}
+
+	state.Players = append(state.Players, newPlayer)
+}
+
 func (state *gameState) setClientPlayerByName(playerName string) {
 	state.clientPlayer = slices.IndexFunc(state.Players, func(p player) bool { return strings.EqualFold(p.Name, playerName) })
 
 	// Add new player if there is room
 	if state.clientPlayer < 0 && len(state.Players) < 8 {
-
-		newPlayer := player{
-			Name:   playerName,
-			Status: 0,
-			Purse:  STARTING_PURSE,
-			cards:  []card{},
-		}
-
-		state.Players = append(state.Players, newPlayer)
+		state.addPlayer(playerName, false)
 		state.clientPlayer = len(state.Players) - 1
+		updateLobby(state)
 	}
 }
 
@@ -334,6 +337,9 @@ func (state *gameState) endGame() {
 		result += " won by default"
 	}
 	state.LastResult = result
+
+	state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+
 	log.Println(result)
 }
 
@@ -343,6 +349,8 @@ func (state *gameState) runGameLogic() {
 	// Only one thread can execute this at a time, to avoid multiple threads updating the state
 	lock.Lock()
 	defer lock.Unlock()
+
+	state.playerPing()
 
 	// We can't play a game until there are at least 2 players
 	if len(state.Players) < 2 {
@@ -358,9 +366,14 @@ func (state *gameState) runGameLogic() {
 	//isHumanPlayer := state.ActivePlayer == state.clientPlayer
 
 	if state.gameOver {
-		state.Round = 0
-		state.gameOver = false
-		state.newRound()
+
+		// Create a new game if the end game delay is past
+		if int(time.Until(state.moveExpires).Seconds()) < 0 {
+			state.dropInactivePlayers()
+			state.Round = 0
+			state.gameOver = false
+			state.newRound()
+		}
 		return
 	}
 
@@ -420,7 +433,7 @@ func (state *gameState) runGameLogic() {
 			//if len(cards) == 5 && len(moves) > 1 && moves[1].Move == "CH" {}
 
 			// Hardly ever fold early if a BOT has an jack or higher.
-			if state.Round < 3 && len(moves) > 1 && rand.Intn(3) > 0 && slices.IndexFunc(cards, func(c card) bool { return c.value > 10 }) > -1 {
+			if state.Round < 3 && len(moves) > 1 && rand.Intn(3) > 0 && slices.ContainsFunc(cards, func(c card) bool { return c.value > 10 }) {
 				choice = 1
 			}
 
@@ -462,29 +475,52 @@ func (state *gameState) runGameLogic() {
 
 		move := moves[choice]
 
-		state.performMove(move.Move)
+		state.performMove(move.Move, true)
 	}
 
 }
 
+// Drop players that have not pinged within the expected timeout
+func (state *gameState) dropInactivePlayers() {
+	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
+
+	players := []player{}
+	for _, player := range state.Players {
+		if player.IsBot || player.lastPing.Compare(cutoff) > 0 {
+			players = append(players, player)
+		}
+	}
+	state.Players = players
+
+}
+
+// Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
+func (state *gameState) playerPing() {
+	state.Players[state.clientPlayer].lastPing = time.Now()
+}
+
 // Performs the requested move for the active player, and returns true if successful
-func (state *gameState) performMove(move string) bool {
+func (state *gameState) performMove(move string, internalCall ...bool) bool {
+
+	// Only one thread can execute this at a time, to avoid multiple threads updating the state
+	// We only need to lock if this is being called directly from main
+	if len(internalCall) == 0 || !internalCall[0] {
+		lock.Lock()
+		defer lock.Unlock()
+
+		state.playerPing()
+	}
 
 	// Get pointer to player
 	player := &state.Players[state.ActivePlayer]
 
-	// Sanity Check 2 - Player status should be 1 to move. In theory they should never be active if their status is != 1
+	// Sanity check if player is still in the game. Unless there is a bug, they should never be active if their status is != 1
 	if player.Status != 1 {
 		return false
 	}
 
-	// Only continue if this is a valid move for this player
-	moveIsValid := false
-	for _, validMove := range state.getValidMoves() {
-		moveIsValid = moveIsValid || validMove.Move == move
-	}
-
-	if !moveIsValid {
+	// Only perform move if it is a valid move for this player
+	if !slices.ContainsFunc(state.getValidMoves(), func(m validMove) bool { return m.Move == move }) {
 		return false
 	}
 
@@ -522,11 +558,11 @@ func (state *gameState) performMove(move string) bool {
 }
 
 func (state *gameState) resetPlayerTimer() {
-	seconds := 30
+	timeLimit := PLAYER_TIME_LIMIT
 	if state.Players[state.ActivePlayer].IsBot {
-		seconds = 1
+		timeLimit = BOT_TIME_LIMIT
 	}
-	state.moveExpires = time.Now().Add(time.Second * time.Duration(seconds))
+	state.moveExpires = time.Now().Add(timeLimit)
 }
 
 func (state *gameState) nextValidPlayer() {
@@ -594,6 +630,9 @@ func (state *gameState) createClientState() gameState {
 		setActivePlayer = true
 	} else {
 		stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
+		if stateCopy.MoveTime < 0 {
+			stateCopy.MoveTime = 0
+		}
 	}
 
 	// Now, store a copy of state players, then loop
