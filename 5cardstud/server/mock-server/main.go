@@ -159,7 +159,7 @@ func getTableState(table string, playerName string, playerCount int) *gameState 
 		// Create a brand new game
 		state = createGameState(playerCount, true)
 		state.table = table
-		updateLobby(state)
+		state.updateLobby()
 	}
 
 	//player := c.Query("player")
@@ -173,13 +173,6 @@ func getTableState(table string, playerName string, playerCount int) *gameState 
 
 func saveState(state *gameState) {
 	stateMap.Store(state.table, state)
-}
-
-func updateLobby(state *gameState) {
-	if state.isMockGame {
-		return
-	}
-	sendStateToLobby(8, len(state.Players), true, state.serverName, "?table="+state.table)
 }
 
 func initializeRealTables() {
@@ -198,5 +191,5 @@ func createRealTable(serverName string, table string, botCount int) {
 	state.table = table
 	state.serverName = serverName
 	saveState(state)
-	updateLobby(state)
+	state.updateLobby()
 }
