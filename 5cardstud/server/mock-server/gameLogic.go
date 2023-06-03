@@ -94,9 +94,9 @@ type gameState struct {
 	Round        int         `json:"round"`
 	Pot          int         `json:"pot"`
 	ActivePlayer int         `json:"activePlayer"`
+	MoveTime     int         `json:"moveTime"`
 	ValidMoves   []validMove `json:"validMoves"`
 	Players      []player    `json:"players"`
-	MoveTime     int         `json:"moveTime"`
 
 	// Internal
 	deck         []card
@@ -136,6 +136,10 @@ func createGameState(playerCount int, isMockGame bool) *gameState {
 	// Pre-populate player pool with bots
 	for i := 0; i < playerCount; i++ {
 		state.addPlayer(botNames[i], true)
+	}
+
+	if playerCount < 2 {
+		state.LastResult = "Waiting for more players"
 	}
 
 	log.Print("Created GameState")
@@ -401,6 +405,11 @@ func (state *gameState) runGameLogic() {
 	if !state.isMockGame {
 		moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
 		if moveTimeRemaining > 0 {
+			return
+		}
+	} else {
+		// If in a mock game, return if the client is the active player
+		if !state.Players[state.ActivePlayer].IsBot {
 			return
 		}
 	}
