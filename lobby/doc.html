@@ -92,25 +92,19 @@
             </table>
       </p>
       <p>Any additional fields will be ignored by the server.</p>
-      <p>In case of errors, the server will reply with a <b>http status 400</b> and the following json payload
-        <pre>
-          <code>
-{
+      <p>In case of errors, the server will reply with a <code>http status 400</code> and the following json payload
+<pre><code>{
   "success": false,
   "message": "VALIDATEERR - Invalid Json",
   "errors":  [&lt;list of errors identified&gt;]
 }
         </code>
         </pre>
-        in case of a successful submission the server will return a <b>http status 201 (created)</b> and the following payload:
-        <pre>
-          <code>
-{
+        in case of a successful submission the server will return a <code>http status 201 (created)</code> and the following payload:
+<pre><code>{
   "success": true,
   "message": "Server correctly updated"
-}
-          </code>
-        </pre>
+}</code></pre>
       </p>
 
       <h3 id="game-update">How do I update game values in Lobby Server?</h3>
@@ -119,7 +113,7 @@
 
       <h3 id="retrieve-full">How do I retrieve which games are available? (full data)</h3>
       <p>If your game server or game client require to have a view of all the games served the way to have a full dump of games in the server is to GET to $$srvaddr$$viewFull, with the correct <code>"Content-Type": "application/json"</code>.</p>
-      <p>The server will answer with an <b>array of servers</b> as described in <a href="#server-json">server json structure</a>. In addition to the fields described there, the array will contain an additional field:
+      <p>The server will answer with an <code>array of servers</code> as described in <a href="#server-json">server json structure</a>. In addition to the fields described there, the array will contain an additional field:
         <table>
           <thead>
             <tr><th>Field</th>
@@ -135,14 +129,10 @@
       </p>
       <p>
         The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": false,
   "message": "No servers available"
-}
-          </code>
-        </pre>
+}</code></pre>
       </p>
 
 
@@ -152,7 +142,7 @@
       <p>In addition to being possible to retrieve the Lobby game servers <a href="retrieve-full">in full</a>, Lobby servers allow to do a extraction of the game server data in a minimised format, with the objective of not overloading the 8bit system.</p>
       <p>The minimisation works at two levels: (a) filtering by client platform and (b) minimising of json structure.</p>
       <p>The filtering makes sure that the game server data sent back to the client applies only to a certain 8bit platform. For this work, client neets to GET to $$srvaddr$$view?platform=&lt;platform_name&gt; for <code>platform_name</code> games to be returned.</p>
-      <p>If there are any game available for the <code>platform_name</code> the server will return a <b>http status 200</b> and the following payload:
+      <p>If there are any game available for the <code>platform_name</code> the server will return a <code>http status 200</code> and the following payload:
         <pre id="server-json-minimised">
           <code>
 [
@@ -217,71 +207,59 @@
 
       <p>
         The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": false,
   "message": "No servers available"
-}
-          </code>
-        </pre>
+}</code></pre>
       </p>
       <p>
         The endpoint will return error <code>http error 400</code> if no variable <code>platform</code> is sent as part of the endpoint. Additionally, the server will return the following json:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": false,
   "message": "You need to submit a platform"
-}
-          </code>
-        </pre>
+}</code></pre>
       </p>
       <p>
         The endpoint will return error <code>http error 404</code> if servers are available but not for your selected platform. Additionally, the server will return the following json:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": false,
   "message": "No servers available for &lt;platform&gt;"
-}
-          </code>
-        </pre>
+}</code></pre>
       </p>
+
+      <h3>How do I delete a server from Lobby Server?</h3>
+      <p>If your game server requires to delete its presence from Lobby server they can DELETE to a valid json to $$srvaddr$$server with the correct "Content-Type": "application/json" and the following format:  
+        <pre><code>{
+  serverurl: "url since it is the primary key"
+}</code></pre>
+        If the delete is correct, the server will return an <code>http status 204 No Content</code> with no json message. In case of errors, the error list will be sent with a with a <code>http status 400</code>:
+<pre><code>
+{
+  "success": false,
+  "message": "VALIDATEERR - Invalid Json",
+  "errors":  [&lt;list of errors identified&gt;]
+}</code></pre>
+      </p>
+
 
       <h3>How do I check the status of the server?</h3>
       <p>You can check this page $$srvaddr$$ where you will find the status of the server, but if you prefer to do it via json, there's an specific GET for this: to $$srvaddr$$version. If server is online, you'll receive a reponse with <code>http code 200</code> and the following json payload:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": true,
   "uptime": "97h20m26.231376672s",
   "version": "fujinet lobby 3.1.0/freebsd (c) Roger Sen 2023"
-}
-          </code>
-        </pre>
+}</code></pre>
 
         Take into account that <code>uptime</code> field will change with the time since the server has been running and <code>version</code> will represent the current version of the Lobby Server.</p>
       <p>In case the server is not functional, you may receive no response will receive a json with the reason of the error <code>http code 503</code> and the following json:
-        <pre>
-          <code>
-{
+<pre><code>{
   "success": false,
   "message": "&lt;Reason for the server being non-functional&gt;",
   "version": "fujinet lobby 3.1.0/freebsd (c) Roger Sen 2023"
-}
-          </code>
-        </pre>
-      Again, the version message will change with new releases.
-      
+}</code></pre>
+      Again, the version message will change with new releases.    
       </p>
-
-
-      </p>
-
-
-
-    </main>
+  </main>
   
     <footer>
       <p>(c) 2023 <a href="https://rogersm.net/">Roger Sen</a></p>

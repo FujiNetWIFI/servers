@@ -33,7 +33,7 @@ var (
 )
 
 const (
-	VERSION   = "3.2.1"
+	VERSION   = "3.3.1"
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -71,6 +71,7 @@ func main() {
 	router.GET("/view", ShowServersMinimised)
 	router.GET("/version", ShowStatus)
 	router.POST("/server", UpsertServer)
+	router.DELETE("/server", DeleteServer)
 
 	router.Run(srvaddr)
 
