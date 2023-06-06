@@ -88,13 +88,6 @@ func ShowServers(c *gin.Context) {
 // insert/update uploaded server to the database. It also covers delete
 func UpsertServer(c *gin.Context) {
 
-	// if we have X-HTTP-Method-Override we call for server deletion
-	if c.GetHeader("X-HTTP-Method-Override") == "DELETE" {
-		DeleteServer(c)
-
-		return
-	}
-
 	server := GameServer{}
 
 	err1 := c.ShouldBindJSON(&server)
