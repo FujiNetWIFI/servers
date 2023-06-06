@@ -230,7 +230,7 @@
       <h3>How do I delete a server from Lobby Server?</h3>
       <p>If your game server requires to delete its presence from Lobby server they can DELETE to a valid json to $$srvaddr$$server with the correct "Content-Type": "application/json" and the following format:  
         <pre><code>{
-  serverurl: "url since it is the primary key"
+  "serverurl": "url since it is the primary key"
 }</code></pre>
         If the delete is correct, the server will return an <code>http status 204 No Content</code> with no json message. In case of errors, the error list will be sent with a with a <code>http status 400</code>:
 <pre><code>
