@@ -85,8 +85,15 @@ func ShowServers(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, ServerSlice)
 }
 
-// insert/update uploaded server to the database
+// insert/update uploaded server to the database. It also covers delete
 func UpsertServer(c *gin.Context) {
+
+	// if we have X-HTTP-Method-Override we call for server deletion
+	if c.GetHeader("X-HTTP-Method-Override") == "DELETE" {
+		DeleteServer(c)
+
+		return
+	}
 
 	server := GameServer{}
 
@@ -169,5 +176,4 @@ func DeleteServer(c *gin.Context) {
 
 	c.JSON(http.StatusNoContent, gin.H{"success": true,
 		"message": "Server correctly deleted"})
-
 }
