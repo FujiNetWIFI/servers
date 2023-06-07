@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -28,20 +28,20 @@ var DefaultGameServerDetails = GameServer{
 
 type GameServer struct {
 	// Properties being sent from Game Server
-	Game       string       `json:"game" binding:"required,printascii"`
-	Appkey     int          `json:"appkey" binding:"required,numeric"`
-	Server     string       `json:"server" binding:"required,printascii"`
-	Region     string       `json:"region" binding:"required,printascii"`
-	Serverurl  string       `json:"serverurl" binding:"required"`
-	Status     string       `json:"status" binding:"required,oneof=online offline"`
-	Maxplayers int          `json:"maxplayers" binding:"required,numeric"`
-	Curplayers int          `json:"curplayers" binding:"required,numeric"`
-	Clients    []GameClient `json:"clients" binding:"required"`
+	Game       string       `json:"game"`
+	Appkey     int          `json:"appkey"`
+	Server     string       `json:"server"`
+	Region     string       `json:"region"`
+	Serverurl  string       `json:"serverurl"`
+	Status     string       `json:"status"`
+	Maxplayers int          `json:"maxplayers"`
+	Curplayers int          `json:"curplayers"`
+	Clients    []GameClient `json:"clients"`
 }
 
 type GameClient struct {
-	Platform string `json:"platform" binding:"required,printascii`
-	Url      string `json:"url" binding:"required`
+	Platform string `json:"platform"`
+	Url      string `json:"url"`
 }
 
 func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server string, instanceUrlSuffix string) {
@@ -66,6 +66,9 @@ func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server stri
 	log.Printf("Updating Lobby: %s", jsonPayload)
 
 	request, err := http.NewRequest("POST", LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		panic(err)
+	}
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
 	client := &http.Client{}
@@ -78,7 +81,7 @@ func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server stri
 
 	log.Printf("Lobby Response: %s", response.Status)
 	if response.StatusCode > 300 {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		log.Println("response Body:", string(body))
 	}
 

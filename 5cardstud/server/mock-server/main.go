@@ -89,9 +89,10 @@ func apiState(c *gin.Context) {
 	state, unlock := getState(c, playerCount)
 	func() {
 		defer unlock()
-
-		state.runGameLogic()
-		saveState(state)
+		if state.clientPlayer >= 0 {
+			state.runGameLogic()
+			saveState(state)
+		}
 	}()
 
 	c.JSON(http.StatusOK, state.createClientState())
@@ -176,14 +177,15 @@ func saveState(state *gameState) {
 }
 
 func initializeRealTables() {
+
+	// Create the real servers (hard coded for now)
 	createRealTable("The Basement (6 bots)", "basement", 6)
-	time.Sleep(time.Second)
 
+	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Garage (4 bots)", "garage", 4)
-	time.Sleep(time.Second)
 
+	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Den", "den", 0)
-	time.Sleep(time.Second)
 }
 
 func createRealTable(serverName string, table string, botCount int) {

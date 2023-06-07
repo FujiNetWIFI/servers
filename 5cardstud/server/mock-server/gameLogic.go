@@ -49,6 +49,8 @@ const ENDGAME_TIME_LIMIT = time.Second * time.Duration(7)
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
 
+const WAITING_MESSAGE = "Waiting for more players"
+
 var suitLookup = []string{"C", "D", "H", "S"}
 var valueLookup = []string{"", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"}
 var moveLookup = map[string]string{
@@ -148,7 +150,7 @@ func createGameState(playerCount int, isMockGame bool) *gameState {
 	}
 
 	if playerCount < 2 {
-		state.LastResult = "Waiting for more players"
+		state.LastResult = WAITING_MESSAGE
 	}
 
 	log.Print("Created GameState")
@@ -168,6 +170,22 @@ func (state *gameState) updateMockPlayerCount(playerCount int) {
 }
 
 func (state *gameState) newRound() {
+
+	// Check if multiple players are still playing
+	if state.Round > 0 {
+		playersLeft := 0
+		for _, player := range state.Players {
+			if player.Status == STATUS_PLAYING {
+				playersLeft++
+			}
+		}
+
+		if playersLeft < 2 {
+			state.endGame()
+			return
+		}
+	}
+
 	state.Round++
 
 	// Clear pot at start so players can anti
@@ -283,6 +301,7 @@ func (state *gameState) addPlayer(playerName string, isBot bool) {
 
 func (state *gameState) setClientPlayerByName(playerName string) {
 	if len(playerName) == 0 {
+		state.clientPlayer = -1
 		return
 	}
 	state.clientPlayer = slices.IndexFunc(state.Players, func(p player) bool { return strings.EqualFold(p.Name, playerName) })
@@ -323,6 +342,12 @@ func (state *gameState) endGame() {
 
 	evs := cardrank.StudFive.EvalPockets(pockets, nil)
 	order, pivot := cardrank.Order(evs, false)
+
+	if pivot == 0 {
+		state.LastResult = WAITING_MESSAGE
+		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		return
+	}
 
 	// Int divide, so "house" takes remainder
 	perPlayerWinnings := state.Pot / pivot
@@ -508,6 +533,10 @@ func (state *gameState) dropInactivePlayers() {
 	playersWereDropped := len(state.Players) != len(players)
 	state.Players = players
 
+	if len(state.Players) < 2 {
+		state.LastResult = WAITING_MESSAGE
+	}
+
 	if playersWereDropped {
 		state.updateLobby()
 	}
@@ -518,11 +547,25 @@ func (state *gameState) clientLeave() {
 	if state.clientPlayer < 0 {
 		return
 	}
-	player := state.Players[state.clientPlayer]
+	player := &state.Players[state.clientPlayer]
 
 	player.Status = STATUS_LEFT
 	if player.Status != STATUS_WAITING {
 		player.Move = "LEFT"
+	}
+
+	// Check if no players are playing. If so, end the game and drop all
+	playersLeft := 0
+	for _, player := range state.Players {
+		if player.Status == STATUS_PLAYING {
+			playersLeft++
+		}
+	}
+
+	if playersLeft == 0 {
+		state.endGame()
+		state.dropInactivePlayers()
+		return
 	}
 }
 
@@ -564,10 +607,10 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 			raise = HIGH
 		} else if move == "BL" || move == "RL" {
 			raise = LOW
-			if state.Pot == BRINGIN {
+			if state.currentBet == BRINGIN {
 				// If betting LOW the very first time and the pot is BRINGIN
 				// just make their bet enough to make the total bet LOW
-				raise = -BRINGIN
+				raise -= BRINGIN
 			}
 		} else if move == "BB" {
 			raise = BRINGIN
@@ -657,11 +700,11 @@ func (state *gameState) createClientState() gameState {
 		(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
 		stateCopy.ActivePlayer = -1
 		setActivePlayer = true
-	} else {
-		stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
-		if stateCopy.MoveTime < 0 {
-			stateCopy.MoveTime = 0
-		}
+	}
+
+	stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
+	if stateCopy.MoveTime < 0 {
+		stateCopy.MoveTime = 0
 	}
 
 	// Now, store a copy of state players, then loop
