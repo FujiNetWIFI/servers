@@ -16,7 +16,7 @@ var ROUTER = setupRouter()
 var GameServersIn = []string{
 	`{
         "game": "Super Chess",
-        "gametype": 1,
+        "appkey": 1,
         "server": "chess.rogersm.net",
         "serverurl": "http://chess.rogersm.net/server",
         "region": "eu",
@@ -32,7 +32,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "Battleship",
-        "gametype": 1,
+        "appkey": 1,
         "region": "au",
         "server": "8bitBattleship.com",
         "serverurl": "https://8bitBattleship.com/battlebots",
@@ -48,7 +48,7 @@ var GameServersIn = []string{
 	}`,
 	`{
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "region": "us",
         "server": "erichomeserver.com",
         "serverurl": "tcp://thomcorner.com/pokerbots",
@@ -64,7 +64,7 @@ var GameServersIn = []string{
 	}`,
 	`{
         "game": "Battleship",
-        "gametype": 1,
+        "appkey": 1,
         "region": "apac",
         "server": "8bitBattleship.com",
         "serverurl": "https://8bitBattleship.com/battlehuman",
@@ -82,7 +82,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "region": "all",
         "server": "erichomeserver.com",
         "serverurl": "tcp://thomcorner.com/server5",
@@ -98,7 +98,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "region": "vatican",
         "server": "thomcorner.com",
         "serverurl": "tcp://thomcorner.com/pokerhuman",
@@ -113,7 +113,7 @@ var GameServersIn = []string{
 var GameServersOut = `"[
     {
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "server": "thomcorner.com",
         "region": "vatican",
         "serverurl": "tcp://thomcorner.com/pokerhuman",
@@ -129,7 +129,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Battleship",
-        "gametype": 1,
+        "appkey": 1,
         "server": "8bitBattleship.com",
         "region": "apac",
         "serverurl": "https://8bitBattleship.com/battlehuman",
@@ -161,7 +161,7 @@ var GameServersOut = `"[
     },
     {
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "server": "erichomeserver.com",
         "region": "us",
         "serverurl": "tcp://thomcorner.com/pokerbots",
@@ -189,7 +189,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Battleship",
-        "gametype": 1,
+        2a2: 1,
         "server": "8bitBattleship.com",
         "region": "au",
         "serverurl": "https://8bitBattleship.com/battlebots",
@@ -217,7 +217,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Super Chess",
-        "gametype": 1,
+        "appkey": 1,
         "server": "chess.rogersm.net",
         "region": "eu",
         "serverurl": "http://chess.rogersm.net/server",
@@ -241,7 +241,7 @@ var GameServersOut = `"[
     },
     {
         "game": "5 CARD STUD",
-        "gametype": 1,
+        "appkey": 1,
         "server": "erichomeserver.com",
         "region": "all",
         "serverurl": "tcp://thomcorner.com/server5",
@@ -341,11 +341,11 @@ func TestInsertServer1(t *testing.T) {
 
 	req, _ := http.NewRequest("POST", "/server", bytes.NewBuffer([]byte(`{
         "game": "Super Chess",
-        "gametype": 1,
-        "server": "chess.rogersm.net",
+        "server": "http://chess.rogersm.net",
         "serverurl": "http://chess.rogersm.net/server",
         "region": "eu",
         "status": "online",
+        "appkey": 1,
         "maxplayers": 2,
         "curplayers": 1,
         "clients": [

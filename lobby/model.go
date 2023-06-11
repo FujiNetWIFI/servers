@@ -41,7 +41,7 @@ func (s *GameServerDelete) Key() string {
 // Minified Structure to send to 8-bit Lobby Client
 type GameServerMin struct {
 	Game       string `json:"g"`
-	Gametype   int    `json:"t"`
+	AppKey     int    `json:"t"`
 	Serverurl  string `json:"u"`
 	Client     string `json:"c"`
 	Server     string `json:"s"`
@@ -84,7 +84,7 @@ func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool
 
 			return GameServerMin{
 				Game:       s.Game,
-				Gametype:   s.Appkey,
+				AppKey:     s.Appkey,
 				Serverurl:  s.Serverurl,
 				Client:     client.Url,
 				Server:     s.Server,
@@ -126,7 +126,7 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	if s.Appkey < 1 || s.Appkey > 255 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Gametype' Error: Field validation length must be between 1 and 255"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Appkey' Error: Field validation length must be between 1 and 255"))
 	}
 
 	if len(s.Game) < 6 || len(s.Game) > 20 {
