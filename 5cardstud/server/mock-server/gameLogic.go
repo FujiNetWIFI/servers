@@ -41,10 +41,11 @@ const BRINGIN = 2
 const LOW = 5
 const HIGH = 10
 const STARTING_PURSE = 200
-
+const MOVE_TIME_GRACE_SECONDS = 4
 const BOT_TIME_LIMIT = time.Second * time.Duration(1)
-const PLAYER_TIME_LIMIT = time.Second * time.Duration(30)
-const ENDGAME_TIME_LIMIT = time.Second * time.Duration(7)
+const PLAYER_TIME_LIMIT = time.Second * time.Duration(39)
+const ENDGAME_TIME_LIMIT = time.Second * time.Duration(10)
+const NEW_ROUND_FIRST_PLAYER_BUFFER = time.Second * time.Duration(5)
 
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
@@ -64,7 +65,7 @@ var moveLookup = map[string]string{
 	"RH": "RAISE",
 }
 
-var botNames = []string{"Clyde", "Spock", "Kirk", "Hulk", "Fry", "Meg", "GI", "AI"}
+var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "GI", "AI"}
 
 type validMove struct {
 	Move string `json:"move"`
@@ -184,6 +185,10 @@ func (state *gameState) newRound() {
 			state.endGame()
 			return
 		}
+	} else {
+		if len(state.Players) < 2 {
+			return
+		}
 	}
 
 	state.Round++
@@ -236,7 +241,7 @@ func (state *gameState) newRound() {
 
 	state.dealCards()
 	state.ActivePlayer = state.getPlayerWithBestVisibleHand(state.Round > 1)
-	state.resetPlayerTimer()
+	state.resetPlayerTimer(true)
 }
 
 func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
@@ -311,6 +316,11 @@ func (state *gameState) setClientPlayerByName(playerName string) {
 		state.addPlayer(playerName, false)
 		state.clientPlayer = len(state.Players) - 1
 		state.updateLobby()
+	}
+
+	// In case a player returns while they are still in the "LEFT" status (before the current game ended), add them back in as waiting
+	if state.Players[state.clientPlayer].Status == STATUS_LEFT {
+		state.Players[state.clientPlayer].Status = STATUS_WAITING
 	}
 }
 
@@ -404,6 +414,7 @@ func (state *gameState) runGameLogic() {
 		if int(time.Until(state.moveExpires).Seconds()) < 0 {
 			state.dropInactivePlayers()
 			state.Round = 0
+			state.Pot = 0
 			state.gameOver = false
 			state.newRound()
 		}
@@ -629,11 +640,17 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 	return true
 }
 
-func (state *gameState) resetPlayerTimer() {
+func (state *gameState) resetPlayerTimer(newRound bool) {
 	timeLimit := PLAYER_TIME_LIMIT
+
 	if state.Players[state.ActivePlayer].isBot {
 		timeLimit = BOT_TIME_LIMIT
 	}
+
+	if newRound {
+		timeLimit += NEW_ROUND_FIRST_PLAYER_BUFFER
+	}
+
 	state.moveExpires = time.Now().Add(timeLimit)
 }
 
@@ -645,7 +662,7 @@ func (state *gameState) nextValidPlayer() {
 	for state.Players[state.ActivePlayer].Status != STATUS_PLAYING {
 		state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
 	}
-	state.resetPlayerTimer()
+	state.resetPlayerTimer(false)
 }
 
 func (state *gameState) getValidMoves() []validMove {
@@ -702,11 +719,6 @@ func (state *gameState) createClientState() gameState {
 		setActivePlayer = true
 	}
 
-	stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
-	if stateCopy.MoveTime < 0 {
-		stateCopy.MoveTime = 0
-	}
-
 	// Now, store a copy of state players, then loop
 	// through and add to the state copy, starting
 	// with this player first
@@ -751,6 +763,17 @@ func (state *gameState) createClientState() gameState {
 	// Determine valid moves for this player (if their turn)
 	if stateCopy.ActivePlayer == 0 {
 		stateCopy.ValidMoves = state.getValidMoves()
+	}
+
+	// Determine the move time left. Reduce the number by the grace period, to allow for plenty of time for a response to be sent back and accepted
+	stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
+
+	if stateCopy.ActivePlayer > -1 {
+		stateCopy.MoveTime -= MOVE_TIME_GRACE_SECONDS
+	}
+
+	if stateCopy.MoveTime < 0 {
+		stateCopy.MoveTime = 0
 	}
 
 	return stateCopy
