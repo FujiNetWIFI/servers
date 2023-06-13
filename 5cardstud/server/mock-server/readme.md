@@ -11,8 +11,19 @@ It currently provides:
 * Auto moves for players that do not move in time (fold, check, or forced post)
 * Auto drops players that have not interacted with the server after some time (timed out)
 * Two types of tables
-  * Mock Table - this can be created adhoc by passing any table name from the client. Used for developing a new client and testing with bots. Each new call to state steps forward in time.
   * Real Table - these tables are created at startup with a set # of bots (0 for all human games) and play in real time, allowing multiple clients and behaveing like a real game server. 
+  * Mock Table - this can be created adhoc by passing any table name from the client. Used for developing a new client and testing with bots. Each new call to state steps forward in time.
+
+## How to use REAL Tables
+
+These tables are psuedo real time. Call `/state` will run any housekeeping tasks (bot or player auto-move, deal card, proceed with dealing). Since a call to `/state` is required to advance the game, a table with bots in it will not actually play until one or more clients are connected and calling `/state`. Each player has a limited amount of time to make a move before the server makes a move on their behalf. BOTs take a second to move.
+
+* The game is over when **round 5** is sent. The next game will begin automatically after a few seconds.
+* The game is waiting on more players when **round 0** is sent.
+* Clients should call `/leave` when a player exits the game or table, rather than rely on the server to eventually drop the player due to inactivity.
+
+You can view the state as-is by calling `/view`.
+
 
 ## How to use MOCK Tables
 
@@ -22,32 +33,25 @@ The game is over when **round 5** is sent. The next call to ``/state`` will begi
 
 You can view the state as-is by calling `/view` . This could be useful when comparing what the client is seeing without stepping forward in time.
 
-## How to use REAL Tables
-
-These tables are real time. Each player has a limited amount of time to make a move before the server makes a move on their behalf. BOTs take a second to move. Call `/state/` to get the latest state. 
-
-The game is over when **round 5** is sent. The next game will begin automatically after a few seconds.
-
-You can still view the state as-is by calling `/view`.
 
 ## Public endpoint
 
-As an alternative to running locally, use the latest api running here:
+The public api is always running here:
 
 https://5card.carr-designs.com/
 
-**TIP:** If using the public endpoint, append each call with your own table name, e.g. `?table=Eric123` 
+**TIP:** When using the public api Mock tables, append each call with your own table name, e.g. `?table=Eric123` 
 
 ## Api paths
 
 * GET `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
 * GET ``/move/[code]`` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
-* GET `/leave` - Leave the table
+* GET `/leave` - Leave the table. Each client should call this when a player exits the game
 * GET `/view` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time.
 
 Both `state`, `move`, and `leave`  accept GET or POST.
 
-## Query parameters
+## All calls must include Query parameters as discussed below
 * `table=[Alphanumeric]` - **Required** - Use to play in an isolated game. Case insensitive.
 * `player=[Alphanumeric]` - **Required for Real** - Player's name. Treated as case insensitive unique ID.
 * `count=[2-8]` - **Required for MOCK** Include on the `/state` call to set the number of players in a game. 
@@ -65,7 +69,7 @@ A client centric state is returned. This means that your client will only see th
 * `round` - The current round (1-5). Round 5 means the game has ended and pot awarded to winning player(s).
 * `pot` - The current value of the pot for the current game
 * `activePlayer` - The currently active player. Your client is always player 0. This will be `-1` at the end of a round (or end of game) to allow the client to show the last move before starting the next round.
-* `moveTime` - Number of seconds remaining for current player to make their move.
+* `moveTime` - Number of seconds remaining for current player to make their move, or until the next game will start. If a player does not send a move within this time, the server will auto-move for them (post/check if possible, otherwise a fold)
 * `validMoves` - An array of legal moves
     * `move` - The code to send to `/move`
     * `name` - The text to show onscreen in the client
@@ -75,6 +79,7 @@ A client centric state is returned. This means that your client will only see th
         * 0 - Just joined, waiting to play the next game
         * 1 - In Game, playing
         * 2 - In Game, Folded
+        * 3 - Left the table (will be gone next game)
     * `bet` - The total of the player's bet for the current round
     * `move` - Friendly text of the player's most recent move this round
     * `purse` - The player's remaining amount available to bet
