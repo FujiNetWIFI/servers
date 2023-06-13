@@ -397,6 +397,10 @@ func (state *gameState) runGameLogic() {
 
 	// We can't play a game until there are at least 2 players
 	if len(state.Players) < 2 {
+		// Reset the round to 0 so the client knows there is no active game being run
+		state.Round = 0
+		state.Pot = 0
+		state.ActivePlayer = -1
 		return
 	}
 
@@ -536,7 +540,7 @@ func (state *gameState) dropInactivePlayers() {
 	players := []player{}
 
 	for _, player := range state.Players {
-		if player.Status != STATUS_LEFT && (player.isBot || player.lastPing.Compare(cutoff) > 0) {
+		if len(state.Players) > 1 && player.Status != STATUS_LEFT && (player.isBot || player.lastPing.Compare(cutoff) > 0) {
 			players = append(players, player)
 		}
 	}
@@ -573,6 +577,7 @@ func (state *gameState) clientLeave() {
 		}
 	}
 
+	// If the last player dropped, stop the game and update the lobby
 	if playersLeft == 0 {
 		state.endGame()
 		state.dropInactivePlayers()
