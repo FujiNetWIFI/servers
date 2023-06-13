@@ -467,6 +467,12 @@ func (state *gameState) runGameLogic() {
 		}
 	}
 
+	// Edge case - player leaves when it is their move - make them fold
+	if state.Players[state.ActivePlayer].Status == STATUS_LEFT {
+		state.performMove("FO", true)
+		return
+	}
+
 	// Force a move for this player or BOT if they are in the game and have not folded
 	if state.Players[state.ActivePlayer].Status == STATUS_PLAYING {
 		cards := state.Players[state.ActivePlayer].cards
@@ -545,13 +551,22 @@ func (state *gameState) dropInactivePlayers() {
 		}
 	}
 
+	// Update the client player index in case it changed due to players being dropped
+	if len(players) > 0 {
+		state.clientPlayer = slices.IndexFunc(players, func(p player) bool { return strings.EqualFold(p.Name, state.Players[state.clientPlayer].Name) })
+	}
+
+	// Store if players were dropped, before updating the state player array
 	playersWereDropped := len(state.Players) != len(players)
+
 	state.Players = players
 
+	// If only one player is left, we are waiting for more
 	if len(state.Players) < 2 {
 		state.LastResult = WAITING_MESSAGE
 	}
 
+	// If any player state changed, update the lobby
 	if playersWereDropped {
 		state.updateLobby()
 	}
@@ -593,8 +608,6 @@ func (state *gameState) playerPing() {
 // Performs the requested move for the active player, and returns true if successful
 func (state *gameState) performMove(move string, internalCall ...bool) bool {
 
-	// Only one thread can execute this at a time, to avoid multiple threads updating the state
-	// We only need to lock if this is being called directly from main
 	if len(internalCall) == 0 || !internalCall[0] {
 		state.playerPing()
 	}
