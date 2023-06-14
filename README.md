@@ -18,4 +18,4 @@ Source to servers for games and apps that work with FujiNet
     - "client/pc/python" - PC client, written in Python.
   - Servers
     - "dummy-server/pc/Python" - Json server written in Python, serves random hands for client testing.
-    - "server/mock-server" - Json Api server written in Go, emulates much of the game server logic, including player bots to assist in writing/testing persisted play over multiple games on a single client.
+    - "[server/mock-server](5cardstud/server/mock-server)" - Json Api server written in Go. It started as a mock server for the purpose of writing 5 Card Stud clients and migrated into a full server supporting multiple clients, with bots. It still supports mock tables to assist in writing/testing new clients.
