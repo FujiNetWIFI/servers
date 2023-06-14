@@ -580,9 +580,7 @@ func (state *gameState) clientLeave() {
 	player := &state.Players[state.clientPlayer]
 
 	player.Status = STATUS_LEFT
-	if player.Status != STATUS_WAITING {
-		player.Move = "LEFT"
-	}
+	player.Move = "LEFT"
 
 	// Check if no players are playing. If so, end the game and drop all
 	playersLeft := 0

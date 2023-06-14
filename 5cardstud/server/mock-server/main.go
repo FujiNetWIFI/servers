@@ -109,8 +109,7 @@ func apiLeave(c *gin.Context) {
 			saveState(state)
 		}
 	}()
-
-	c.JSON(http.StatusOK, state.createClientState())
+	c.JSON(http.StatusOK, "bye")
 }
 
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
@@ -179,13 +178,17 @@ func saveState(state *gameState) {
 func initializeRealTables() {
 
 	// Create the real servers (hard coded for now)
-	createRealTable("The Basement (6 bots)", "basement", 6)
+	createRealTable("The Blue Room (6 bots)", "blue", 6)
 
 	time.Sleep(time.Millisecond * time.Duration(100))
-	createRealTable("The Garage (4 bots)", "garage", 4)
+	createRealTable("The Green Room (4 bots)", "green", 4)
+
+	time.Sleep(time.Millisecond * time.Duration(100))
+	createRealTable("The Basement", "basement", 0)
 
 	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Den", "den", 0)
+
 }
 
 func createRealTable(serverName string, table string, botCount int) {
