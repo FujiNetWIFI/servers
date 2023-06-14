@@ -29,6 +29,15 @@ type GameClient struct {
 	Url      string `json:"url" binding:"required"`
 }
 
+type GameServerDelete struct {
+	Serverurl string `json:"serverurl" binding:"required"`
+}
+
+// we index by Serverurl because it's unique
+func (s *GameServerDelete) Key() string {
+	return s.Serverurl
+}
+
 // Minified Structure to send to 8-bit Lobby Client
 type GameServerMin struct {
 	Game       string `json:"g"`
