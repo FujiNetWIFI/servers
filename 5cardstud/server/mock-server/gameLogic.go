@@ -45,7 +45,7 @@ const MOVE_TIME_GRACE_SECONDS = 4
 const BOT_TIME_LIMIT = time.Second * time.Duration(3)
 const PLAYER_TIME_LIMIT = time.Second * time.Duration(39)
 const ENDGAME_TIME_LIMIT = time.Second * time.Duration(12)
-const NEW_ROUND_FIRST_PLAYER_BUFFER = time.Second * time.Duration(5)
+const NEW_ROUND_FIRST_PLAYER_BUFFER = time.Second * time.Duration(1)
 
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
