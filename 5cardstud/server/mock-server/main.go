@@ -53,7 +53,12 @@ func main() {
 		log.Printf("defaulting to port %s", port)
 	}
 
-	// Create real game tables
+	// Local dev mode - do not update live lobby
+	localMode := os.Getenv("GO_LOCAL")
+
+	UpdateLobby = localMode != "1"
+
+	initializeGameServer()
 	initializeRealTables()
 
 	router.Run(":" + port)
@@ -110,6 +115,7 @@ func apiLeave(c *gin.Context) {
 		}
 	}()
 	c.JSON(http.StatusOK, "bye")
+	//c.JSON(http.StatusOK, state.createClientState())
 }
 
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
@@ -178,15 +184,11 @@ func saveState(state *gameState) {
 func initializeRealTables() {
 
 	// Create the real servers (hard coded for now)
+
+	createRealTable("The Red Room (2 bots)", "red", 2)
 	createRealTable("The Blue Room (6 bots)", "blue", 6)
-
-	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Green Room (4 bots)", "green", 4)
-
-	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Basement", "basement", 0)
-
-	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Den", "den", 0)
 
 }
@@ -197,4 +199,8 @@ func createRealTable(serverName string, table string, botCount int) {
 	state.serverName = serverName
 	saveState(state)
 	state.updateLobby()
+
+	if UpdateLobby {
+		time.Sleep(time.Millisecond * time.Duration(100))
+	}
 }
