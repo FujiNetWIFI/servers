@@ -492,15 +492,23 @@ func (state *gameState) runGameLogic() {
 
 	// If a real game, return if the move timer has not expired
 	if !state.isMockGame {
-		moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
-		if moveTimeRemaining > 0 {
-			return
+		// Check timer if no active player, or the active player hasn't already left
+		if state.ActivePlayer == -1 || state.Players[state.ActivePlayer].Status != STATUS_LEFT {
+			moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
+			if moveTimeRemaining > 0 {
+				return
+			}
 		}
 	} else {
 		// If in a mock game, return if the client is the active player
 		if !state.Players[state.ActivePlayer].isBot {
 			return
 		}
+	}
+
+	// If there is no active player, we are done
+	if state.ActivePlayer < 0 {
+		return
 	}
 
 	// Edge case - player leaves when it is their move - make them fold
@@ -533,7 +541,7 @@ func (state *gameState) runGameLogic() {
 				choice = 1
 			}
 
-			// Likely Don't fold if BOT has a pair or better
+			// Likely don't fold if BOT has a pair or better
 			rank := getRank(cards)
 			if rank[0] < 300 && rand.Intn(20) > 0 {
 				choice = 1
@@ -850,7 +858,16 @@ func (state *gameState) updateLobby() {
 	if state.isMockGame || !UpdateLobby {
 		return
 	}
-	sendStateToLobby(8, len(state.Players), true, state.serverName, "?table="+state.table)
+
+	humanPlayerCount := 0
+	for _, player := range state.Players {
+		if !player.isBot {
+			humanPlayerCount++
+		}
+	}
+
+	// Send the total human slots / players to the Lobby
+	sendStateToLobby(8-len(state.Players)+humanPlayerCount, humanPlayerCount, true, state.serverName, "?table="+state.table)
 }
 
 // Ranks hand as an array of large to small values representing sets of 4 or less. Intended for 4 visible cards or simple AI
