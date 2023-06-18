@@ -511,9 +511,9 @@ func (state *gameState) runGameLogic() {
 		return
 	}
 
-	// Edge case - player leaves when it is their move - make them fold
+	// Edge case - player leaves when it is their move - skip over them
 	if state.Players[state.ActivePlayer].Status == STATUS_LEFT {
-		state.performMove("FO", true)
+		state.nextValidPlayer()
 		return
 	}
 
@@ -662,7 +662,7 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 	// Get pointer to player
 	player := &state.Players[state.ActivePlayer]
 
-	// Sanity check if player is still in the game. Unless there is a bug, they should never be active if their status is != 1
+	// Sanity check if player is still in the game. Unless there is a bug, they should never be active if their status is != PLAYING
 	if player.Status != STATUS_PLAYING {
 		return false
 	}
