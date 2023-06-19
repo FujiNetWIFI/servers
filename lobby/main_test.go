@@ -32,7 +32,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "Battleship",
-        "appkey": 1,
+        "appkey": 2,
         "region": "au",
         "server": "8bitBattleship.com",
         "serverurl": "https://8bitBattleship.com/battlebots",
@@ -48,7 +48,7 @@ var GameServersIn = []string{
 	}`,
 	`{
         "game": "5 CARD STUD",
-        "appkey": 1,
+        "appkey": 2,
         "region": "us",
         "server": "erichomeserver.com",
         "serverurl": "tcp://thomcorner.com/pokerbots",
@@ -64,7 +64,7 @@ var GameServersIn = []string{
 	}`,
 	`{
         "game": "Battleship",
-        "appkey": 1,
+        "appkey": 3,
         "region": "apac",
         "server": "8bitBattleship.com",
         "serverurl": "https://8bitBattleship.com/battlehuman",
@@ -82,7 +82,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "5 CARD STUD",
-        "appkey": 1,
+        "appkey": 3,
         "region": "all",
         "server": "erichomeserver.com",
         "serverurl": "tcp://thomcorner.com/server5",
@@ -98,7 +98,7 @@ var GameServersIn = []string{
     }`,
 	`{
         "game": "5 CARD STUD",
-        "appkey": 1,
+        "appkey": 3,
         "region": "vatican",
         "server": "thomcorner.com",
         "serverurl": "tcp://thomcorner.com/pokerhuman",
@@ -129,7 +129,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Battleship",
-        "appkey": 1,
+        "appkey": 2,
         "server": "8bitBattleship.com",
         "region": "apac",
         "serverurl": "https://8bitBattleship.com/battlehuman",
@@ -161,7 +161,7 @@ var GameServersOut = `"[
     },
     {
         "game": "5 CARD STUD",
-        "appkey": 1,
+        "appkey": 2,
         "server": "erichomeserver.com",
         "region": "us",
         "serverurl": "tcp://thomcorner.com/pokerbots",
@@ -189,7 +189,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Battleship",
-        2a2: 1,
+        "appkey": 3,
         "server": "8bitBattleship.com",
         "region": "au",
         "serverurl": "https://8bitBattleship.com/battlebots",
@@ -217,7 +217,7 @@ var GameServersOut = `"[
     },
     {
         "game": "Super Chess",
-        "appkey": 1,
+        "appkey": 3,
         "server": "chess.rogersm.net",
         "region": "eu",
         "serverurl": "http://chess.rogersm.net/server",
@@ -241,7 +241,7 @@ var GameServersOut = `"[
     },
     {
         "game": "5 CARD STUD",
-        "appkey": 1,
+        "appkey": 3,
         "server": "erichomeserver.com",
         "region": "all",
         "serverurl": "tcp://thomcorner.com/server5",
@@ -269,7 +269,8 @@ var GameServersOut = `"[
     }
 ]`
 
-var GameServersOutMin = `[{"g":"Battleship","t":1,"u":"https://8bitBattleship.com/battlehuman","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"apac","o":1,"m":2,"p":0},{"g":"5 CARD STUD","t":1,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1},{"g":"Battleship","t":1,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1},{"g":"Super Chess","t":1,"u":"http://chess.rogersm.net/server","c":"http://chess.rogersm.net/speccychess.xex","s":"chess.rogersm.net","r":"eu","o":1,"m":2,"p":1},{"g":"5 CARD STUD","t":1,"u":"tcp://thomcorner.com/server5","c":"tcp://thomcorner.com/specpoker.xex","s":"erichomeserver.com","r":"all","o":0,"m":3,"p":0}]`
+var GameServersOutMin = ` [{"g":"Battleship","t":3,"u":"https://8bitBattleship.com/battlehuman","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"apac","o":1,"m":2,"p":0,"a":0},{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0},{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0},{"g":"Super Chess","t":1,"u":"http://chess.rogersm.net/server","c":"http://chess.rogersm.net/speccychess.xex","s":"chess.rogersm.net","r":"eu","o":1,"m":2,"p":1,"a":0},{"g":"5 CARD STUD","t":3,"u":"tcp://thomcorner.com/server5","c":"tcp://thomcorner.com/specpoker.xex","s":"erichomeserver.com","r":"all","o":0,"m":3,"p":0,"a":0}]`
+var GameServersOutMinAppKey2 = `[{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0},{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0}]`
 
 func setupRouter() *gin.Engine {
 
@@ -456,4 +457,55 @@ func TestVersion(t *testing.T) {
 			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 		}
 	}
+}
+
+func TestViewInsertAndRetrieveServerAppId(t *testing.T) {
+
+	for _, ServerJson := range GameServersIn {
+
+		w := httptest.NewRecorder()
+		w.Header().Add("Content-Type", "application/json")
+		req, _ := http.NewRequest("POST", "/server", bytes.NewBuffer([]byte(ServerJson)))
+		ROUTER.ServeHTTP(w, req)
+
+		if errors := assertHTTPAnswerJSON(w, 201, `{"message":"Server correctly updated","success":true}`); errors != nil {
+			for _, err := range errors {
+				t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+			}
+		}
+	}
+
+	w := httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+	req, _ := http.NewRequest("GET", "/view", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
+
+	w = httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+	req, _ = http.NewRequest("GET", "/view?platform=NoPlatform&?appkey=1", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 404, `{"message":"No servers available for NoPlatform","success":false}`); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
+
+	w = httptest.NewRecorder()
+	w.Header().Add("Content-Type", "application/json")
+	req, _ = http.NewRequest("GET", "/view?platform=spectrum&appkey=2", nil)
+	ROUTER.ServeHTTP(w, req)
+
+	if errors := assertHTTPAnswerJSON(w, 200, GameServersOutMinAppKey2); errors != nil {
+		for _, err := range errors {
+			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
+		}
+	}
+
 }

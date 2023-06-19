@@ -12,6 +12,7 @@ import (
 )
 
 // send the game servers stored to the client minimised
+// TODO: move filtering logic from minimize to the function used in Range
 func ShowServersMinimised(c *gin.Context) {
 
 	if GAMESRV.Count() == 0 {
@@ -33,6 +34,11 @@ func ShowServersMinimised(c *gin.Context) {
 		return
 	}
 
+	// optional field. If appkey is empty, it becomes a None (-1)
+	appkeyInput := c.Query("appkey")
+
+	appkey := Atoi(appkeyInput, -1)
+
 	var ServerSlice []GameServer
 	servers := func(key string, server *GameServer) bool {
 		ServerSlice = append(ServerSlice, *server)
@@ -45,7 +51,7 @@ func ShowServersMinimised(c *gin.Context) {
 	var ServerMinSlice []GameServerMin
 
 	for _, server := range ServerSlice {
-		if ServerMinimised, ok := server.Minimize(platform); ok {
+		if ServerMinimised, ok := server.Minimize(platform, appkey); ok {
 			ServerMinSlice = append(ServerMinSlice, ServerMinimised)
 		}
 	}

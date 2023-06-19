@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -70,10 +71,26 @@ func SortServerSlice(gs *[]GameServer) {
 	})
 }
 
-// Select platform and minimize file to send to 8 bit client
-func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool) {
+// minimize file to send to 8 bit client filtering by platform and appkey
+func (s *GameServer) Minimize(platform string, appkey int) (minimised GameServerMin, ok bool) {
 
+	/* SPEC
+
+	   if appkey < 0, send all clients with whatever appkey.
+	   if appkey >= 0, send all the clients with the right appkey
+
+	   THAT MEANS that if appkey >= 0 and appkey is != to server.Appkey we have nothing to return.
+
+
+	*/
+
+	if appkey >= 0 && appkey != s.Appkey {
+		return minimised, false
+	}
+
+	// we loop through every client filtering that is the right plaform
 	for _, client := range s.Clients {
+
 		if client.Platform == platform {
 
 			online := 0
@@ -160,4 +177,15 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	return err
+}
+
+// atoi but return ResultIfFail if not possible to do atoi
+func Atoi(StrNum string, ResultIfFail int) int {
+	num, err := strconv.Atoi(StrNum)
+
+	if err != nil {
+		return ResultIfFail
+	}
+
+	return num
 }
