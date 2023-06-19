@@ -51,7 +51,20 @@ func ShowServersMinimised(c *gin.Context) {
 	var ServerMinSlice []GameServerMin
 
 	for _, server := range ServerSlice {
-		if ServerMinimised, ok := server.Minimize(platform, appkey); ok {
+
+		/* SPEC
+
+		   if appkey < 0, send all clients with whatever appkey.
+		   if appkey >= 0, send all the clients with the right appkey
+
+		   THAT MEANS that if appkey >= 0 and appkey is != to server.Appkey we're not interested in this server
+		*/
+
+		if appkey >= 0 && appkey != server.Appkey {
+			continue
+		}
+
+		if ServerMinimised, ok := server.FilterAndMinimize(platform); ok {
 			ServerMinSlice = append(ServerMinSlice, ServerMinimised)
 		}
 	}

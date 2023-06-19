@@ -72,21 +72,7 @@ func SortServerSlice(gs *[]GameServer) {
 }
 
 // minimize file to send to 8 bit client filtering by platform and appkey
-func (s *GameServer) Minimize(platform string, appkey int) (minimised GameServerMin, ok bool) {
-
-	/* SPEC
-
-	   if appkey < 0, send all clients with whatever appkey.
-	   if appkey >= 0, send all the clients with the right appkey
-
-	   THAT MEANS that if appkey >= 0 and appkey is != to server.Appkey we have nothing to return.
-
-
-	*/
-
-	if appkey >= 0 && appkey != s.Appkey {
-		return minimised, false
-	}
+func (s *GameServer) FilterAndMinimize(platform string) (minimised GameServerMin, ok bool) {
 
 	// we loop through every client filtering that is the right plaform
 	for _, client := range s.Clients {

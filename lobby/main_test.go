@@ -488,7 +488,7 @@ func TestViewInsertAndRetrieveServerAppId(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	w.Header().Add("Content-Type", "application/json")
-	req, _ = http.NewRequest("GET", "/view?platform=NoPlatform&?appkey=1", nil)
+	req, _ = http.NewRequest("GET", "/view?platform=NoPlatform&appkey=1", nil)
 	ROUTER.ServeHTTP(w, req)
 
 	if errors := assertHTTPAnswerJSON(w, 404, `{"message":"No servers available for NoPlatform","success":false}`); errors != nil {
