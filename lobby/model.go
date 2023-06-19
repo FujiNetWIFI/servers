@@ -71,7 +71,7 @@ func SortServerSlice(gs *[]GameServer) {
 	})
 }
 
-// minimize file to send to 8 bit client filtering by platform and appkey
+// minimize file to send to 8 bit client filtering by platform
 func (s *GameServer) FilterAndMinimize(platform string) (minimised GameServerMin, ok bool) {
 
 	// we loop through every client filtering that is the right plaform
