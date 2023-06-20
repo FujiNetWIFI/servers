@@ -48,6 +48,7 @@ func main() {
 	router.POST("/leave", apiLeave)
 
 	router.GET("/tables", apiTables)
+	router.GET("/updateLobby", apiUpdateLobby)
 
 	//	router.GET("/REFRESHLOBBY", apiRefresh)
 
@@ -154,6 +155,19 @@ func apiTables(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, tableOutput)
+}
+
+// Forces an update of all tables to the lobby - useful for adhoc use if the Lobby restarts or loses info
+func apiUpdateLobby(c *gin.Context) {
+	for _, table := range tables {
+		value, ok := stateMap.Load(table.Table)
+		if ok {
+			state := value.(*gameState)
+			state.updateLobby()
+		}
+	}
+
+	c.JSON(http.StatusOK, "Lobby Updated")
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it

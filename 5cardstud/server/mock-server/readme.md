@@ -16,6 +16,28 @@ It currently provides:
 
 ## How to use REAL Tables
 
+If needed, retrieve the list of real tables by calling `/tables` without parameters. It will return a json with the following properties:
+
+* `t` - Table id. Pass this as the `table` url parameter to other calls.
+* `n` - Friendly name of table to show in a list for the player to choose
+* `p` - Number of players currently connected. 0 if none.
+* `m` - Number of max available player slots available.
+
+Example response of `/tables` call
+```json
+[{
+    "t":"basement",
+    "n":"The Basement",
+    "p":3,
+    "m":8
+},{
+    "t":"red",
+    "n":"The Red Room   - 2 bots",
+    "p":0,
+    "m":6
+}, ...]
+```
+
 These tables are psuedo real time. Call `/state` will run any housekeeping tasks (bot or player auto-move, deal card, proceed with dealing). Since a call to `/state` is required to advance the game, a table with bots in it will not actually play until one or more clients are connected and calling `/state`. Each player has a limited amount of time to make a move before the server makes a move on their behalf. BOTs take a second to move.
 
 * The game is over when **round 5** is sent. The next game will begin automatically after a few seconds.
@@ -44,14 +66,17 @@ https://5card.carr-designs.com/
 
 ## Api paths
 
-* GET `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
-* GET ``/move/[code]`` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
-* GET `/leave` - Leave the table. Each client should call this when a player exits the game
-* GET `/view` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time.
+* `/state` - Advance forward (AI/Game Logic) and return updated state as compact json
+* `/move/[code]` - Apply your player's move and return updated state as compact json. e.g. ``/move/CH`` to "Check", ``/move/BL`` to "Bet 5 (low)".
+* `/leave` - Leave the table. Each client should call this when a player exits the game
+* `/view?table=N` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time. Only `table` query parameter is required.
+* `/tables` - Returns a list of available REAL tables along with player information. No query parameters are required
+* `/updateLobby` - Use to manually force a refresh of state to the Lobby. No query parameters are required.
 
-Both `state`, `move`, and `leave`  accept GET or POST.
+All paths accept GET or POST for ease of use.
 
-## All calls must include Query parameters as discussed below
+## Query parameters
+All paths require the query parameters below, unless otherwise specified.
 * `table=[Alphanumeric]` - **Required** - Use to play in an isolated game. Case insensitive.
 * `player=[Alphanumeric]` - **Required for Real** - Player's name. Treated as case insensitive unique ID.
 * `count=[2-8]` - **Required for MOCK** Include on the `/state` call to set the number of players in a game. 
@@ -65,11 +90,12 @@ A client centric state is returned. This means that your client will only see th
 
 #### Json Properties
 
-* `lastResult` - Will be filled with text when round=5 to signal the current game is over. e.g. "So and so won with 2 pairs"
+* `lastResult` - Will be filled with text when round=`5` to signal the current game is over. e.g. "So and so won with 2 pairs", or when round=`0` to indicate waiting for more players to join.
 * `round` - The current round (1-5). Round 5 means the game has ended and pot awarded to winning player(s).
 * `pot` - The current value of the pot for the current game
 * `activePlayer` - The currently active player. Your client is always player 0. This will be `-1` at the end of a round (or end of game) to allow the client to show the last move before starting the next round.
 * `moveTime` - Number of seconds remaining for current player to make their move, or until the next game will start. If a player does not send a move within this time, the server will auto-move for them (post/check if possible, otherwise a fold)
+* `viewing` - If all player spots are full, your client's player will not join the game, but instead view the game as a spectator.  In this case, this will be `1` to indicate that you are only viewing. Otherwise, this will be `0` during normal play. 
 * `validMoves` - An array of legal moves
     * `move` - The code to send to `/move`
     * `name` - The text to show onscreen in the client
@@ -99,6 +125,7 @@ A client centric state is returned. This means that your client will only see th
     "pot": 0,
     "activePlayer": 0,
     "moveTime": 25,
+    "viewing": 0,
     "validMoves": [
         {
             "move": "FO",
