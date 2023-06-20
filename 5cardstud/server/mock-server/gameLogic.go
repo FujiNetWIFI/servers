@@ -124,7 +124,13 @@ type gameState struct {
 	serverName   string
 }
 
-var UpdateLobby bool
+// Used to send a list of available tables
+type gameTable struct {
+	Table      string `json:"t"`
+	Name       string `json:"n"`
+	CurPlayers int    `json:"p"`
+	MaxPlayers int    `json:"m"`
+}
 
 func initializeGameServer() {
 
@@ -211,6 +217,7 @@ func (state *gameState) newRound() {
 	// Clear pot at start so players can anti
 	if state.Round == 1 {
 		state.Pot = 0
+		state.gameOver = false
 	}
 
 	// Reset players for this round
@@ -272,6 +279,9 @@ func (state *gameState) newRound() {
 		}
 		state.deckIndex = 0
 		state.dealCards()
+		if state.LastResult == WAITING_MESSAGE {
+			state.LastResult = ""
+		}
 	}
 
 	state.dealCards()
@@ -305,11 +315,18 @@ func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
 	})
 
 	// Return player with highest (or lowest) hand
+	result := 0
 	if highHand {
-		return ranks[0][0]
+		result = ranks[0][0]
 	} else {
-		return ranks[len(ranks)-1][0]
+		result = ranks[len(ranks)-1][0]
 	}
+
+	// If something goes amiss, just select the first player
+	if result < 0 {
+		result = 0
+	}
+	return result
 }
 
 func (state *gameState) dealCards() {
@@ -390,8 +407,15 @@ func (state *gameState) endGame(abortGame bool) {
 	order, pivot := cardrank.Order(evs, false)
 
 	if pivot == 0 {
-		state.LastResult = WAITING_MESSAGE
-		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		// If nobody won, the game was aborted. Display the waiting message if this
+		// server does not contains bots.
+		humanAvailSlots, _ := state.getHumanPlayerCountInfo()
+		if humanAvailSlots == 8 {
+			state.LastResult = WAITING_MESSAGE
+			state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		} else {
+			state.moveExpires = time.Now()
+		}
 		return
 	}
 
@@ -416,6 +440,7 @@ func (state *gameState) endGame(abortGame bool) {
 	if len(remainingPlayers) > 1 {
 		state.wonByFolds = false
 		result += strings.Join(strings.Split(strings.Split(fmt.Sprintf(" won with %s", evs[order[0]]), " [")[0], ",")[0:2], ",")
+		result = strings.ReplaceAll(result, "kickers", "kicker")
 	} else {
 		state.wonByFolds = true
 		result += " won by default"
@@ -462,14 +487,14 @@ func (state *gameState) runGameLogic() {
 	}
 
 	// Check if only one player is left
-	// A dropped player is still considered in-game until the end of the round
 	playersLeft := 0
 	for _, player := range state.Players {
-		if player.Status == STATUS_PLAYING || player.Status == STATUS_LEFT {
+		if player.Status == STATUS_PLAYING {
 			playersLeft++
 		}
 	}
 
+	// If only one player is left, just end the game now
 	if playersLeft == 1 {
 		state.endGame(false)
 		return
@@ -590,7 +615,7 @@ func (state *gameState) dropInactivePlayers(inMiddleOfGame bool) {
 	players := []player{}
 
 	for _, player := range state.Players {
-		if len(state.Players) > 1 && player.Status != STATUS_LEFT && (inMiddleOfGame || player.isBot || player.lastPing.Compare(cutoff) > 0) {
+		if len(state.Players) > 0 && player.Status != STATUS_LEFT && (inMiddleOfGame || player.isBot || player.lastPing.Compare(cutoff) > 0) {
 			players = append(players, player)
 		}
 	}
@@ -770,16 +795,21 @@ func (state *gameState) getValidMoves() []validMove {
 
 // Creates a copy of the state and modifies it to be from the
 // perspective of this client (e.g. player array, visible cards)
-func (state *gameState) createClientState() gameState {
+func (state *gameState) createClientState() *gameState {
 
 	stateCopy := *state
 
 	setActivePlayer := false
 
-	// Check if we are at the end of a round, or the game. If so, no player is active. This lets the client perform
-	// end of round/game tasks/animation
-	if state.gameOver || len(stateCopy.Players) < 2 || (stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
-		(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
+	// Check if:
+	// 1. The game is over,
+	// 2. Only one player is left (waiting for another player to join)
+	// 3. We are at the end of a round, where the active player has moved
+	// This lets the client perform end of round/game tasks/animation
+	if state.gameOver ||
+		len(stateCopy.Players) < 2 ||
+		(stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
+			(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
 		stateCopy.ActivePlayer = -1
 		setActivePlayer = true
 	}
@@ -821,7 +851,7 @@ func (state *gameState) createClientState() gameState {
 			// Loop through and build hand string, taking
 			// care to not disclose the first card of a hand to other players
 			for cardIndex, card := range player.cards {
-				if cardIndex > 0 || playerIndex == state.clientPlayer || (state.gameOver && !state.wonByFolds) {
+				if cardIndex > 0 || playerIndex == state.clientPlayer || (state.Round == 5 && !state.wonByFolds) {
 					player.Hand += valueLookup[card.value] + suitLookup[card.suit]
 				} else {
 					player.Hand += "??"
@@ -851,23 +881,32 @@ func (state *gameState) createClientState() gameState {
 		stateCopy.MoveTime = 0
 	}
 
-	return stateCopy
+	return &stateCopy
 }
 
 func (state *gameState) updateLobby() {
-	if state.isMockGame || !UpdateLobby {
+	if state.isMockGame {
 		return
 	}
 
+	humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
+
+	// Send the total human slots / players to the Lobby
+	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table)
+}
+
+func (state *gameState) getHumanPlayerCountInfo() (int, int) {
+	humanAvailSlots := 8
 	humanPlayerCount := 0
+
 	for _, player := range state.Players {
-		if !player.isBot {
+		if player.isBot {
+			humanAvailSlots--
+		} else if player.Status != STATUS_LEFT {
 			humanPlayerCount++
 		}
 	}
-
-	// Send the total human slots / players to the Lobby
-	sendStateToLobby(8-len(state.Players)+humanPlayerCount, humanPlayerCount, true, state.serverName, "?table="+state.table)
+	return humanAvailSlots, humanPlayerCount
 }
 
 // Ranks hand as an array of large to small values representing sets of 4 or less. Intended for 4 visible cards or simple AI

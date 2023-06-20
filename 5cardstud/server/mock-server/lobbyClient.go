@@ -26,6 +26,8 @@ var DefaultGameServerDetails = GameServer{
 	},
 }
 
+var UpdateLobby bool
+
 type GameServer struct {
 	// Properties being sent from Game Server
 	Game       string       `json:"game"`
@@ -45,6 +47,10 @@ type GameClient struct {
 }
 
 func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server string, instanceUrlSuffix string) {
+
+	if !UpdateLobby {
+		return
+	}
 
 	// Start with copy of default game server details
 	serverDetails := DefaultGameServerDetails
