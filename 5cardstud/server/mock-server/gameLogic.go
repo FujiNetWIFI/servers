@@ -602,6 +602,12 @@ func (state *gameState) runGameLogic() {
 			}
 		}
 
+		// Bounds check - clamp the move to the end of the array if a higher move is desired.
+		// This may occur if a bot wants to call, but cannot, due to limited funds.
+		if choice > len(moves)-1 {
+			choice = len(moves) - 1
+		}
+
 		move := moves[choice]
 
 		state.performMove(move.Move, true)
