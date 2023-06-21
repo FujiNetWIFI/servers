@@ -36,16 +36,16 @@ Winning hands - tied hands split the pot, remainder is discarded
 	- 4th street - 10
 */
 
-const ANTI = 1
+const ANTE = 1
 const BRINGIN = 2
 const LOW = 5
 const HIGH = 10
 const STARTING_PURSE = 200
 const MOVE_TIME_GRACE_SECONDS = 4
-const BOT_TIME_LIMIT = time.Second * time.Duration(1)
+const BOT_TIME_LIMIT = time.Second * time.Duration(3)
 const PLAYER_TIME_LIMIT = time.Second * time.Duration(39)
-const ENDGAME_TIME_LIMIT = time.Second * time.Duration(10)
-const NEW_ROUND_FIRST_PLAYER_BUFFER = time.Second * time.Duration(5)
+const ENDGAME_TIME_LIMIT = time.Second * time.Duration(12)
+const NEW_ROUND_FIRST_PLAYER_BUFFER = time.Second * time.Duration(1)
 
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
@@ -65,7 +65,7 @@ var moveLookup = map[string]string{
 	"RH": "RAISE",
 }
 
-var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "GI", "AI"}
+var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "Grif", "AI"}
 
 type validMove struct {
 	Move string `json:"move"`
@@ -107,6 +107,7 @@ type gameState struct {
 	Pot          int         `json:"pot"`
 	ActivePlayer int         `json:"activePlayer"`
 	MoveTime     int         `json:"moveTime"`
+	Viewing      int         `json:"viewing"`
 	ValidMoves   []validMove `json:"validMoves"`
 	Players      []player    `json:"players"`
 
@@ -123,7 +124,24 @@ type gameState struct {
 	serverName   string
 }
 
+// Used to send a list of available tables
+type gameTable struct {
+	Table      string `json:"t"`
+	Name       string `json:"n"`
+	CurPlayers int    `json:"p"`
+	MaxPlayers int    `json:"m"`
+}
+
+func initializeGameServer() {
+
+	// Append BOT to botNames array
+	for i := 0; i < len(botNames); i++ {
+		botNames[i] = botNames[i] + " BOT"
+	}
+}
+
 func createGameState(playerCount int, isMockGame bool) *gameState {
+
 	deck := []card{}
 
 	// Create deck of 52 cards
@@ -172,6 +190,9 @@ func (state *gameState) updateMockPlayerCount(playerCount int) {
 
 func (state *gameState) newRound() {
 
+	// Drop any players that left last round
+	state.dropInactivePlayers(true)
+
 	// Check if multiple players are still playing
 	if state.Round > 0 {
 		playersLeft := 0
@@ -182,7 +203,7 @@ func (state *gameState) newRound() {
 		}
 
 		if playersLeft < 2 {
-			state.endGame()
+			state.endGame(false)
 			return
 		}
 	} else {
@@ -196,6 +217,7 @@ func (state *gameState) newRound() {
 	// Clear pot at start so players can anti
 	if state.Round == 1 {
 		state.Pot = 0
+		state.gameOver = false
 	}
 
 	// Reset players for this round
@@ -209,11 +231,31 @@ func (state *gameState) newRound() {
 			state.Pot += player.Bet
 		} else {
 
-			// First round of a new game? Reset player status and take the ANTI
+			// First round of a new game
+
+			// A bot will leave if it has under 25 chips, another will take their place
+			if player.isBot && player.Purse < 25 {
+				player.Purse = STARTING_PURSE
+				for j := 0; j < len(botNames); j++ {
+					botNameUsed := false
+					for k := 0; k < len(state.Players); k++ {
+						if strings.EqualFold(botNames[j], state.Players[k].Name) {
+							botNameUsed = true
+							break
+						}
+					}
+					if !botNameUsed {
+						player.Name = botNames[j]
+						break
+					}
+				}
+			}
+
+			// Reset player status and take the ANTI
 			if player.Purse > 2 {
 				player.Status = STATUS_PLAYING
-				player.Purse -= ANTI
-				state.Pot += ANTI
+				player.Purse -= ANTE
+				state.Pot += ANTE
 			} else {
 				// Player doesn't have enough money to play
 				player.Status = STATUS_WAITING
@@ -237,6 +279,9 @@ func (state *gameState) newRound() {
 		}
 		state.deckIndex = 0
 		state.dealCards()
+		if state.LastResult == WAITING_MESSAGE {
+			state.LastResult = ""
+		}
 	}
 
 	state.dealCards()
@@ -270,11 +315,18 @@ func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
 	})
 
 	// Return player with highest (or lowest) hand
+	result := 0
 	if highHand {
-		return ranks[0][0]
+		result = ranks[0][0]
 	} else {
-		return ranks[len(ranks)-1][0]
+		result = ranks[len(ranks)-1][0]
 	}
+
+	// If something goes amiss, just select the first player
+	if result < 0 {
+		result = 0
+	}
+	return result
 }
 
 func (state *gameState) dealCards() {
@@ -289,10 +341,6 @@ func (state *gameState) dealCards() {
 
 func (state *gameState) addPlayer(playerName string, isBot bool) {
 
-	if isBot {
-		playerName += " BOT"
-	}
-
 	newPlayer := player{
 		Name:   playerName,
 		Status: 0,
@@ -305,6 +353,7 @@ func (state *gameState) addPlayer(playerName string, isBot bool) {
 }
 
 func (state *gameState) setClientPlayerByName(playerName string) {
+	// If no player name was passed, simply return. This is an anonymous viewer.
 	if len(playerName) == 0 {
 		state.clientPlayer = -1
 		return
@@ -318,16 +367,20 @@ func (state *gameState) setClientPlayerByName(playerName string) {
 		state.updateLobby()
 	}
 
-	// In case a player returns while they are still in the "LEFT" status (before the current game ended), add them back in as waiting
-	if state.Players[state.clientPlayer].Status == STATUS_LEFT {
-		state.Players[state.clientPlayer].Status = STATUS_WAITING
+	// Extra logic if a player is requesting
+	if state.clientPlayer > 0 {
+
+		// In case a player returns while they are still in the "LEFT" status (before the current game ended), add them back in as waiting
+		if state.Players[state.clientPlayer].Status == STATUS_LEFT {
+			state.Players[state.clientPlayer].Status = STATUS_WAITING
+		}
 	}
 }
 
-func (state *gameState) endGame() {
+func (state *gameState) endGame(abortGame bool) {
 	// The next request for /state will start a new game
 
-	// Hand rank details (for future)
+	// Hand rank details
 	// Rank: SF, 4K, FH, F, S, 3K, 2P, 1P, HC
 
 	state.gameOver = true
@@ -339,7 +392,7 @@ func (state *gameState) endGame() {
 
 	for index, player := range state.Players {
 		state.Pot += player.Bet
-		if player.Status == STATUS_PLAYING {
+		if !abortGame && player.Status == STATUS_PLAYING {
 			remainingPlayers = append(remainingPlayers, index)
 			hand := ""
 			// Loop through and build hand string
@@ -354,8 +407,15 @@ func (state *gameState) endGame() {
 	order, pivot := cardrank.Order(evs, false)
 
 	if pivot == 0 {
-		state.LastResult = WAITING_MESSAGE
-		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		// If nobody won, the game was aborted. Display the waiting message if this
+		// server does not contains bots.
+		humanAvailSlots, _ := state.getHumanPlayerCountInfo()
+		if humanAvailSlots == 8 {
+			state.LastResult = WAITING_MESSAGE
+			state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		} else {
+			state.moveExpires = time.Now()
+		}
 		return
 	}
 
@@ -380,6 +440,7 @@ func (state *gameState) endGame() {
 	if len(remainingPlayers) > 1 {
 		state.wonByFolds = false
 		result += strings.Join(strings.Split(strings.Split(fmt.Sprintf(" won with %s", evs[order[0]]), " [")[0], ",")[0:2], ",")
+		result = strings.ReplaceAll(result, "kickers", "kicker")
 	} else {
 		state.wonByFolds = true
 		result += " won by default"
@@ -416,7 +477,7 @@ func (state *gameState) runGameLogic() {
 
 		// Create a new game if the end game delay is past
 		if int(time.Until(state.moveExpires).Seconds()) < 0 {
-			state.dropInactivePlayers()
+			state.dropInactivePlayers(false)
 			state.Round = 0
 			state.Pot = 0
 			state.gameOver = false
@@ -426,16 +487,16 @@ func (state *gameState) runGameLogic() {
 	}
 
 	// Check if only one player is left
-	// A dropped player is still considered in-game until they get naturally
 	playersLeft := 0
 	for _, player := range state.Players {
-		if player.Status == STATUS_PLAYING || player.Status == STATUS_LEFT {
+		if player.Status == STATUS_PLAYING {
 			playersLeft++
 		}
 	}
 
+	// If only one player is left, just end the game now
 	if playersLeft == 1 {
-		state.endGame()
+		state.endGame(false)
 		return
 	}
 
@@ -446,7 +507,7 @@ func (state *gameState) runGameLogic() {
 		if (state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
 			(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != "") {
 			if state.Round == 4 {
-				state.endGame()
+				state.endGame(false)
 			} else {
 				state.newRound()
 			}
@@ -456,9 +517,12 @@ func (state *gameState) runGameLogic() {
 
 	// If a real game, return if the move timer has not expired
 	if !state.isMockGame {
-		moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
-		if moveTimeRemaining > 0 {
-			return
+		// Check timer if no active player, or the active player hasn't already left
+		if state.ActivePlayer == -1 || state.Players[state.ActivePlayer].Status != STATUS_LEFT {
+			moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
+			if moveTimeRemaining > 0 {
+				return
+			}
 		}
 	} else {
 		// If in a mock game, return if the client is the active player
@@ -467,9 +531,14 @@ func (state *gameState) runGameLogic() {
 		}
 	}
 
-	// Edge case - player leaves when it is their move - make them fold
+	// If there is no active player, we are done
+	if state.ActivePlayer < 0 {
+		return
+	}
+
+	// Edge case - player leaves when it is their move - skip over them
 	if state.Players[state.ActivePlayer].Status == STATUS_LEFT {
-		state.performMove("FO", true)
+		state.nextValidPlayer()
 		return
 	}
 
@@ -497,7 +566,7 @@ func (state *gameState) runGameLogic() {
 				choice = 1
 			}
 
-			// Likely Don't fold if BOT has a pair or better
+			// Likely don't fold if BOT has a pair or better
 			rank := getRank(cards)
 			if rank[0] < 300 && rand.Intn(20) > 0 {
 				choice = 1
@@ -541,14 +610,19 @@ func (state *gameState) runGameLogic() {
 }
 
 // Drop players that left or have not pinged within the expected timeout
-func (state *gameState) dropInactivePlayers() {
+func (state *gameState) dropInactivePlayers(inMiddleOfGame bool) {
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 	players := []player{}
 
 	for _, player := range state.Players {
-		if len(state.Players) > 1 && player.Status != STATUS_LEFT && (player.isBot || player.lastPing.Compare(cutoff) > 0) {
+		if len(state.Players) > 0 && player.Status != STATUS_LEFT && (inMiddleOfGame || player.isBot || player.lastPing.Compare(cutoff) > 0) {
 			players = append(players, player)
 		}
+	}
+
+	// If one player is left, don't drop them within the round, let the normal game end take care of it
+	if inMiddleOfGame && len(players) == 1 {
+		return
 	}
 
 	// Update the client player index in case it changed due to players being dropped
@@ -582,18 +656,18 @@ func (state *gameState) clientLeave() {
 	player.Status = STATUS_LEFT
 	player.Move = "LEFT"
 
-	// Check if no players are playing. If so, end the game and drop all
+	// Check if no human players are playing. If so, end the game
 	playersLeft := 0
 	for _, player := range state.Players {
-		if player.Status == STATUS_PLAYING {
+		if player.Status == STATUS_PLAYING && !player.isBot {
 			playersLeft++
 		}
 	}
 
 	// If the last player dropped, stop the game and update the lobby
 	if playersLeft == 0 {
-		state.endGame()
-		state.dropInactivePlayers()
+		state.endGame(true)
+		state.dropInactivePlayers(false)
 		return
 	}
 }
@@ -613,7 +687,7 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 	// Get pointer to player
 	player := &state.Players[state.ActivePlayer]
 
-	// Sanity check if player is still in the game. Unless there is a bug, they should never be active if their status is != 1
+	// Sanity check if player is still in the game. Unless there is a bug, they should never be active if their status is != PLAYING
 	if player.Status != STATUS_PLAYING {
 		return false
 	}
@@ -721,16 +795,21 @@ func (state *gameState) getValidMoves() []validMove {
 
 // Creates a copy of the state and modifies it to be from the
 // perspective of this client (e.g. player array, visible cards)
-func (state *gameState) createClientState() gameState {
+func (state *gameState) createClientState() *gameState {
 
 	stateCopy := *state
 
 	setActivePlayer := false
 
-	// Check if we are at the end of a round, or the game. If so, no player is active. This lets the client perform
-	// end of round/game tasks/animation
-	if state.gameOver || len(stateCopy.Players) < 2 || (stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
-		(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
+	// Check if:
+	// 1. The game is over,
+	// 2. Only one player is left (waiting for another player to join)
+	// 3. We are at the end of a round, where the active player has moved
+	// This lets the client perform end of round/game tasks/animation
+	if state.gameOver ||
+		len(stateCopy.Players) < 2 ||
+		(stateCopy.ActivePlayer > -1 && ((state.currentBet > 0 && state.Players[state.ActivePlayer].Bet == state.currentBet) ||
+			(state.currentBet == 0 && state.Players[state.ActivePlayer].Move != ""))) {
 		stateCopy.ActivePlayer = -1
 		setActivePlayer = true
 	}
@@ -742,8 +821,18 @@ func (state *gameState) createClientState() gameState {
 	statePlayers := stateCopy.Players
 	stateCopy.Players = []player{}
 
+	// When on observer is viewing the game, the clientPlayer will be -1, so just start at 0
+	// Also, set flag to let client know they are not actively part of the game
+	start := state.clientPlayer
+	if start < 0 {
+		start = 0
+		stateCopy.Viewing = 1
+	} else {
+		stateCopy.Viewing = 0
+	}
+
 	// Loop through each player and create the hand, starting at this player, so all clients see the same order regardless of starting player
-	for i := state.clientPlayer; i < state.clientPlayer+len(statePlayers); i++ {
+	for i := start; i < start+len(statePlayers); i++ {
 
 		// Wrap around to beginning of playar array when needed
 		playerIndex := i % len(statePlayers)
@@ -751,7 +840,7 @@ func (state *gameState) createClientState() gameState {
 		// Update the ActivePlayer to be client relative
 		if !setActivePlayer && playerIndex == stateCopy.ActivePlayer {
 			setActivePlayer = true
-			stateCopy.ActivePlayer = i - state.clientPlayer
+			stateCopy.ActivePlayer = i - start
 		}
 
 		player := statePlayers[playerIndex]
@@ -762,7 +851,7 @@ func (state *gameState) createClientState() gameState {
 			// Loop through and build hand string, taking
 			// care to not disclose the first card of a hand to other players
 			for cardIndex, card := range player.cards {
-				if cardIndex > 0 || playerIndex == state.clientPlayer || (state.gameOver && !state.wonByFolds) {
+				if cardIndex > 0 || playerIndex == state.clientPlayer || (state.Round == 5 && !state.wonByFolds) {
 					player.Hand += valueLookup[card.value] + suitLookup[card.suit]
 				} else {
 					player.Hand += "??"
@@ -792,14 +881,32 @@ func (state *gameState) createClientState() gameState {
 		stateCopy.MoveTime = 0
 	}
 
-	return stateCopy
+	return &stateCopy
 }
 
 func (state *gameState) updateLobby() {
 	if state.isMockGame {
 		return
 	}
-	sendStateToLobby(8, len(state.Players), true, state.serverName, "?table="+state.table)
+
+	humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
+
+	// Send the total human slots / players to the Lobby
+	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table)
+}
+
+func (state *gameState) getHumanPlayerCountInfo() (int, int) {
+	humanAvailSlots := 8
+	humanPlayerCount := 0
+
+	for _, player := range state.Players {
+		if player.isBot {
+			humanAvailSlots--
+		} else if player.Status != STATUS_LEFT {
+			humanPlayerCount++
+		}
+	}
+	return humanAvailSlots, humanPlayerCount
 }
 
 // Ranks hand as an array of large to small values representing sets of 4 or less. Intended for 4 visible cards or simple AI

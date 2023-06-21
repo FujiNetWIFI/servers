@@ -15,6 +15,7 @@ import (
 // This started as a sync.Map but could revert back to a map since a keyed mutex is being used
 // to restrict state reading/setting to one thread at a time
 var stateMap sync.Map
+var tables []gameTable = []gameTable{}
 
 var tableMutex KeyedMutex
 
@@ -46,6 +47,11 @@ func main() {
 	router.GET("/leave", apiLeave)
 	router.POST("/leave", apiLeave)
 
+	router.GET("/tables", apiTables)
+	router.GET("/updateLobby", apiUpdateLobby)
+
+	//	router.GET("/REFRESHLOBBY", apiRefresh)
+
 	// Determine port for HTTP service.
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -53,7 +59,12 @@ func main() {
 		log.Printf("defaulting to port %s", port)
 	}
 
-	// Create real game tables
+	// Local dev mode - do not update live lobby
+	localMode := os.Getenv("GO_LOCAL")
+
+	UpdateLobby = localMode != "1"
+
+	initializeGameServer()
 	initializeRealTables()
 
 	router.Run(":" + port)
@@ -77,30 +88,34 @@ func apiMove(c *gin.Context) {
 			move := strings.ToUpper(c.Param("move"))
 			state.performMove(move)
 			saveState(state)
+			state = state.createClientState()
 		}
 	}()
 
-	c.JSON(http.StatusOK, state.createClientState())
+	c.JSON(http.StatusOK, state)
 }
 
 // Steps forward in the emulated game and returns the updated state
 func apiState(c *gin.Context) {
 	playerCount, _ := strconv.Atoi(c.DefaultQuery("count", "0"))
 	state, unlock := getState(c, playerCount)
+
 	func() {
 		defer unlock()
 		if state.clientPlayer >= 0 {
 			state.runGameLogic()
 			saveState(state)
 		}
+		state = state.createClientState()
 	}()
 
-	c.JSON(http.StatusOK, state.createClientState())
+	c.JSON(http.StatusOK, state)
 }
 
 // Drop from the specified table
 func apiLeave(c *gin.Context) {
 	state, unlock := getState(c, 0)
+
 	func() {
 		defer unlock()
 
@@ -116,9 +131,43 @@ func apiLeave(c *gin.Context) {
 func apiView(c *gin.Context) {
 
 	state, unlock := getState(c, 0)
-	unlock()
+	func() {
+		defer unlock()
 
-	c.IndentedJSON(http.StatusOK, state.createClientState())
+		state = state.createClientState()
+	}()
+
+	c.IndentedJSON(http.StatusOK, state)
+}
+
+// Returns a list of real tables with player/slots for the client
+func apiTables(c *gin.Context) {
+	tableOutput := []gameTable{}
+	for _, table := range tables {
+		value, ok := stateMap.Load(table.Table)
+		if ok {
+			state := value.(*gameState)
+			humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
+			table.CurPlayers = humanPlayerCount
+			table.MaxPlayers = humanPlayerSlots
+		}
+		tableOutput = append(tableOutput, table)
+	}
+
+	c.JSON(http.StatusOK, tableOutput)
+}
+
+// Forces an update of all tables to the lobby - useful for adhoc use if the Lobby restarts or loses info
+func apiUpdateLobby(c *gin.Context) {
+	for _, table := range tables {
+		value, ok := stateMap.Load(table.Table)
+		if ok {
+			state := value.(*gameState)
+			state.updateLobby()
+		}
+	}
+
+	c.JSON(http.StatusOK, "Lobby Updated")
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it
@@ -178,15 +227,12 @@ func saveState(state *gameState) {
 func initializeRealTables() {
 
 	// Create the real servers (hard coded for now)
-	createRealTable("The Blue Room (6 bots)", "blue", 6)
 
-	time.Sleep(time.Millisecond * time.Duration(100))
-	createRealTable("The Green Room (4 bots)", "green", 4)
+	createRealTable("The Green Room - 6 bots", "green", 6)
+	createRealTable("The Blue Room  - 4 bots", "blue", 4)
+	createRealTable("The Red Room   - 2 bots", "red", 2)
 
-	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Basement", "basement", 0)
-
-	time.Sleep(time.Millisecond * time.Duration(100))
 	createRealTable("The Den", "den", 0)
 
 }
@@ -197,4 +243,10 @@ func createRealTable(serverName string, table string, botCount int) {
 	state.serverName = serverName
 	saveState(state)
 	state.updateLobby()
+
+	tables = append([]gameTable{{Table: table, Name: serverName}}, tables...)
+
+	if UpdateLobby {
+		time.Sleep(time.Millisecond * time.Duration(100))
+	}
 }
