@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lrita/cmap"
+
 	"github.com/madflojo/tasks"
 )
 
@@ -23,29 +23,25 @@ var (
 	ERROR  CustomLogger
 	DEBUG  CustomLogger
 	LOGGER CustomLogger
+	DB     CustomLogger
 )
 
 var (
-	GAMESRV   cmap.Map[string, *GameServer] // to store game servers
+	DATABASE  *lobbyDB
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
 	STARTEDON time.Time
 )
 
 const (
-	VERSION   = "3.3.2"
-	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
+	VERSION   = "5.0.1"
+	STRINGVER = "fujinet persistent lobby  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
 //go:embed doc.html
 var DOCHTML []byte
 
 func main() {
-
-	init_logger()
-	init_os_signal()
-	init_scheduler()
-	init_time()
 
 	var srvaddr string
 	var help bool
@@ -60,6 +56,11 @@ func main() {
 		return
 	}
 
+	init_logger()
+	init_os_signal()
+	init_scheduler()
+	init_time()
+	init_db()
 	init_html(srvaddr)
 
 	router := gin.Default()
@@ -76,7 +77,7 @@ func main() {
 }
 
 /*
- *      Subsystems start here.
+ * Subsystems start here.
  */
 
 func init_logger() {
@@ -86,6 +87,7 @@ func init_logger() {
 	ERROR = NewCustomLogger("error", "ERROR: ", log.LstdFlags)
 	LOGGER = NewCustomLogger("logger", "LOGGER: ", log.LstdFlags)
 	DEBUG = NewCustomLogger("debug", "DEBUG: ", log.LstdFlags|log.Lshortfile)
+	DB = NewCustomLogger("db", "DB: ", log.LstdFlags)
 
 	value, ok := os.LookupEnv("LOG_LEVEL")
 
@@ -154,7 +156,7 @@ func uptime(start time.Time) string {
 	return time.Since(start).String()
 }
 
-// replace tags on DOCTPL
+// replace tags on DOCHTML
 func init_html(srvaddr string) {
 
 	srvaddr = strings.ToLower(srvaddr)

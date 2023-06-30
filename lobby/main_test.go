@@ -3,15 +3,30 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/nsf/jsondiff" // TODO: can we use some core golang functionality?
 )
 
 var ROUTER = setupRouter()
+
+func TestMain(m *testing.M) {
+
+	DATABASE = &lobbyDB{DB: sqlx.MustConnect("sqlite3", "db/lobby.sqlite3?_foreign_keys=on")}
+	DATABASE.Exec("DELETE FROM GameServer")
+	DB = NewCustomLogger("db", "\u001b[36mDB: \u001B[0m", log.LstdFlags)
+	DB.SetActive(false) // we don't want the DB logger to pollute the test
+	DEBUG = NewCustomLogger("debug", "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags)
+	DEBUG.SetActive(false)
+
+	os.Exit(m.Run())
+}
 
 var GameServersIn = []string{
 	`{
@@ -269,8 +284,8 @@ var GameServersOut = `"[
     }
 ]`
 
-var GameServersOutMin = ` [{"g":"Battleship","t":3,"u":"https://8bitBattleship.com/battlehuman","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"apac","o":1,"m":2,"p":0,"a":0},{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0},{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0},{"g":"Super Chess","t":1,"u":"http://chess.rogersm.net/server","c":"http://chess.rogersm.net/speccychess.xex","s":"chess.rogersm.net","r":"eu","o":1,"m":2,"p":1,"a":0},{"g":"5 CARD STUD","t":3,"u":"tcp://thomcorner.com/server5","c":"tcp://thomcorner.com/specpoker.xex","s":"erichomeserver.com","r":"all","o":0,"m":3,"p":0,"a":0}]`
-var GameServersOutMinAppKey2 = `[{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0},{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0}]`
+var GameServersOutMin = `[{"g":"Battleship","t":3,"u":"https://8bitBattleship.com/battlehuman","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"apac","o":1,"m":2,"p":0,"a":0},{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0},{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0},{"g":"Super Chess","t":1,"u":"http://chess.rogersm.net/server","c":"http://chess.rogersm.net/speccychess.xex","s":"chess.rogersm.net","r":"eu","o":1,"m":2,"p":1,"a":0},{"g":"5 CARD STUD","t":3,"u":"tcp://thomcorner.com/server5","c":"tcp://thomcorner.com/specpoker.xex","s":"erichomeserver.com","r":"all","o":0,"m":3,"p":0,"a":0}]`
+var GameServersOutMinAppKey2 = `[{"g":"Battleship","t":2,"u":"https://8bitBattleship.com/battlebots","c":"https://8bitBattleship.com/specship.xex","s":"8bitBattleship.com","r":"au","o":1,"m":2,"p":1,"a":0},{"g":"5 CARD STUD","t":2,"u":"tcp://thomcorner.com/pokerbots","c":"tcp://thomcorner.com/clientus/specpoker.xex","s":"erichomeserver.com","r":"us","o":1,"m":8,"p":1,"a":0}]`
 
 func setupRouter() *gin.Engine {
 
@@ -329,7 +344,7 @@ func TestEmptyView(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/view", nil)
 	ROUTER.ServeHTTP(w, req)
 
-	if errors := assertHTTPAnswerJSON(w, 404, `{"message":"No servers available","success":false}`); errors != nil {
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
 		for _, err := range errors {
 			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 		}
@@ -350,8 +365,8 @@ func TestInsertServer1(t *testing.T) {
         "maxplayers": 2,
         "curplayers": 1,
         "clients": [
-            {"platform":"atari", "url":"http://chess.rogersm.net/atarichess.xex" },
-            {"platform": "spectrum", "url":"http://chess.rogersm.net/speccychess.xex"}
+            {"platform":"atari16", "url":"http://chess.rogersm.net/atarichess.xex" },
+            {"platform": "spectrum2+", "url":"http://chess.rogersm.net/speccychess.xex"}
         ]
     }`)))
 	ROUTER.ServeHTTP(w, req)
