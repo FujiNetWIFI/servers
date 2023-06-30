@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -41,7 +42,7 @@ func (s *GameServerDelete) Key() string {
 // Minified Structure to send to 8-bit Lobby Client
 type GameServerMin struct {
 	Game       string `json:"g"`
-	Gametype   int    `json:"t"`
+	AppKey     int    `json:"t"`
 	Serverurl  string `json:"u"`
 	Client     string `json:"c"`
 	Server     string `json:"s"`
@@ -70,10 +71,12 @@ func SortServerSlice(gs *[]GameServer) {
 	})
 }
 
-// Select platform and minimize file to send to 8 bit client
-func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool) {
+// minimize file to send to 8 bit client filtering by platform
+func (s *GameServer) FilterAndMinimize(platform string) (minimised GameServerMin, ok bool) {
 
+	// we loop through every client filtering that is the right plaform
 	for _, client := range s.Clients {
+
 		if client.Platform == platform {
 
 			online := 0
@@ -84,7 +87,7 @@ func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool
 
 			return GameServerMin{
 				Game:       s.Game,
-				Gametype:   s.Appkey,
+				AppKey:     s.Appkey,
 				Serverurl:  s.Serverurl,
 				Client:     client.Url,
 				Server:     s.Server,
@@ -126,7 +129,7 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	if s.Appkey < 1 || s.Appkey > 255 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Gametype' Error: Field validation length must be between 1 and 255"))
+		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Appkey' Error: Field validation length must be between 1 and 255"))
 	}
 
 	if len(s.Game) < 6 || len(s.Game) > 20 {
@@ -160,4 +163,15 @@ func (s *GameServer) CheckInput() (err error) {
 	}
 
 	return err
+}
+
+// atoi but return ResultIfFail if not possible to do atoi
+func Atoi(StrNum string, ResultIfFail int) int {
+	num, err := strconv.Atoi(StrNum)
+
+	if err != nil {
+		return ResultIfFail
+	}
+
+	return num
 }

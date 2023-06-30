@@ -33,13 +33,11 @@ var (
 )
 
 const (
-	VERSION   = "3.3.1"
+	VERSION   = "3.3.2"
 	STRINGVER = "fujinet lobby " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
 //go:embed doc.html
-var DOCTPL []byte
-
 var DOCHTML []byte
 
 func main() {
@@ -169,5 +167,6 @@ func init_html(srvaddr string) {
 		srvaddr = srvaddr + "/"
 	}
 
-	DOCHTML = bytes.ReplaceAll(DOCTPL, []byte("$$srvaddr$$"), []byte(srvaddr))
+	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$srvaddr$$"), []byte(srvaddr))
+	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$version$$"), []byte(VERSION))
 }
