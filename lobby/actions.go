@@ -2,26 +2,14 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 // send the game servers stored to the client minimised
 func ShowServersMinimised(c *gin.Context) {
-
-	if GAMESRV.Count() == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound,
-			gin.H{
-				"success": false, "message": "No servers available"})
-
-		return
-
-	}
 
 	// Return minified server result for 8-Bit Lobby Clients
 	platform := c.Query("platform")
@@ -33,59 +21,59 @@ func ShowServersMinimised(c *gin.Context) {
 		return
 	}
 
-	var ServerSlice []GameServer
-	servers := func(key string, server *GameServer) bool {
-		ServerSlice = append(ServerSlice, *server)
-		return true
-	}
-	GAMESRV.Range(servers)
+	// optional field. If appkey is empty, it becomes a None (-1)
+	appkeyForm := c.Query("appkey")
 
-	SortServerSlice(&ServerSlice)
+	appkey := Atoi(appkeyForm, -1)
+
+	ServerSliceClient, _ := txGameServerGetBy(platform, appkey)
+
+	if len(ServerSliceClient) == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound,
+			gin.H{"success": false,
+				"message": "No servers available for " + platform})
+
+		return
+	}
 
 	var ServerMinSlice []GameServerMin
 
-	for _, server := range ServerSlice {
-		if ServerMinimised, ok := server.Minimize(platform); ok {
-			ServerMinSlice = append(ServerMinSlice, ServerMinimised)
-		}
-	}
-
-	if len(ServerMinSlice) == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound,
-			gin.H{
-				"success": false, "message": "No servers available for " + platform})
-
-		return
+	for _, server := range ServerSliceClient {
+		ServerMinSlice = append(ServerMinSlice, server.Minimize())
 	}
 
 	c.JSON(http.StatusOK, ServerMinSlice)
 }
 
 // send the game servers stored to the client in full
+// TODO: sort the names, too confusing
 func ShowServers(c *gin.Context) {
 
-	if GAMESRV.Count() == 0 {
+	GameServerClient, err := txGameServerGetAll()
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError,
+			gin.H{"success": false,
+				"message": "Database transaction issue",
+				"errors":  []string{err.Error()}})
+
+		return
+	}
+
+	if len(GameServerClient) == 0 {
 		c.AbortWithStatusJSON(http.StatusNotFound,
-			gin.H{
-				"success": false, "message": "No servers available"})
+			gin.H{"success": false, "message": "No servers available"})
 
 		return
 
 	}
 
-	var ServerSlice []GameServer
-	servers := func(key string, server *GameServer) bool {
-		ServerSlice = append(ServerSlice, *server)
-		return true
-	}
-	GAMESRV.Range(servers)
+	GameServerSlice := GameServerClient.toGameServerSlice()
 
-	SortServerSlice(&ServerSlice)
-
-	c.IndentedJSON(http.StatusOK, ServerSlice)
+	c.IndentedJSON(http.StatusOK, GameServerSlice)
 }
 
-// insert/update uploaded server to the database
+// insert/update uploaded server to the database. It also covers delete
 func UpsertServer(c *gin.Context) {
 
 	server := GameServer{}
@@ -93,8 +81,7 @@ func UpsertServer(c *gin.Context) {
 	err1 := c.ShouldBindJSON(&server)
 	if err1 != nil && err1.Error() == "EOF" {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
-			gin.H{
-				"success": false,
+			gin.H{"success": false,
 				"message": "VALIDATEERR - Invalid Json",
 				"errors":  []string{"Submitted Json cannot be parsed"}})
 		return
@@ -106,16 +93,22 @@ func UpsertServer(c *gin.Context) {
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
-			gin.H{
-				"success": false,
+			gin.H{"success": false,
 				"message": "VALIDATEERR - Invalid Json",
 				"errors":  strings.Split(err.Error(), "\n")})
 		return
 	}
 
-	server.LastPing = time.Now()
+	err = txGameServerUpsert(server)
 
-	GAMESRV.Store(server.Key(), &server)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError,
+			gin.H{"success": false,
+				"message": "Database transaction issue",
+				"errors":  []string{err.Error()}})
+
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"success": true,
 		"message": "Server correctly updated"})
@@ -148,26 +141,29 @@ func DeleteServer(c *gin.Context) {
 		return
 	}
 
-	if _, err2 := url.ParseRequestURI(server.Serverurl); err2 != nil {
-		err1 = errors.Join(err1, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation has to be a valid url"))
-	}
+	err2 := server.CheckInput()
 
-	if len(server.Serverurl) > 64 {
-		err1 = errors.Join(err1, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters"))
-	}
+	err := errors.Join(err1, err2)
 
-	if err1 != nil {
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
 			gin.H{
 				"success": false,
 				"message": "VALIDATEERR - Invalid Json",
-				"errors":  strings.Split(err1.Error(), "\n")})
+				"errors":  strings.Split(err.Error(), "\n")})
 		return
 	}
 
-	GAMESRV.Delete(server.Key())
+	err = txGameServerDelete(server.Serverurl)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"success": false, "message": "Database transaction issue",
+			"errors": []string{err.Error()}})
+
+		return
+	}
 
 	c.JSON(http.StatusNoContent, gin.H{"success": true,
 		"message": "Server correctly deleted"})
-
 }
