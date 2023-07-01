@@ -15,7 +15,7 @@ import (
 // This started as a sync.Map but could revert back to a map since a keyed mutex is being used
 // to restrict state reading/setting to one thread at a time
 var stateMap sync.Map
-var tables []gameTable = []gameTable{}
+var tables []GameTable = []GameTable{}
 
 var tableMutex KeyedMutex
 
@@ -142,11 +142,11 @@ func apiView(c *gin.Context) {
 
 // Returns a list of real tables with player/slots for the client
 func apiTables(c *gin.Context) {
-	tableOutput := []gameTable{}
+	tableOutput := []GameTable{}
 	for _, table := range tables {
 		value, ok := stateMap.Load(table.Table)
 		if ok {
-			state := value.(*gameState)
+			state := value.(*GameState)
 			humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
 			table.CurPlayers = humanPlayerCount
 			table.MaxPlayers = humanPlayerSlots
@@ -162,7 +162,7 @@ func apiUpdateLobby(c *gin.Context) {
 	for _, table := range tables {
 		value, ok := stateMap.Load(table.Table)
 		if ok {
-			state := value.(*gameState)
+			state := value.(*GameState)
 			state.updateLobby()
 		}
 	}
@@ -171,7 +171,7 @@ func apiUpdateLobby(c *gin.Context) {
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it
-func getState(c *gin.Context, playerCount int) (*gameState, func()) {
+func getState(c *gin.Context, playerCount int) (*GameState, func()) {
 	table := c.Query("table")
 
 	if table == "" {
@@ -186,13 +186,13 @@ func getState(c *gin.Context, playerCount int) (*gameState, func()) {
 	return getTableState(table, player, playerCount), unlock
 }
 
-func getTableState(table string, playerName string, playerCount int) *gameState {
+func getTableState(table string, playerName string, playerCount int) *GameState {
 	value, ok := stateMap.Load(table)
 
-	var state *gameState
+	var state *GameState
 
 	if ok {
-		stateCopy := *value.(*gameState)
+		stateCopy := *value.(*GameState)
 		state = &stateCopy
 
 		// Update player count for table if changed
@@ -220,7 +220,7 @@ func getTableState(table string, playerName string, playerCount int) *gameState 
 	return state
 }
 
-func saveState(state *gameState) {
+func saveState(state *GameState) {
 	stateMap.Store(state.table, state)
 }
 
@@ -244,7 +244,7 @@ func createRealTable(serverName string, table string, botCount int) {
 	saveState(state)
 	state.updateLobby()
 
-	tables = append([]gameTable{{Table: table, Name: serverName}}, tables...)
+	tables = append([]GameTable{{Table: table, Name: serverName}}, tables...)
 
 	if UpdateLobby {
 		time.Sleep(time.Millisecond * time.Duration(100))

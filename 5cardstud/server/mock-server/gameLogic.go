@@ -33,7 +33,7 @@ Winning hands - tied hands split the pot, remainder is discarded
 3. Remaining rounds
 	- Player with highest ranked visible hand goes first
 	- 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
-	- 4th street - 10
+	- 4th street+ - 10
 */
 
 const ANTE = 1
@@ -61,8 +61,7 @@ var moveLookup = map[string]string{
 	"BL": "BET", // BET LOW (e.g. 5 of 5/10, or 2 of 2/5 first round)
 	"BH": "BET", // BET HIGH (e.g. 10)
 	"CA": "CALL",
-	"RL": "RAISE",
-	"RH": "RAISE",
+	"RA": "RAISE",
 }
 
 var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "Grif", "AI"}
@@ -86,7 +85,7 @@ const (
 	STATUS_LEFT    Status = 3
 )
 
-type player struct {
+type Player struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
 	Bet    int    `json:"bet"`
@@ -100,7 +99,7 @@ type player struct {
 	lastPing time.Time
 }
 
-type gameState struct {
+type GameState struct {
 	// External (JSON)
 	LastResult   string      `json:"lastResult"`
 	Round        int         `json:"round"`
@@ -109,7 +108,7 @@ type gameState struct {
 	MoveTime     int         `json:"moveTime"`
 	Viewing      int         `json:"viewing"`
 	ValidMoves   []validMove `json:"validMoves"`
-	Players      []player    `json:"players"`
+	Players      []Player    `json:"players"`
 
 	// Internal
 	deck         []card
@@ -122,10 +121,12 @@ type gameState struct {
 	isMockGame   bool
 	moveExpires  time.Time
 	serverName   string
+	raiseCount   int
+	raiseAmount  int
 }
 
 // Used to send a list of available tables
-type gameTable struct {
+type GameTable struct {
 	Table      string `json:"t"`
 	Name       string `json:"n"`
 	CurPlayers int    `json:"p"`
@@ -140,7 +141,7 @@ func initializeGameServer() {
 	}
 }
 
-func createGameState(playerCount int, isMockGame bool) *gameState {
+func createGameState(playerCount int, isMockGame bool) *GameState {
 
 	deck := []card{}
 
@@ -152,7 +153,7 @@ func createGameState(playerCount int, isMockGame bool) *gameState {
 		}
 	}
 
-	state := gameState{}
+	state := GameState{}
 	state.deck = deck
 	state.Round = 0
 	state.ActivePlayer = -1
@@ -176,7 +177,7 @@ func createGameState(playerCount int, isMockGame bool) *gameState {
 	return &state
 }
 
-func (state *gameState) updateMockPlayerCount(playerCount int) {
+func (state *GameState) updateMockPlayerCount(playerCount int) {
 	if playerCount <= len(state.Players) || playerCount > 8 {
 		return
 	}
@@ -188,7 +189,7 @@ func (state *gameState) updateMockPlayerCount(playerCount int) {
 	}
 }
 
-func (state *gameState) newRound() {
+func (state *GameState) newRound() {
 
 	// Drop any players that left last round
 	state.dropInactivePlayers(true)
@@ -269,6 +270,8 @@ func (state *gameState) newRound() {
 	}
 
 	state.currentBet = 0
+	state.raiseCount = 0
+	state.raiseAmount = 0
 
 	// First round of a new game? Shuffle the cards and deal an extra card
 	if state.Round == 1 {
@@ -289,7 +292,7 @@ func (state *gameState) newRound() {
 	state.resetPlayerTimer(true)
 }
 
-func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
+func (state *GameState) getPlayerWithBestVisibleHand(highHand bool) int {
 
 	ranks := [][]int{}
 
@@ -329,7 +332,7 @@ func (state *gameState) getPlayerWithBestVisibleHand(highHand bool) int {
 	return result
 }
 
-func (state *gameState) dealCards() {
+func (state *GameState) dealCards() {
 	for i, player := range state.Players {
 		if player.Status == STATUS_PLAYING {
 			player.cards = append(player.cards, state.deck[state.deckIndex])
@@ -339,9 +342,9 @@ func (state *gameState) dealCards() {
 	}
 }
 
-func (state *gameState) addPlayer(playerName string, isBot bool) {
+func (state *GameState) addPlayer(playerName string, isBot bool) {
 
-	newPlayer := player{
+	newPlayer := Player{
 		Name:   playerName,
 		Status: 0,
 		Purse:  STARTING_PURSE,
@@ -352,13 +355,13 @@ func (state *gameState) addPlayer(playerName string, isBot bool) {
 	state.Players = append(state.Players, newPlayer)
 }
 
-func (state *gameState) setClientPlayerByName(playerName string) {
+func (state *GameState) setClientPlayerByName(playerName string) {
 	// If no player name was passed, simply return. This is an anonymous viewer.
 	if len(playerName) == 0 {
 		state.clientPlayer = -1
 		return
 	}
-	state.clientPlayer = slices.IndexFunc(state.Players, func(p player) bool { return strings.EqualFold(p.Name, playerName) })
+	state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
 
 	// Add new player if there is room
 	if state.clientPlayer < 0 && len(state.Players) < 8 {
@@ -377,7 +380,7 @@ func (state *gameState) setClientPlayerByName(playerName string) {
 	}
 }
 
-func (state *gameState) endGame(abortGame bool) {
+func (state *GameState) endGame(abortGame bool) {
 	// The next request for /state will start a new game
 
 	// Hand rank details
@@ -453,7 +456,7 @@ func (state *gameState) endGame(abortGame bool) {
 }
 
 // Emulates simplified player/logic for 5 card stud
-func (state *gameState) runGameLogic() {
+func (state *GameState) runGameLogic() {
 	state.playerPing()
 
 	// We can't play a game until there are at least 2 players
@@ -616,9 +619,9 @@ func (state *gameState) runGameLogic() {
 }
 
 // Drop players that left or have not pinged within the expected timeout
-func (state *gameState) dropInactivePlayers(inMiddleOfGame bool) {
+func (state *GameState) dropInactivePlayers(inMiddleOfGame bool) {
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
-	players := []player{}
+	players := []Player{}
 
 	for _, player := range state.Players {
 		if len(state.Players) > 0 && player.Status != STATUS_LEFT && (inMiddleOfGame || player.isBot || player.lastPing.Compare(cutoff) > 0) {
@@ -633,7 +636,7 @@ func (state *gameState) dropInactivePlayers(inMiddleOfGame bool) {
 
 	// Update the client player index in case it changed due to players being dropped
 	if len(players) > 0 {
-		state.clientPlayer = slices.IndexFunc(players, func(p player) bool { return strings.EqualFold(p.Name, state.Players[state.clientPlayer].Name) })
+		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, state.Players[state.clientPlayer].Name) })
 	}
 
 	// Store if players were dropped, before updating the state player array
@@ -653,7 +656,7 @@ func (state *gameState) dropInactivePlayers(inMiddleOfGame bool) {
 
 }
 
-func (state *gameState) clientLeave() {
+func (state *GameState) clientLeave() {
 	if state.clientPlayer < 0 {
 		return
 	}
@@ -679,12 +682,12 @@ func (state *gameState) clientLeave() {
 }
 
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
-func (state *gameState) playerPing() {
+func (state *GameState) playerPing() {
 	state.Players[state.clientPlayer].lastPing = time.Now()
 }
 
 // Performs the requested move for the active player, and returns true if successful
-func (state *gameState) performMove(move string, internalCall ...bool) bool {
+func (state *GameState) performMove(move string, internalCall ...bool) bool {
 
 	if len(internalCall) == 0 || !internalCall[0] {
 		state.playerPing()
@@ -710,13 +713,19 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 		// Default raise to 0 (effectively a CALL)
 		raise := 0
 
-		if move == "BH" || move == "RH" {
+		if move == "RA" {
+			raise = state.raiseAmount
+			state.raiseCount++
+		} else if move == "BH" {
 			raise = HIGH
-		} else if move == "BL" || move == "RL" {
+			state.raiseAmount = HIGH
+		} else if move == "BL" {
 			raise = LOW
+			state.raiseAmount = LOW
+
+			// If betting LOW the very first time and the pot is BRINGIN
+			// just make their bet enough to make the total bet LOW
 			if state.currentBet == BRINGIN {
-				// If betting LOW the very first time and the pot is BRINGIN
-				// just make their bet enough to make the total bet LOW
 				raise -= BRINGIN
 			}
 		} else if move == "BB" {
@@ -736,7 +745,7 @@ func (state *gameState) performMove(move string, internalCall ...bool) bool {
 	return true
 }
 
-func (state *gameState) resetPlayerTimer(newRound bool) {
+func (state *GameState) resetPlayerTimer(newRound bool) {
 	timeLimit := PLAYER_TIME_LIMIT
 
 	if state.Players[state.ActivePlayer].isBot {
@@ -750,7 +759,7 @@ func (state *gameState) resetPlayerTimer(newRound bool) {
 	state.moveExpires = time.Now().Add(timeLimit)
 }
 
-func (state *gameState) nextValidPlayer() {
+func (state *GameState) nextValidPlayer() {
 	// Move to next player
 	state.ActivePlayer = (state.ActivePlayer + 1) % len(state.Players)
 
@@ -761,7 +770,7 @@ func (state *gameState) nextValidPlayer() {
 	state.resetPlayerTimer(false)
 }
 
-func (state *gameState) getValidMoves() []validMove {
+func (state *GameState) getValidMoves() []validMove {
 	moves := []validMove{}
 
 	// Any player after the bring-in player may fold
@@ -771,8 +780,11 @@ func (state *gameState) getValidMoves() []validMove {
 
 	player := state.Players[state.ActivePlayer]
 
+	// First check options if there is no BET yet (a BRINGIN is not considered a BET)
 	if state.currentBet < LOW {
-		// First round, BET BRINGIN (2) or BET LOW
+		// If nothing has been bet, force BET BRINGIN (2) on round 1
+		// otherwise a CHECK.
+		// If there is a bet, allow for a CALL
 		if state.currentBet == 0 {
 			if state.Round == 1 {
 				moves = append(moves, validMove{Move: "BB", Name: fmt.Sprint("Post ", BRINGIN)})
@@ -782,17 +794,28 @@ func (state *gameState) getValidMoves() []validMove {
 		} else if player.Purse >= state.currentBet-player.Bet {
 			moves = append(moves, validMove{Move: "CA", Name: "Call"})
 		}
-		if state.Round < 3 && player.Purse >= LOW {
+
+		// Allow LOW bet on 2nd and 3rd street
+		if player.Purse >= LOW && state.Round < 3 {
 			moves = append(moves, validMove{Move: "BL", Name: fmt.Sprint("Bet ", LOW)})
-		} else if state.Round > 2 && player.Purse >= HIGH {
+		}
+
+		// Allow HIGH bet if on 4th or 5th street, or 3rd street + pair showing
+		if player.Purse >= HIGH && (state.Round >= 3 ||
+			(state.Round == 2 && slices.IndexFunc(state.Players, func(p Player) bool {
+				return p.Status == STATUS_PLAYING && p.cards[1].value == p.cards[2].value
+			}) >= 0)) {
 			moves = append(moves, validMove{Move: "BH", Name: fmt.Sprint("Bet ", HIGH)})
 		}
 	} else {
+		// A bet as already been made. Allow a call
 		if player.Purse >= state.currentBet-player.Bet {
 			moves = append(moves, validMove{Move: "CA", Name: "Call"})
 		}
-		if state.Players[state.ActivePlayer].Purse >= state.currentBet-player.Bet+LOW {
-			moves = append(moves, validMove{Move: "RL", Name: fmt.Sprint("Raise ", LOW)})
+
+		// Allow a raise if max number of rounds for the round has not been met
+		if state.Players[state.ActivePlayer].Purse >= state.currentBet-player.Bet+state.raiseAmount && state.raiseCount < 3 {
+			moves = append(moves, validMove{Move: "RA", Name: fmt.Sprint("Raise ", state.raiseAmount)})
 		}
 	}
 
@@ -801,7 +824,7 @@ func (state *gameState) getValidMoves() []validMove {
 
 // Creates a copy of the state and modifies it to be from the
 // perspective of this client (e.g. player array, visible cards)
-func (state *gameState) createClientState() *gameState {
+func (state *GameState) createClientState() *GameState {
 
 	stateCopy := *state
 
@@ -825,7 +848,7 @@ func (state *gameState) createClientState() *gameState {
 	// with this player first
 
 	statePlayers := stateCopy.Players
-	stateCopy.Players = []player{}
+	stateCopy.Players = []Player{}
 
 	// When on observer is viewing the game, the clientPlayer will be -1, so just start at 0
 	// Also, set flag to let client know they are not actively part of the game
@@ -890,7 +913,7 @@ func (state *gameState) createClientState() *gameState {
 	return &stateCopy
 }
 
-func (state *gameState) updateLobby() {
+func (state *GameState) updateLobby() {
 	if state.isMockGame {
 		return
 	}
@@ -901,7 +924,7 @@ func (state *gameState) updateLobby() {
 	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table)
 }
 
-func (state *gameState) getHumanPlayerCountInfo() (int, int) {
+func (state *GameState) getHumanPlayerCountInfo() (int, int) {
 	humanAvailSlots := 8
 	humanPlayerCount := 0
 

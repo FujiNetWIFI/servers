@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -115,6 +116,11 @@ func (s GameServerClientSlice) toGameServerSlice() (gameservers GameServerSlice)
 
 		prev = current
 	}
+
+	// Sort the ranks by online people at the top
+	sort.SliceStable(gameservers, func(i, j int) bool {
+		return gameservers[i].Curplayers > gameservers[j].Curplayers
+	})
 
 	return gameservers
 }

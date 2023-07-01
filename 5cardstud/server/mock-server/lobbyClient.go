@@ -11,7 +11,9 @@ import (
 
 const (
 	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
-	LOBBY_ENDPOINT_UPSERT = "http://lobby.rogersm.net:8080/server"
+	//LOBBY_ENDPOINT_UPSERT = "http://lobby.rogersm.net:8080/server"
+	LOBBY_ENDPOINT_UPSERT = "http://fujinet.online:8080/server"
+	
 )
 
 // Defaults for this game server
