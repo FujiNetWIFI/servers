@@ -41,6 +41,9 @@ const (
 //go:embed doc.html
 var DOCHTML []byte
 
+//go:embed servers.html
+var SERVERS_HTML []byte
+
 func main() {
 
 	var srvaddr string
@@ -65,7 +68,8 @@ func main() {
 
 	router := gin.Default()
 
-	router.GET("/", ShowMain)
+	router.GET("/", ShowServersHtml)
+	router.GET("/docs", ShowDocs)
 	router.GET("/viewFull", ShowServers)
 	router.GET("/view", ShowServersMinimised)
 	router.GET("/version", ShowStatus)
