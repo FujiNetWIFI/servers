@@ -7,6 +7,7 @@ build:
 install-db: db/lobby.sqlite3
 
 db/lobby.sqlite3: lobby_schema.sql
+	-@mkdir db
 	-@rm db/lobby.sqlite3*
 	sqlite3 -bail db/lobby.sqlite3 < lobby_schema.sql 
 
