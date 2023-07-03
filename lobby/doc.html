@@ -140,8 +140,35 @@
 
       <h3 id="retrieve-minimised">How do I retrieve which games are available? (minimised)</h3>
       <p>In addition to being possible to retrieve the Lobby game servers <a href="retrieve-full">in full</a>, Lobby servers allow to do a extraction of the game server data in a minimised format, with the objective of not overloading the 8bit system.</p>
-      <p>The minimisation works at two levels: (a) filtering by client platform and (b) minimising of json structure.</p>
-      <p>The filtering makes sure that the game server data sent back to the client applies only to a certain 8bit platform. For this work, client neets to GET to $$srvaddr$$view?platform=&lt;platform_name&gt; for <code>platform_name</code> games to be returned.</p>
+      <p>The minimisation works at two levels: (a) filtering by client platform and/or <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki/SIO-Command-$DC-Open-App-Key">appkey</a> and (b) minimising of json structure.</p>
+      <p>The filtering makes sure that the game server data sent back to the client applies only to a certain 8bit platform. For this work, client neets to GET to $$srvaddr$$view?platform=&lt;platform_name&gt;&amp;appkey=&lt;appkeyid&gt; for <code>platform_name</code> games to be returned.</p> 
+      Pagination is also supported, see form spec below:
+
+      <table>
+        <thead>
+          <tr><th>Field</th>
+            <th>Value</th>
+            <th>Spec</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>platform</td>
+            <td>Name of the client that we want all the game clients retrieved</td>
+            <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")</td></tr>
+          <tr><td>appkey</td>
+            <td>Registered id of the game</td>
+            <td>always included<br/>integer ⊂ [1, 255]</td></tr>
+          <tr><td>pagesize</td>
+            <td>Part of pagination. Number of clients to be sent back to the client</td>
+            <td>optional<br/>integer</td></tr>
+          <tr><td>page</td>
+            <td>Part of pagination. Page number, starts with 1</td>
+            <td>optional<br/>integer</td></tr>
+        </tbody>
+      </table>
+      
+      
+      
+      
       <p>If there are any game available for the <code>platform_name</code> the server will return a <code>http status 200</code> and the following payload:
         <pre id="server-json-minimised">
           <code>
@@ -216,7 +243,7 @@
         The endpoint will return error <code>http error 400</code> if no variable <code>platform</code> is sent as part of the endpoint. Additionally, the server will return the following json:
 <pre><code>{
   "success": false,
-  "message": "You need to submit a platform"
+  "message": "you need to submit a platform"
 }</code></pre>
       </p>
       <p>

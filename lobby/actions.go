@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"html"
 	"net/http"
 	"strconv"
@@ -14,28 +15,22 @@ import (
 // send the game servers stored to the client minimised
 func ShowServersMinimised(c *gin.Context) {
 
-	// Return minified server result for 8-Bit Lobby Clients
-	platform := c.Query("platform")
+	form, err := parseShowServersMinimisedForm(c)
 
-	if len(platform) == 0 {
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
 			gin.H{
-				"success": false, "message": "You need to submit a platform"})
+				"success": false, "message": err.Error()})
 
 		return
 	}
 
-	// optional field. If appkey is empty, it becomes a None (-1)
-	appkeyForm := c.Query("appkey")
-
-	appkey := Atoi(appkeyForm, -1)
-
-	ServerSliceClient, _ := txGameServerGetBy(platform, appkey)
+	ServerSliceClient, _ := txGameServerGetBy(form.Platform, form.Appkey, form.Pagesize, form.PageNumber)
 
 	if len(ServerSliceClient) == 0 {
 		c.AbortWithStatusJSON(http.StatusNotFound,
 			gin.H{"success": false,
-				"message": "No servers available for " + platform})
+				"message": "No servers available for " + form.Platform})
 
 		return
 	}
@@ -47,6 +42,46 @@ func ShowServersMinimised(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ServerMinSlice)
+}
+
+type ShowServersMinimisedFormData struct {
+	Platform   string // atari, spectrum, etc...
+	Appkey     int    // -1 if none
+	Pagesize   int    // number of entries to return.
+	PageNumber int    // page # of the entries.
+}
+
+func parseShowServersMinimisedForm(c *gin.Context) (output ShowServersMinimisedFormData, err error) {
+
+	platform := c.Query("platform")
+
+	if len(platform) == 0 {
+		return output, fmt.Errorf("you need to submit a platform")
+	}
+
+	// optional field. If appkey is empty, it becomes a None (-1)
+	appkeyForm := c.Query("appkey")
+	appkey := Atoi(appkeyForm, -1)
+
+	pagesizeForm := c.Query("pagesize")
+	pagesize := 999999 // big number so in case it's not in the form, the select gets all the records
+	page := 0          // if it's not in the form, we defaul to start from the beginning
+
+	// if client provides pagesize for pagination, we capture the variables
+	if len(pagesizeForm) > 0 {
+		pagesize = Atoi(pagesizeForm, 6)
+
+		pageForm := c.Query("page")
+		page = Atoi(pageForm, 0)
+	}
+
+	return ShowServersMinimisedFormData{
+		Platform:   platform,
+		Appkey:     appkey,
+		Pagesize:   pagesize,
+		PageNumber: page - 1, // we want to start at 0, not at 1.
+	}, nil
+
 }
 
 // show html view of lobby

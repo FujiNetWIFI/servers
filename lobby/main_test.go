@@ -344,7 +344,7 @@ func TestEmptyView(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/view", nil)
 	ROUTER.ServeHTTP(w, req)
 
-	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"you need to submit a platform","success":false}`); errors != nil {
 		for _, err := range errors {
 			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 		}
@@ -429,7 +429,7 @@ func TestViewInsertAndRetrieveServerN(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/view", nil)
 	ROUTER.ServeHTTP(w, req)
 
-	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"you need to submit a platform","success":false}`); errors != nil {
 		for _, err := range errors {
 			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 		}
@@ -495,7 +495,7 @@ func TestViewInsertAndRetrieveServerAppId(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/view", nil)
 	ROUTER.ServeHTTP(w, req)
 
-	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"You need to submit a platform","success":false}`); errors != nil {
+	if errors := assertHTTPAnswerJSON(w, 400, `{"message":"you need to submit a platform","success":false}`); errors != nil {
 		for _, err := range errors {
 			t.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 		}

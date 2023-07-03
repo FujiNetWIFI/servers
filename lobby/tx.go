@@ -16,12 +16,16 @@ func txGameServerGetAll() (output GameServerClientSlice, err error) {
 }
 
 // Retrieve GameServers with its clients filtered by platform and appkey (optional) from the database ordered according to 'liveness'
-func txGameServerGetBy(platform string, appkey int) (output GameServerClientSlice, err error) {
+// TODO: we added a simple (and cpu consuming) pagination. It would be better to use a index based, as per:
+// https://www2.sqlite.org/cvstrac/wiki?p=ScrollingCursor
+// but that would require to change the protocol with the client: they will have to send the latest client received
+func txGameServerGetBy(platform string, appkey int, pagesize int, pagenumber int) (output GameServerClientSlice, err error) {
 
+	// Note that SQLite LIKE operator is case-insensitive. It means "A" LIKE "a" is true.
 	if appkey == -1 {
-		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 ORDER BY Status DESC, Lastping DESC", "%"+platform+"%")
+		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 ORDER BY Status DESC, Lastping DESC LIMIT $2 OFFSET $3", "%"+platform+"%", pagesize, pagenumber*pagesize)
 	} else {
-		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 AND appkey=$2 ORDER BY Status DESC, Lastping DESC", "%"+platform+"%", appkey)
+		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 AND appkey=$2 ORDER BY Status DESC, Lastping DESC LIMIT $3 OFFSET $4", "%"+platform+"%", appkey, pagesize, pagenumber*pagesize)
 	}
 
 	if err != nil {
