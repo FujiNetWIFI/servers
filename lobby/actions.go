@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -88,54 +87,41 @@ func parseShowServersMinimisedForm(c *gin.Context) (output ShowServersMinimisedF
 func ShowServersHtml(c *gin.Context) {
 
 	GameServerClient, err := txGameServerGetAll()
-	customMessage := ""
-	servers := ""
 
 	if err != nil {
-		customMessage = "Unable to read serves from database."
+		message := "<tr><td colspan='10'>Unable to read servers from the database.</td></tr>"
+		result := bytes.ReplaceAll(SERVERS_HTML, []byte("$$SERVERS$$"), []byte(message))
+		c.Data(http.StatusOK, gin.MIMEHTML, result)
+
+		return
 	}
 
-	if len(GameServerClient) == 0 {
-		customMessage = "No servers available"
-	}
+	ServerTemplate := `
+<tr>
+	<td class='plat'>
+		<img src='%s'/>
+	</td>
+	<td class='game'>%s</td>
+	<td>%s</td>
+	<td class='players'>%d/%d %s </td>
+</tr>
+`
+	PlayersAvailable := "<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAkCAMAAADfNcjQAAAAElBMVEUAAAD///+z9P9qfPR9hLL////Dr+VQAAAABnRSTlP//////wCzv6S/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVQ4jWNkYsAPCMlTQQELAwMDAyMOyf/0ccOogsGjgBlXWqCjG1iYB4Eb/kMZ/9B0oPNp6AZGmApcdtPBDQA1JQVVAQAtagAAAABJRU5ErkJggg==' />"
 
-	if len(customMessage) > 0 {
-		servers = "<tr><td colspan='10'>" + customMessage + "</td></tr>"
-	} else {
+	var servers string
 
-		for _, gsc := range GameServerClient.toGameServerSlice() {
-			servers += "<TR>"
+	for _, gsc := range GameServerClient {
 
-			// Platform Icons
-			servers += "<TD class='plat'>"
-			for _, gc := range gsc.Clients {
-
-				platformSrc := ""
-				switch strings.ToUpper(gc.Platform) {
-				case "ATARI":
-					platformSrc = "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
-				}
-
-				if platformSrc != "" {
-					servers += "<img src='" + platformSrc + "' />"
-				}
-			}
-			servers += "</TD>"
-
-			// Game and Server names
-			servers += "<TD class='game'>" + html.EscapeString(gsc.Game) + "</TD>"
-			servers += "<TD>" + html.EscapeString(gsc.Server) + "</TD>"
-
-			// Players Online
-			servers += "<TD class='players'>" + strconv.Itoa(gsc.Curplayers) + "/" + strconv.Itoa(gsc.Maxplayers)
-			if gsc.Curplayers > 0 {
-				servers += " <img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAkCAMAAADfNcjQAAAAElBMVEUAAAD///+z9P9qfPR9hLL////Dr+VQAAAABnRSTlP//////wCzv6S/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVQ4jWNkYsAPCMlTQQELAwMDAyMOyf/0ccOogsGjgBlXWqCjG1iYB4Eb/kMZ/9B0oPNp6AZGmApcdtPBDQA1JQVVAQAtagAAAABJRU5ErkJggg==' />"
-			}
-			servers += "</TD>"
-
-			// End the row
-			servers += "</TR>"
+		switch strings.ToLower(gsc.Client_platform) {
+		case "atari":
+			AtariIcon := "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
+			servers += fmt.Sprintf(ServerTemplate, AtariIcon, html.EscapeString(gsc.Game), html.EscapeString(gsc.Server), gsc.Curplayers, gsc.Maxplayers, IfElse(gsc.Curplayers > 0, PlayersAvailable, " "))
 		}
+	}
+
+	// if we have processed no servers, we put the 'no servers available message'
+	if len(servers) == 0 {
+		servers = "<tr><td colspan='10'>No servers available.</td></tr>"
 	}
 
 	result := bytes.ReplaceAll(SERVERS_HTML, []byte("$$SERVERS$$"), []byte(servers))
