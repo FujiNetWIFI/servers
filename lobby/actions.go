@@ -99,21 +99,23 @@ func ShowServersHtml(c *gin.Context) {
 	ServerTemplate := `
 <tr>
 	<td class='plat'>
-		<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC'/>
+		<img src='%s'/>
 	</td>
 	<td class='game'>%s</td>
 	<td>%s</td>
 	<td class='players'>%d/%d %s </td>
 </tr>
 `
+	PlayersAvailable := "<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAkCAMAAADfNcjQAAAAElBMVEUAAAD///+z9P9qfPR9hLL////Dr+VQAAAABnRSTlP//////wCzv6S/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVQ4jWNkYsAPCMlTQQELAwMDAyMOyf/0ccOogsGjgBlXWqCjG1iYB4Eb/kMZ/9B0oPNp6AZGmApcdtPBDQA1JQVVAQAtagAAAABJRU5ErkJggg==' />"
+
 	var servers string
 
 	for _, gsc := range GameServerClient {
 
 		switch strings.ToLower(gsc.Client_platform) {
 		case "atari":
-			AtariIcon := "<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAkCAMAAADfNcjQAAAAElBMVEUAAAD///+z9P9qfPR9hLL////Dr+VQAAAABnRSTlP//////wCzv6S/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVQ4jWNkYsAPCMlTQQELAwMDAyMOyf/0ccOogsGjgBlXWqCjG1iYB4Eb/kMZ/9B0oPNp6AZGmApcdtPBDQA1JQVVAQAtagAAAABJRU5ErkJggg==' />"
-			servers += fmt.Sprintf(ServerTemplate, html.EscapeString(gsc.Game), html.EscapeString(gsc.Server), gsc.Curplayers, gsc.Maxplayers, IfElse(gsc.Curplayers > 0, AtariIcon, " "))
+			AtariIcon := "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
+			servers += fmt.Sprintf(ServerTemplate, AtariIcon, html.EscapeString(gsc.Game), html.EscapeString(gsc.Server), gsc.Curplayers, gsc.Maxplayers, IfElse(gsc.Curplayers > 0, PlayersAvailable, " "))
 		}
 	}
 
