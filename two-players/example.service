@@ -1,0 +1,11 @@
+[Unit]
+Description=Example 2players service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/two-players 6502
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
