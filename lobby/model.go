@@ -3,36 +3,58 @@ package main
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"time"
 )
 
+// used for form checking and sending the data back to the client in /viewFull
 type GameServer struct {
-	// Internally added properties
-	LastPing time.Time `json:"lastping" binding:"omitempty" `
-
 	// Properties being sent from Game Server
 	Game       string       `json:"game" binding:"required,printascii"`
-	Gametype   int          `json:"gametype" binding:"required,numeric"`
+	Appkey     int          `json:"appkey" binding:"required,number"`
 	Server     string       `json:"server" binding:"required,printascii"`
 	Region     string       `json:"region" binding:"required,printascii"`
 	Serverurl  string       `json:"serverurl" binding:"required"`
 	Status     string       `json:"status" binding:"required,oneof=online offline"`
-	Maxplayers int          `json:"maxplayers" binding:"required,numeric"`
-	Curplayers int          `json:"curplayers" binding:"numeric"`
+	Maxplayers int          `json:"maxplayers" binding:"required,number"`
+	Curplayers int          `json:"curplayers" binding:"number"` // golang validator has issues with 0 values
 	Clients    []GameClient `json:"clients" binding:"required"`
 }
 
+type GameServerSlice []GameServer
+
+// used for form checking and sending the data back to the client
 type GameClient struct {
-	Platform string `json:"platform" binding:"required,printascii`
-	Url      string `json:"url" binding:"required`
+	Platform string `json:"platform" binding:"required,printascii"`
+	Url      string `json:"url" binding:"required"`
 }
 
-// Minified Structure to send to 8-bit Lobby Client
+// used for fomr checking only
+type GameServerDelete struct {
+	Serverurl string `json:"serverurl" binding:"required"`
+}
+
+// used to retrieve the data from the database from GameServerClient view
+type GameServerClient struct {
+	Serverurl       string
+	Game            string
+	Appkey          int
+	Server          string
+	Region          string
+	Status          string
+	Maxplayers      int
+	Curplayers      int
+	Lastping        time.Time
+	Client_platform string
+	Client_url      string
+}
+
+type GameServerClientSlice []GameServerClient
+
+// Minified Structure to send to 8-bit Lobby Client in /view
 type GameServerMin struct {
 	Game       string `json:"g"`
-	Gametype   int    `json:"t"`
+	AppKey     int    `json:"t"`
 	Serverurl  string `json:"u"`
 	Client     string `json:"c"`
 	Server     string `json:"s"`
@@ -43,104 +65,98 @@ type GameServerMin struct {
 	Pingage    int    `json:"a"`
 }
 
-// we index by Serverurl because it's unique
-func (s *GameServer) Key() string {
-	return s.Serverurl
+// minimize file to send to 8 bit client filtering by platform
+func (s GameServerClient) Minimize() (minimised GameServerMin) {
+
+	return GameServerMin{
+		Game:       s.Game,
+		AppKey:     s.Appkey,
+		Serverurl:  s.Serverurl,
+		Client:     s.Client_url,
+		Server:     s.Server,
+		Region:     s.Region,
+		Online:     IfElse(s.Status == "online", 1, 0),
+		Maxplayers: s.Maxplayers,
+		Curplayers: s.Curplayers,
+		Pingage:    int(time.Since(s.Lastping).Seconds()),
+	}
 }
 
-// create a order for sorting
-func (s *GameServer) Order() string {
-	return s.Status + "#" + s.LastPing.String()
+// conver a flat GameServerClient to a nested GameServer
+func (s GameServerClient) toGameServer() (gameserver GameServer) {
+	return GameServer{
+		Game:       s.Game,
+		Appkey:     s.Appkey,
+		Server:     s.Server,
+		Region:     s.Region,
+		Serverurl:  s.Serverurl,
+		Status:     s.Status,
+		Maxplayers: s.Maxplayers,
+		Curplayers: s.Curplayers,
+		Clients:    []GameClient{{Platform: s.Client_platform, Url: s.Client_url}},
+	}
 }
 
-// output should be: online first, offline last. Inside each category, newer last ping goes first
-func SortServerSlice(gs *[]GameServer) {
+// transform a flat GameServerClientSlice to nested GameServerSlice
+func (s GameServerClientSlice) toGameServerSlice() (gameservers GameServerSlice) {
 
-	sort.SliceStable(*gs, func(i, j int) bool {
-		return (*gs)[i].Order() > (*gs)[j].Order()
-	})
-}
+	var prev GameServer
+	i := -1
 
-// Select platform and minimize file to send to 8 bit client
-func (s *GameServer) Minimize(platform string) (minimised GameServerMin, ok bool) {
+	for _, gsc := range s {
 
-	for _, client := range s.Clients {
-		if client.Platform == platform {
+		current := gsc.toGameServer()
 
-			online := 0
-
-			if s.Status == "online" {
-				online = 1
-			}
-
-			return GameServerMin{
-				Game:       s.Game,
-				Gametype:   s.Gametype,
-				Serverurl:  s.Serverurl,
-				Client:     client.Url,
-				Server:     s.Server,
-				Region:     s.Region,
-				Online:     online,
-				Maxplayers: s.Maxplayers,
-				Curplayers: s.Curplayers,
-				Pingage:    int(time.Since(s.LastPing).Seconds()),
-			}, true
+		if prev.Serverurl == current.Serverurl {
+			gameservers[i].Clients = append(gameservers[i].Clients, current.Clients...)
+		} else {
+			i++
+			gameservers = append(gameservers, current)
 		}
+
+		prev = current
 	}
 
-	return minimised, false
+	// Sort the ranks by online people at the top
+	sort.SliceStable(gameservers, func(i, j int) bool {
+		return gameservers[i].Curplayers > gameservers[j].Curplayers
+	})
+
+	return gameservers
 }
 
 // Do additional checking
 func (s *GameServer) CheckInput() (err error) {
 
-	/* The most important thing here is to provide clear statements to the client caller
-	   about what is wrong with the json. The default GO validator errors do not do this.
-
-		 For instance, it will tell you the field failed "max length" validation, but not
-		 tell you what the max actually is.
-
-		 Maybe use a custom validator later for consistency between go validator and custom
-		 validation below.
-	*/
-
-	if s.Curplayers < 0 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' Error:Field validation for 'Curplayers' cannot be negative (%d)", s.Curplayers))
-	}
-
-	if s.Maxplayers < 0 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Maxplayers' Error:Field validation for 'Maxplayers' cannot be negative (%d)", s.Maxplayers))
-	}
-
-	if s.Curplayers > s.Maxplayers {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Curplayers' and 'GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers))
-	}
-
-	if s.Gametype < 1 || s.Gametype > 255 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GamServer.Gametype' Error: Field validation length must be between 1 and 255"))
-	}
-
-	if len(s.Game) > 12 {
-		err = errors.Join(err, fmt.Errorf("Key: 'GameServer.Game' Error: Field validation length must be 12 or less characters"))
-	}
-
-	if len(s.Server) > 32 {
-		err = errors.Join(err, fmt.Errorf("Key 'GameServer.Server' Error: Field validation length must be 12 or less characters"))
-	}
-
-	if len(s.Serverurl) > 64 {
-		err = errors.Join(err, fmt.Errorf("Key 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters"))
-	}
+	err = errors.Join(
+		ErrorIf(s.Curplayers < 0, fmt.Errorf("key: 'GameServer.Curplayers' Error:Field validation for 'Curplayers' cannot be negative (%d)", s.Curplayers)),
+		ErrorIf(s.Maxplayers < 0, fmt.Errorf("key: 'GameServer.Maxplayers' Error:Field validation for 'Maxplayers' cannot be negative (%d)", s.Maxplayers)),
+		ErrorIf(s.Curplayers > s.Maxplayers, fmt.Errorf("key: 'GameServer.Curplayers' and 'GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers)),
+		ErrorIf(s.Appkey < 1 || s.Appkey > 255, fmt.Errorf("key: 'GameServer.Appkey' Error: Field validation length must be between 1 and 255")),
+		ErrorIf(len(s.Game) < 6 || len(s.Game) > 20, fmt.Errorf("key: 'GameServer.Game' Error: Field validation length must be between 6 and 20 characters")),
+		ErrorIf(len(s.Region) > 12, fmt.Errorf("key: 'GameServer.Region' Error: Field validation length must be 12 or less characters")),
+		ErrorIf(len(s.Server) > 32, fmt.Errorf("key: 'GameServer.Server' Error: Field validation length must be 32 or less characters")),
+		ErrorIf(IsValidURI(s.Serverurl), fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation has to be a valid url")),
+		ErrorIf(len(s.Serverurl) > 64, fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters")),
+	)
 
 	for _, client := range s.Clients {
 
-		if _, err1 := url.ParseRequestURI(client.Url); err1 != nil {
-			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation has to be a valid url"))
-		}
-		if len(client.Url) > 64 {
-			err = errors.Join(err, fmt.Errorf("Key 'GameServer.Clients.Url' Error: Field validation lentgh must be 64 or less characters"))
-		}
+		err = errors.Join(err,
+			ErrorIf(IsValidURI(client.Url), fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation has to be a valid url")),
+			ErrorIf(len(client.Url) > 64, fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters")),
+		)
+
 	}
+
+	return err
+}
+func (s *GameServerDelete) CheckInput() (err error) {
+
+	err = errors.Join(
+		ErrorIf(IsValidURI(s.Serverurl), fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation has to be a valid url")),
+		ErrorIf(len(s.Serverurl) > 64, fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters")),
+	)
 
 	return err
 }

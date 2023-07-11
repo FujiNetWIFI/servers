@@ -16,9 +16,9 @@ def erase_buttons():
     common_vars.buttons = []
     
     
-def add_button(x1,y1,x2,y2,routine):
+def add_button(x1,y1,x2,y2,routine,key):
     common_vars   = CommonVariables.get_instance()
-    common_vars.buttons.append( (x1,y1,x2,y2,routine))
+    common_vars.buttons.append( (x1,y1,x2,y2,routine,key))
     
 
 def button_handler():
@@ -29,7 +29,7 @@ def button_handler():
 
         if mouse_x>=button[0] and mouse_x<=button[2]:
             if mouse_y >= button[1] and mouse_y <= button[3]:
-                button[4]()
+                button[4](button)
 
                 
 

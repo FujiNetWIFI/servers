@@ -1,0 +1,1 @@
+For clients, please browse https://github.com/FujiNetWIFI/fujinet-apps/tree/master/5cardstud

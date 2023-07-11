@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Fujinet Persistent Lobby Server</title>
+    <style>::backdrop,:root{--sans-font:-apple-system,BlinkMacSystemFont,"Avenir Next",Avenir,"Nimbus Sans L",Roboto,"Noto Sans","Segoe UI",Arial,Helvetica,"Helvetica Neue",sans-serif;--mono-font:Consolas,Menlo,Monaco,"Andale Mono","Ubuntu Mono",monospace;--standard-border-radius:5px;--bg:#fff;--accent-bg:#f5f7ff;--text:#212121;--text-light:#585858;--border:#898EA4;--accent:#0d47a1;--code:#d81b60;--preformatted:#444;--marked:#ffdd33;--disabled:#efefef}@media (prefers-color-scheme:dark){::backdrop,:root{color-scheme:dark;--bg:#212121;--accent-bg:#2b2b2b;--text:#dcdcdc;--text-light:#ababab;--accent:#ffb300;--code:#f06292;--preformatted:#ccc;--disabled:#111}img,video{opacity:.8}}*,::after,::before{box-sizing:border-box}input,progress,select,textarea{appearance:none;-webkit-appearance:none;-moz-appearance:none}html{font-family:var(--sans-font);scroll-behavior:smooth}body{color:var(--text);background-color:var(--bg);font-size:1.15rem;line-height:1.5;display:grid;grid-template-columns:1fr min(45rem,90%) 1fr;margin:0}body>*{grid-column:2}body>header{background-color:var(--accent-bg);border-bottom:1px solid var(--border);text-align:center;padding:0 .5rem 2rem .5rem;grid-column:1/-1}body>header h1{max-width:1200px;margin:1rem auto}body>header p{max-width:40rem;margin:1rem auto}main{padding-top:1.5rem}body>footer{margin-top:4rem;padding:2rem 1rem 1.5rem 1rem;color:var(--text-light);font-size:.9rem;text-align:center;border-top:1px solid var(--border)}h1{font-size:3rem}h2{font-size:2.6rem;margin-top:3rem}h3{font-size:2rem;margin-top:3rem}h4{font-size:1.44rem}h5{font-size:1.15rem}h6{font-size:.96rem}h1,h2,h3,h4,h5,h6,p{overflow-wrap:break-word}h1,h2,h3{line-height:1.1}@media only screen and (max-width:720px){h1{font-size:2.5rem}h2{font-size:2.1rem}h3{font-size:1.75rem}h4{font-size:1.25rem}}a,a:visited{color:var(--accent)}a:hover{text-decoration:none}[role=button],button,input[type=button],input[type=reset],input[type=submit],label[type=button]{border:none;border-radius:var(--standard-border-radius);background-color:var(--accent);font-size:1rem;color:var(--bg);padding:.7rem .9rem;margin:.5rem 0}[role=button][aria-disabled=true],button[disabled],input[type=button][disabled],input[type=checkbox][disabled],input[type=radio][disabled],input[type=reset][disabled],input[type=submit][disabled],select[disabled]{cursor:not-allowed}button[disabled],input:disabled,select:disabled,textarea:disabled{cursor:not-allowed;background-color:var(--disabled);color:var(--text-light)}input[type=range]{padding:0}abbr[title]{cursor:help;text-decoration-line:underline;text-decoration-style:dotted}[role=button]:not([aria-disabled=true]):hover,button:enabled:hover,input[type=button]:enabled:hover,input[type=reset]:enabled:hover,input[type=submit]:enabled:hover,label[type=button]:hover{filter:brightness(1.4);cursor:pointer}button:focus-visible:where(:enabled,[role=button]:not([aria-disabled=true])),input:enabled:focus-visible:where([type=submit],[type=reset],[type=button]){outline:2px solid var(--accent);outline-offset:1px}header>nav{font-size:1rem;line-height:2;padding:1rem 0 0 0}header>nav ol,header>nav ul{align-content:space-around;align-items:center;display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;list-style-type:none;margin:0;padding:0}header>nav ol li,header>nav ul li{display:inline-block}header>nav a,header>nav a:visited{margin:0 .5rem 1rem .5rem;border:1px solid var(--border);border-radius:var(--standard-border-radius);color:var(--text);display:inline-block;padding:.1rem 1rem;text-decoration:none}header>nav a:hover{border-color:var(--accent);color:var(--accent);cursor:pointer}@media only screen and (max-width:720px){header>nav a{border:none;padding:0;text-decoration:underline;line-height:1}}aside,details,pre,progress{background-color:var(--accent-bg);border:1px solid var(--border);border-radius:var(--standard-border-radius);margin-bottom:1rem}aside{font-size:1rem;width:30%;padding:0 15px;margin-left:15px;float:right}@media only screen and (max-width:720px){aside{width:100%;float:none;margin-left:0}}article,dialog,fieldset{border:1px solid var(--border);padding:1rem;border-radius:var(--standard-border-radius);margin-bottom:1rem}article h2:first-child,section h2:first-child{margin-top:1rem}section{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:2rem 1rem;margin:3rem 0}section+section,section:first-child{border-top:0;padding-top:0}section:last-child{border-bottom:0;padding-bottom:0}details{padding:.7rem 1rem}summary{cursor:pointer;font-weight:700;padding:.7rem 1rem;margin:-.7rem -1rem;word-break:break-all}details[open]>summary+*{margin-top:0}details[open]>summary{margin-bottom:.5rem}details[open]>:last-child{margin-bottom:0}table{border-collapse:collapse;margin:1.5rem 0}td,th{border:1px solid var(--border);text-align:left;padding:.5rem}th{background-color:var(--accent-bg);font-weight:700}tr:nth-child(even){background-color:var(--accent-bg)}table caption{font-weight:700;margin-bottom:.5rem}input,select,textarea{font-size:inherit;font-family:inherit;padding:.5rem;margin-bottom:.5rem;color:var(--text);background-color:var(--bg);border:1px solid var(--border);border-radius:var(--standard-border-radius);box-shadow:none;max-width:100%;display:inline-block}label{display:block}textarea:not([cols]){width:100%}select:not([multiple]){background-image:linear-gradient(45deg,transparent 49%,var(--text) 51%),linear-gradient(135deg,var(--text) 51%,transparent 49%);background-position:calc(100% - 15px),calc(100% - 10px);background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:25px}input[type=checkbox],input[type=radio]{vertical-align:middle;position:relative;width:min-content}input[type=checkbox]+label,input[type=radio]+label{display:inline-block}input[type=radio]{border-radius:100%}input[type=checkbox]:checked,input[type=radio]:checked{background-color:var(--accent)}input[type=checkbox]:checked::after{content:" ";width:.18em;height:.32em;border-radius:0;position:absolute;top:.05em;left:.17em;background-color:transparent;border-right:solid var(--bg) .08em;border-bottom:solid var(--bg) .08em;font-size:1.8em;transform:rotate(45deg)}input[type=radio]:checked::after{content:" ";width:.25em;height:.25em;border-radius:100%;position:absolute;top:.125em;background-color:var(--bg);left:.125em;font-size:32px}@media only screen and (max-width:720px){input,select,textarea{width:100%}}input[type=color]{height:2.5rem;padding:.2rem}input[type=file]{border:0}hr{border:none;height:1px;background:var(--border);margin:1rem auto}mark{padding:2px 5px;border-radius:var(--standard-border-radius);background-color:var(--marked);color:#000}img,video{max-width:100%;height:auto;border-radius:var(--standard-border-radius)}figure{margin:0;display:block;overflow-x:auto}figcaption{text-align:center;font-size:.9rem;color:var(--text-light);margin-bottom:1rem}blockquote{margin:2rem 0 2rem 2rem;padding:.4rem .8rem;border-left:.35rem solid var(--accent);color:var(--text-light);font-style:italic}cite{font-size:.9rem;color:var(--text-light);font-style:normal}dt{color:var(--text-light)}code,kbd,pre,pre span,samp{font-family:var(--mono-font);color:var(--code)}kbd{color:var(--preformatted);border:1px solid var(--preformatted);border-bottom:3px solid var(--preformatted);border-radius:var(--standard-border-radius);padding:.1rem .4rem}pre{padding:1rem 1.4rem;max-width:100%;overflow:auto;color:var(--preformatted)}pre code{color:var(--preformatted);background:0 0;margin:0;padding:0}progress{width:100%}progress:indeterminate{background-color:var(--accent-bg)}progress::-webkit-progress-bar{border-radius:var(--standard-border-radius);background-color:var(--accent-bg)}progress::-webkit-progress-value{border-radius:var(--standard-border-radius);background-color:var(--accent)}progress::-moz-progress-bar{border-radius:var(--standard-border-radius);background-color:var(--accent);transition-property:width;transition-duration:.3s}progress:indeterminate::-moz-progress-bar{background-color:var(--accent-bg)}dialog{max-width:40rem;margin:auto}dialog::backdrop{background-color:var(--bg);opacity:.8}@media only screen and (max-width:720px){dialog{max-width:100%;margin:auto 1em}}.button,.button:visited{display:inline-block;text-decoration:none;border:none;border-radius:5px;background:var(--accent);font-size:1rem;color:var(--bg);padding:.7rem .9rem;margin:.5rem 0}.button:focus,.button:hover{filter:brightness(1.4);cursor:pointer}.notice{background:var(--accent-bg);border:2px solid var(--border);border-radius:5px;padding:1.5rem;margin:2rem 0}</style>
+
+</head>
+<body>
+     <main>
+      <h1>🟢 <a href="https://fujinet.online/">Fujinet</a> Lobby server on-line</h1>
+      <p>Welcome to the Persistent Lobby Server (ver. $$version$$) for 8 bit computers. Even if this software has been created by as part of the <a href="https://fujinet.online/">Fujinet project</a>, it's not constrained by it.</p>
+      <p>The lobby server objective is to publish the availability of third party network games so game clients now where they need to conect. </p>
+
+      <h2>So you're a programmer and want to use Lobby Server?</h2>
+      <p>Lobby Server uses http json calls to set and update the Game Server status (including server address, game name, number of users, etc) as well as for publishing the status of the games.</p>
+
+      <h3 id="game-registering">How do I register a game in Lobby Server?</h3>
+      <p>You just need to POST a valid json to $$srvaddr$$server, with the correct <code>"Content-Type": "application/json"</code> and the following format:
+
+        <pre id="server-json">
+            <code>
+{
+    "game": "5 Card Stud",
+    "gametype": 1,
+    "server": "Mock Server (Bots) Table NORM",
+    "region": "us",
+    "serverurl": "https://5card.carr-designs.com/?table=NORM&count=2",
+    "status": "online",
+    "maxplayers": 8,
+    "curplayers": 1,
+    "clients": [
+        {
+            "platform": "atari",
+            "url": "TNFS://ec.tnfs.io/atari/5card.xex"
+        },
+        {
+            "platform": "spectrum",
+            "url": "TNFS://ec.tnfs.io/spectrum/5card.xex"
+        }
+    ]
+}
+            </code>
+            </pre>
+            <table>
+              <thead>
+                <tr><th>Field</th>
+                  <th>Value</th>
+                  <th>Spec</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>game</td>
+                  <td>Name of the game to be showed by the game client to the user</td>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 12</td></tr>
+                <tr><td>appkey</td>
+                  <td>Registerd id of game</td>
+                  <td>required<br/>integer ⊂ [1, 255]</td></tr>
+                <tr><td>server</td>
+                  <td>Name (and version) of the game server used</td>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 32</td></tr>
+                <tr><td>region</td>
+                  <td>Name of the region where the server is hosted</td>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 12 alphanum chars max</td></tr>
+                <tr><td>serverurl</td>
+                  <td>url of the server where game clients will connect</td>
+                  <td>required<br/>valid url<br/>64 url chars max</td></tr>
+                <tr><td>status</td>
+                  <td>status of the game server</td>
+                  <td>required<br/>status = online|offline</td></tr>
+                <tr><td>maxplayers</td>
+                  <td>maximum number of players the server can accept</td>
+                  <td>required<br/>maxplayers ≥ 0</td></tr>
+                <tr><td>curplayers</td>
+                  <td>current number of players conected to the server</td>
+                  <td>required<br/>integer<br/>curplayers ≥ 0<br/> curplayers ≤ maxplayers</td></tr>
+                <tr><td>clients</td>
+                  <td colspan="2">
+                  <table>
+                    <thead><tr><th>Field</th><th>Value</th><th>Spec</th></tr>
+                  </thead>
+                  <tbody>
+                  <tr><td>platform</td>
+                    <td>name of the 8bit platform specific client </td>
+                    <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")</td></tr>
+                  <tr><td>url</td>
+                    <td>platform specific url of the game clinent</td>
+                    <td>required<br/>valid url<br/>64 url chars max</td></tr>
+                </tbody>
+                </table></td>
+              </tbody>
+            </table>
+      </p>
+      <p>Any additional fields will be ignored by the server.</p>
+      <p>In case of errors, the server will reply with a <code>http status 400</code> and the following json payload
+<pre><code>{
+  "success": false,
+  "message": "VALIDATEERR - Invalid Json",
+  "errors":  [&lt;list of errors identified&gt;]
+}
+        </code>
+        </pre>
+        in case of a successful submission the server will return a <code>http status 201 (created)</code> and the following payload:
+<pre><code>{
+  "success": true,
+  "message": "Server correctly updated"
+}</code></pre>
+      </p>
+
+      <h3 id="game-update">How do I update game values in Lobby Server?</h3>
+      <p>During the life of the game server, it will probably need to update the data in the Lobby server: availability of free user slots in <code>curplayers</code>, updates to <code>client.url</code>  if a new client is released, or flagging the game server if offline via the <code>status</code> field. </p>
+      <p>For this, the game server will have to resubmit the json via a valid POST to $$srvaddr$$server, with the correct <code>"Content-Type": "application/json"</code>. The format is the same one as adding the <a href="#game-registering">server for the first time.</a></p>
+
+      <h3 id="retrieve-full">How do I retrieve which games are available? (full data)</h3>
+      <p>If your game server or game client require to have a view of all the games served the way to have a full dump of games in the server is to GET to $$srvaddr$$viewFull, with the correct <code>"Content-Type": "application/json"</code>.</p>
+      <p>The server will answer with an <code>array of servers</code> as described in <a href="#server-json">server json structure</a>. In addition to the fields described there, the array will contain an additional field:
+        <table>
+          <thead>
+            <tr><th>Field</th>
+              <th>Value</th>
+              <th>Spec</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>lastping</td>
+              <td>Last time the server data was updated in UTC</td>
+              <td>Always included<br/>format according to RFC3339<br/>2023-05-05T00:37:42.02033875Z</td></tr>
+            </tbody>
+        </table>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
+<pre><code>{
+  "success": false,
+  "message": "No servers available"
+}</code></pre>
+      </p>
+
+
+      </p>
+
+      <h3 id="retrieve-minimised">How do I retrieve which games are available? (minimised)</h3>
+      <p>In addition to being possible to retrieve the Lobby game servers <a href="retrieve-full">in full</a>, Lobby servers allow to do a extraction of the game server data in a minimised format, with the objective of not overloading the 8bit system.</p>
+      <p>The minimisation works at two levels: (a) filtering by client platform and/or <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki/SIO-Command-$DC-Open-App-Key">appkey</a> and (b) minimising of json structure.</p>
+      <p>The filtering makes sure that the game server data sent back to the client applies only to a certain 8bit platform. For this work, client neets to GET to $$srvaddr$$view?platform=&lt;platform_name&gt;&amp;appkey=&lt;appkeyid&gt; for <code>platform_name</code> games to be returned.</p> 
+      Pagination is also supported, see form spec below:
+
+      <table>
+        <thead>
+          <tr><th>Field</th>
+            <th>Value</th>
+            <th>Spec</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>platform</td>
+            <td>Name of the client that we want all the game clients retrieved</td>
+            <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")</td></tr>
+          <tr><td>appkey</td>
+            <td>Registered id of the game</td>
+            <td>always included<br/>integer ⊂ [1, 255]</td></tr>
+          <tr><td>pagesize</td>
+            <td>Part of pagination. Number of clients to be sent back to the client</td>
+            <td>optional<br/>integer</td></tr>
+          <tr><td>page</td>
+            <td>Part of pagination. Page number, starts with 1</td>
+            <td>optional<br/>integer</td></tr>
+        </tbody>
+      </table>
+      
+      
+      
+      
+      <p>If there are any game available for the <code>platform_name</code> the server will return a <code>http status 200</code> and the following payload:
+        <pre id="server-json-minimised">
+          <code>
+[
+{
+    "g": "5 Card Stud",
+    "t": 1,
+    "u": "https://5card.carr-designs.com/?table=NORM&count=2",
+    "c": "TNFS://ec.tnfs.io/atari/5card.xex",
+    "s": "Mock Server (Bots) Table NORM",
+    "r": "us",
+    "o": 1,
+    "m": 8,
+    "p": 1,
+    "a": 301479
+},
+⋯
+]
+          </code>
+        </pre>
+
+          <table>
+            <thead>
+              <tr><th>Field</th>
+                <th>Value</th>
+                <th>Spec</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>g</td>
+                <td>Name of the game to be showed by the game client to the user</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 12</td></tr>
+              <tr><td>t</td>
+                <td>Registered id of the game</td>
+                <td>always included<br/>integer ⊂ [1, 255]</td></tr>
+              <tr><td>s</td>
+                <td>Name (and version) of the game server used</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 32</td></tr>
+              <tr><td>t</td>
+                <td>Name of the region where the server is hosted</td>
+                <td>always included<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 12 alphanum chars max</td></tr>
+              <tr><td>u</td>
+                <td>url of the server where game clients will connect</td>
+                <td>always included<br/>valid url<br/>64 url chars max</td></tr>
+              <tr><td>o</td>
+                <td>status of the game server</td>
+                <td>always included<br/>o = 1 (online)|0 (offline)</td></tr>
+              <tr><td>m</td>
+                <td>maximum number of players the server can accept</td>
+                <td>always included<br/>m ≥ 0</td></tr>
+              <tr><td>p</td>
+                <td>current number of players conected to the server</td>
+                <td>always included<br/>integer<br/>p ≥ 0<br/> p ≤ m</td></tr>
+              <tr><td>c</td>
+                <td>platform specific url of the game clinent</td>
+                <td>always included<br/>valid url<br/>64 url chars max</td></tr>
+              <tr><td>a</td>
+                <td>Last time the server data was updated in seconds</td>
+                <td>Always included<br/>integer a ≥ 0 </td></tr>
+            </tbody>
+          </table>
+
+      <p> For errors, see $$srvaddr$$view may return the following errors: </p>
+
+      <p>
+        The endpoint will return error <code>http error 404</code> if no servers are available. Additionally, the server will return the following json:
+<pre><code>{
+  "success": false,
+  "message": "No servers available"
+}</code></pre>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 400</code> if no variable <code>platform</code> is sent as part of the endpoint. Additionally, the server will return the following json:
+<pre><code>{
+  "success": false,
+  "message": "you need to submit a platform"
+}</code></pre>
+      </p>
+      <p>
+        The endpoint will return error <code>http error 404</code> if servers are available but not for your selected platform. Additionally, the server will return the following json:
+<pre><code>{
+  "success": false,
+  "message": "No servers available for &lt;platform&gt;"
+}</code></pre>
+      </p>
+
+      <h3>How do I delete a server from Lobby Server?</h3>
+      <p>If your game server requires to delete its presence from Lobby server they can DELETE to a valid json to $$srvaddr$$server with the correct "Content-Type": "application/json" and the following format:  
+        <pre><code>{
+  "serverurl": "url since it is the primary key"
+}</code></pre>
+        If the delete is correct, the server will return an <code>http status 204 No Content</code> with no json message. In case of errors, the error list will be sent with a with a <code>http status 400</code>:
+<pre><code>
+{
+  "success": false,
+  "message": "VALIDATEERR - Invalid Json",
+  "errors":  [&lt;list of errors identified&gt;]
+}</code></pre>
+      </p>
+
+
+      <h3>How do I check the status of the server?</h3>
+      <p>You can check this page $$srvaddr$$ where you will find the status of the server, but if you prefer to do it via json, there's an specific GET for this: to $$srvaddr$$version. If server is online, you'll receive a reponse with <code>http code 200</code> and the following json payload:
+<pre><code>{
+  "success": true,
+  "uptime": "97h20m26.231376672s",
+  "version": "fujinet persistent lobby $$version$$/freebsd (c) Roger Sen 2023"
+}</code></pre>
+
+        Take into account that <code>uptime</code> field will change with the time since the server has been running and <code>version</code> will represent the current version of the Lobby Server.</p>
+      <p>In case the server is not functional, you may receive no response will receive a json with the reason of the error <code>http code 503</code> and the following json:
+<pre><code>{
+  "success": false,
+  "message": "&lt;Reason for the server being non-functional&gt;",
+  "version": "fujinet persistent lobby $$version$$/freebsd (c) Roger Sen 2023"
+}</code></pre>
+      Again, the version message will change with new releases.    
+      </p>
+  </main>
+  
+    <footer>
+      <p>(c) 2023 <a href="https://rogersm.net/">Roger Sen</a></p>
+    </footer>
+  </body>
+  </html>
+<body>
+
+
+</html>
