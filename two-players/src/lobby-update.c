@@ -104,6 +104,18 @@ bool lobby_update(char *game,
       exit(1);
     }
 
+  // echo request
+  printf("Request: ");
+  printf(lobby_template,
+	  lobby_host,
+	  game,
+	  game_type,
+	  server_desc,
+	  region,
+	  server_url,
+	  status,
+	  curplayers);
+
   // Send request
   dprintf(sockfd,
 	  lobby_template,
