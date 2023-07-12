@@ -19,6 +19,17 @@
 #include <signal.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include "lobby-update.h"
+
+/**
+ * @brief server parameters
+ */
+#define GAME "Reversi"
+#define GAME_TYPE 1
+#define SERVER_DESC "Main Room"
+#define REGION "us"
+#define SERVER_URL "tcp://apps.irata.online:1025/"
+#define STATUS "online"
 
 /**
  * @brief maximum data size in chars
@@ -49,6 +60,22 @@ void sighandler(int signum)
 {
   printf("Signal caught, stopping server.\n");
   running = false;
+}
+
+/**
+ * @brief wrapper func to send player # update to lobby
+ * @param n # of players
+ * @return true on success, false on failure
+ */
+bool update_players(unsigned char n)
+{
+  return lobby_update(GAME,
+		      GAME_TYPE,
+		      SERVER_DESC,
+		      REGION,
+		      SERVER_URL,
+		      STATUS,
+		      n);
 }
 
 /**
@@ -189,6 +216,9 @@ int main(int argc, char *argv[])
   while (running)
     {
       // WAITING FOR CONNECTION ///////////////////////////////////////////////
+
+      // Update lobby for 0 players
+      update_players(0);
       
       // Listen for first player  
       if (listen(sockfd, 1) < 0) {
@@ -227,6 +257,9 @@ int main(int argc, char *argv[])
       
       r = 0;
 
+      // Update lobby for 1 player
+      update_players(1);
+
       printf("Server listening for second player.\n");
       
       while (r==0)
@@ -250,6 +283,9 @@ int main(int argc, char *argv[])
 	  else
 	    connfd_2 = accept(sockfd, (SA *)&cli, &len);
 	}
+
+      // Update lobby for 2 players
+      update_players(2);
       
       // WE HAVE PLAYERS, PASS TO REFLECT ////////////////////////////////////////////////////
 
