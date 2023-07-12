@@ -18,7 +18,7 @@
 /**
  * @brief the lobby endpoint
  */
-const char *lobby_host = "tma-2";
+const char *lobby_host = "fujinet.online";
 const int lobby_port = 8080;
 
 /**
