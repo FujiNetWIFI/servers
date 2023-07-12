@@ -29,7 +29,7 @@
 #define APP_KEY 3
 #define SERVER_DESC "Main Room"
 #define REGION "us"
-#define SERVER_URL "tcp://apps.irata.online:1025/"
+#define SERVER_URL "TCP://apps.irata.online:1025/"
 #define STATUS "online"
 
 /**
