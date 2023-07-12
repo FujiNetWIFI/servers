@@ -26,7 +26,9 @@ const int lobby_port = 8080;
  */
 const char *lobby_template =
   "POST /server HTTP/1.1\r\n"
-  "Host: %s\r\n"
+  "Host: %s:%u\r\n"
+  "User-Agent: two-players/1.0\r\n"
+  "Accept: */*\r\n"
   "Content-type: application/json\r\n\r\n"
   "{"
   "    \"game\": \"%s\",\r\n"
@@ -107,19 +109,21 @@ bool lobby_update(char *game,
   // echo request
   printf("Request: ");
   printf(lobby_template,
-	  lobby_host,
-	  game,
-	  game_type,
-	  server_desc,
-	  region,
-	  server_url,
-	  status,
-	  curplayers);
-
+	 lobby_host,
+	 lobby_port,
+	 game,
+	 game_type,
+	 server_desc,
+	 region,
+	 server_url,
+	 status,
+	 curplayers);
+  
   // Send request
   dprintf(sockfd,
 	  lobby_template,
 	  lobby_host,
+	  lobby_port,
 	  game,
 	  game_type,
 	  server_desc,
