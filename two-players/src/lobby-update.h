@@ -19,10 +19,17 @@
  */
 bool lobby_update(char *game,
 		  unsigned char game_type,
+		  unsigned char app_key,
 		  char *server_desc,
 		  char *region,
 		  char *server_url,
 		  char *status,
 		  unsigned char curplayers);
+
+/**
+ * @brief issue lobby delete request
+ * @param server_url - the server URL to delete
+ */
+void lobby_delete(char *server_url);
 
 #endif /* LOBBY_UPDATE_H */

@@ -26,6 +26,7 @@
  */
 #define GAME "Reversi"
 #define GAME_TYPE 1
+#define APP_KEY 3
 #define SERVER_DESC "Main Room"
 #define REGION "us"
 #define SERVER_URL "tcp://apps.irata.online:1025/"
@@ -71,6 +72,7 @@ bool update_players(unsigned char n)
 {
   return lobby_update(GAME,
 		      GAME_TYPE,
+		      APP_KEY,
 		      SERVER_DESC,
 		      REGION,
 		      SERVER_URL,
@@ -114,6 +116,8 @@ void reflect(int connfd_1, int connfd_2)
       if (r<0)
 	{
 	  perror("reflect");
+	  close(connfd_1);
+	  close(connfd_2);
 	  connected = false;
 	  running = false;
 	  return;
@@ -244,8 +248,7 @@ int main(int argc, char *argv[])
 	  
 	  if (r < 0)
 	    {
-	      perror("select"); // An error occurred while waiting.
-	      exit(1);
+	      goto bye;
 	    }
 	  else if (r == 0)
 	    {
@@ -273,8 +276,7 @@ int main(int argc, char *argv[])
 	  
 	  if (r < 0)
 	    {
-	      perror("select"); // An error occurred while waiting.
-	      exit(1);
+	      goto bye;
 	    }
 	  else if (r == 0)
 	    {
@@ -297,4 +299,8 @@ int main(int argc, char *argv[])
       // Then pass to reflect.
       reflect(connfd_1,connfd_2);
     }
+
+ bye:
+  close(sockfd);
+  lobby_delete(SERVER_URL);
 }
