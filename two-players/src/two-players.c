@@ -133,6 +133,7 @@ int main(int argc, char *argv[])
 {
   int sockfd, connfd_1, connfd_2, len, flags, port, r;
   struct sockaddr_in servaddr, cli;
+  char c=0;
   
   // Attach sighandler to SIGTERM and SIGKILL Signals ////////////////////////
 
@@ -251,7 +252,13 @@ int main(int argc, char *argv[])
 	}
       
       // WE HAVE PLAYERS, PASS TO REFLECT ////////////////////////////////////////////////////
-      
+
+      // First, send player #
+      write(connfd_1,&c,1);
+      c++;
+      write(connfd_2,&c,1);
+
+      // Then pass to reflect.
       reflect(connfd_1,connfd_2);
     }
 }
