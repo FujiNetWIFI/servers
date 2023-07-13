@@ -29,7 +29,11 @@
 #define APP_KEY 3
 #define SERVER_DESC "Main Room"
 #define REGION "us"
+#ifdef LOCALHOST
+#define SERVER_URL "TCP://tma-2:1025/"
+#else
 #define SERVER_URL "TCP://apps.irata.online:1025/"
+#endif
 #define STATUS "online"
 
 /**
@@ -119,8 +123,7 @@ void reflect(int connfd_1, int connfd_2)
 	  close(connfd_1);
 	  close(connfd_2);
 	  connected = false;
-	  running = false;
-	  return;
+	  break;
 	}
       
       if (FD_ISSET(connfd_1,&rd))
@@ -173,6 +176,7 @@ int main(int argc, char *argv[])
   signal(SIGKILL, sighandler);
   signal(SIGHUP, sighandler);
   signal(SIGINT, sighandler);
+  signal(SIGPIPE, SIG_IGN);
   
   // Process port argument ///////////////////////////////////////////////////
 

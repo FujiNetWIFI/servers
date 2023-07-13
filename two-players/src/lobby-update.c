@@ -18,7 +18,11 @@
 /**
  * @brief the lobby endpoint
  */
+#ifdef LOCALHOST
+const char *lobby_host = "tma-2";
+#else
 const char *lobby_host = "fujinet.online";
+#endif
 const int lobby_port = 8080;
 
 /**
