@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
   int sockfd, connfd_1, connfd_2, len, flags, port, r;
   struct sockaddr_in servaddr, cli;
   char c=0;
+  bool player_1_disconnected=false;
   
   // Attach sighandler to SIGTERM and SIGKILL Signals ////////////////////////
 
@@ -221,6 +222,8 @@ int main(int argc, char *argv[])
     {
       // WAITING FOR CONNECTION ///////////////////////////////////////////////
 
+      player_1_disconnected=false;
+      
       // Update lobby for 0 players
       update_players(0);
       
@@ -252,7 +255,7 @@ int main(int argc, char *argv[])
 	    }
 	  else if (r == 0)
 	    {
-	      // Go back around again.
+	      // Go back around again
 	    }
 	  else
 	    connfd_1 = accept(sockfd, (SA *)&cli, &len);
@@ -269,10 +272,11 @@ int main(int argc, char *argv[])
 	{
 	  FD_ZERO(&rd);
 	  FD_SET(sockfd,&rd);
+	  FD_SET(connfd_1,&rd);
 	  tv.tv_sec = 0;
 	  tv.tv_usec = 1000;
 	  
-	  r = select(sockfd+1,&rd,NULL,NULL,&tv);
+	  r = select(connfd_1+1,&rd,NULL,NULL,&tv);
 	  
 	  if (r < 0)
 	    {
@@ -283,9 +287,30 @@ int main(int argc, char *argv[])
 	      // Go back around again.
 	    }
 	  else
-	    connfd_2 = accept(sockfd, (SA *)&cli, &len);
+	    {
+	      if (FD_ISSET(connfd_1,&rd))
+		{
+		  char buff[MAX];
+		  
+		  if (!read(connfd_1,buff,MAX))
+		    {
+		      // player 1 disconnected before player 2 join, close connfd_1 and go around again.
+		      player_1_disconnected=true;
+		      break;
+		    }
+		}
+		else
+		  connfd_2 = accept(sockfd, (SA *)&cli, &len);
+	    }
 	}
 
+      if (player_1_disconnected)
+	{
+	  printf("player 1 disconnected before player 2 join, restarting.");
+	  close(connfd_1);
+	  continue; // retry again to get first player.
+	}
+      
       // Update lobby for 2 players
       update_players(2);
       
