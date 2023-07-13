@@ -320,6 +320,8 @@ int main(int argc, char *argv[])
       
       // WE HAVE PLAYERS, PASS TO REFLECT ////////////////////////////////////////////////////
 
+      c = 0;
+      
       // First, send player #
       write(connfd_1,&c,1);
       c++;
