@@ -165,8 +165,8 @@ bool lobby_update(char *game,
   strcpy(lobby_buf,lobby_headers_buf);
   strcat(lobby_buf,lobby_body_buf);
 
-  // echo request
-  printf("%s\n",lobby_buf);
+  /* // echo request */
+  /* printf("%s\n",lobby_buf); */
 
   // Send request
   dprintf(sockfd,"%s",lobby_buf);
@@ -177,7 +177,7 @@ bool lobby_update(char *game,
   
   close(sockfd);
 
-  printf("Response received: %s\n",lobby_buf);
+  /* printf("Response received: %s\n",lobby_buf); */
 
   return strstr(lobby_buf,"\"success\":true") != NULL;
 }
