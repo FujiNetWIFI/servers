@@ -20,8 +20,9 @@ func isDigit(char byte) bool {
 	return char >= '0' && char <= '9'
 }
 
-// check if str only contains ASCII letters & numbers
+// check if str only contains ASCII letters & numbers.
 func isASCIIPrintable(str string) bool {
+
 	for _, r := range str {
 		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
 			return false
@@ -35,27 +36,54 @@ func ValidUsername(username string) (validusername string, err error) {
 
 	var notvalid string
 
-	if username[0] == '@' {
-		username = username[1:]
-	}
-
 	if username == "srv" {
 		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
+	}
+
+	if username[0] != '@' {
+		return notvalid, fmt.Errorf("username must start with '@'")
 	}
 
 	if len(username) > 16 {
 		return notvalid, fmt.Errorf("username cannot be longer than 16 chars")
 	}
 
-	if isDigit(username[0]) {
+	if isDigit(username[1]) {
 		return notvalid, fmt.Errorf("username cannot start with a number")
 	}
 
-	if !isASCIIPrintable(username) {
+	if !isASCIIPrintable(username[1:]) {
 		return notvalid, fmt.Errorf("username can only contain ASCII chars and numbers")
 	}
 
 	return username, nil
+}
+
+func ValidChannelname(channelname string) (vaalidchannelname string, err error) {
+
+	var notvalid string
+
+	if channelname == "#main" {
+		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
+	}
+
+	if channelname[0] != '#' {
+		return notvalid, fmt.Errorf("channelname must start with '#'")
+	}
+
+	if len(channelname) > 16 {
+		return notvalid, fmt.Errorf("channelname cannot be longer than 16 chars")
+	}
+
+	if isDigit(channelname[1]) {
+		return notvalid, fmt.Errorf("channelname cannot start with a number")
+	}
+
+	if !isASCIIPrintable(channelname[1:]) {
+		return notvalid, fmt.Errorf("channelname can only contain ASCII chars and numbers")
+	}
+
+	return channelname, nil
 }
 
 // no(x) -> bool
@@ -96,5 +124,16 @@ func split2(s string, sep string) (first string, second string) {
 
 	split := strings.SplitN(s, sep, 2)
 
+	switch len(split) {
+	case 0:
+		return "", ""
+	case 1:
+		return split[0], ""
+	}
+
 	return split[0], split[1]
+}
+
+func trim(s string) string {
+	return strings.Trim(s, " \t\n\r")
 }

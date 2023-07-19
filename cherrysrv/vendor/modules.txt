@@ -1,26 +1,14 @@
 # github.com/dchest/uniuri v1.2.0
 ## explicit; go 1.19
 github.com/dchest/uniuri
-# github.com/jmoiron/sqlx v1.3.5
-## explicit
 # github.com/lrita/cmap v0.0.0-20220613164007-7fbf4a5bd437
 ## explicit; go 1.18
 github.com/lrita/cmap
 # github.com/madflojo/tasks v1.0.4
 ## explicit; go 1.17
 github.com/madflojo/tasks
-# github.com/mattn/go-sqlite3 v1.14.16
-## explicit
 # github.com/rs/xid v1.4.0
 ## explicit; go 1.12
 github.com/rs/xid
-# golang.org/x/crypto v0.8.0
-## explicit; go 1.17
-golang.org/x/crypto/bcrypt
-golang.org/x/crypto/blowfish
 # golang.org/x/exp v0.0.0-20221212164502-fae10dda9338
 ## explicit; go 1.18
-golang.org/x/exp/constraints
-golang.org/x/exp/slices
-# golang.org/x/text v0.9.0
-## explicit

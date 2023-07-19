@@ -1,3 +1,21 @@
+/*
+   cherrysrv is a chat server for 8bit computers
+   Copyright (C) 2023  Roger Sen roger.sen@gmail.com
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 package main
 
 import (
@@ -38,27 +56,21 @@ type do_command func(*Client, string)
 var (
 	COMMANDS  = make(map[string]do_command)
 	CLIENTS   cmap.Map[string, *Client] // CLIENTS  cmap.Cmap
+	CHANNELS  cmap.Map[string, *Channel]
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
+	STARTEDON time.Time
 )
 
 const (
-	VERSION   = "2.0.0"
+	VERSION   = "3.0.0"
 	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
 func main() {
 
-	init_logger()
-	init_os_signal()
-	init_commands()
-	init_scheduler()
-
-	rand.Seed(time.Now().UnixNano())
-
 	var srvaddr string
 	var help bool
-
 
 	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
 	flag.BoolVar(&help, "help", false, "show this help")
@@ -69,6 +81,14 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+
+	init_logger()
+	init_os_signal()
+	init_commands()
+	init_scheduler()
+	init_time()
+
+	rand.Seed(time.Now().UnixNano())
 
 	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
@@ -85,6 +105,12 @@ func main() {
 
 	INFO.Printf("Started %s", STRINGVER)
 	INFO.Printf("Ready to serve on tcp://%s (tcp)", srvaddr)
+
+	// We create tha main channel
+
+	main_channel := NewChannelMain("#main")
+	CHANNELS.Store(main_channel.Key(), main_channel)
+	DEBUG.Printf("adding %s to CHANNELS", main_channel)
 
 	for {
 		conn, err := server.AcceptTCP()
@@ -171,6 +197,13 @@ func init_scheduler() error {
 
 }
 
+// save when program started
+func init_time() error {
+	STARTEDON = time.Now()
+
+	return nil
+}
+
 // TODO, we should be able to add parameters to the function to exec w/o closures
 func ticker(s string) func() error {
 
@@ -209,4 +242,8 @@ func SignalHandler(sigchan chan os.Signal) {
 			INFO.Printf("Received signal %s. No action taken.", signal)
 		}
 	}
+}
+
+func uptime(start time.Time) string {
+	return time.Since(start).String()
 }

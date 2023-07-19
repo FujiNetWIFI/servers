@@ -5,65 +5,72 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
+	"sync/atomic"
 )
 
-type player_status int
-
 const (
-	USER_NOTLOGGED player_status = iota // Player connected and mud waiting for login.
-	USER_LOGGED                         // Player autheticated and currently playing.
-	USER_LOGGINOUT                      // Player being cleaned up, it won't accept any string sent to them.
+	USER_NOTLOGGED = 1 // Player connected and mud waiting for login.
+	USER_LOGGED    = 2 // Player autheticated and currently playing.
+	USER_LOGGINOUT = 4 // Player being cleaned up, it won't accept any string sent to them.
 )
 
 // Client connection storing basic PC data
 type Client struct {
-	conn       *net.TCPConn  // tcpsocket connection.
-	name       string        // Name of the user.
-	status     player_status // Current status of player's connection (Not logged, Playing and Logging out)
-	conn_mutex sync.Mutex    // gorilla websocket does not allow concurrent writes, use a mutex for writing conn
+	conn   *net.TCPConn // tcpsocket connection.
+	Name   string       // Name of the user.
+	Status atomic.Int32
+}
+
+func (c *Client) String() string {
+	return c.Name
 }
 
 func newClient(conn *net.TCPConn) *Client {
 
 	client := &Client{
-		conn:   conn,
-		name:   gensym("Anon"),
-		status: USER_NOTLOGGED,
+		conn: conn,
+		Name: "@" + gensym("Anon"),
 	}
+	client.Status.Store(USER_NOTLOGGED)
 
-	INFO.Printf("@%s has connected (%s)", client.name, client.conn.RemoteAddr())
+	INFO.Printf("%s has connected (%s)", client.Name, client.conn.RemoteAddr())
 
-	CLIENTS.Store(client.name, client)
+	CLIENTS.Store(client.Key(), client)
 
 	return client
+}
+
+func (c *Client) Key() string {
+	return c.Name
 }
 
 // Close a client connection following ws protocol plus removing the internal handlers in the mud.
 func (clt *Client) Close() {
 
-	clt.status = USER_LOGGINOUT
+	clt.Status.Swap(USER_LOGGINOUT)
+
+	clt.RemoveMeFromAllChannels()
 	clt.conn.Close()
-	CLIENTS.Delete(clt.name)
+	CLIENTS.Delete(clt.Name)
 }
 
 // main client loop that process client's messages
 // https://github.com/uber-go/ratelimit
 func (clt *Client) clientLoop() {
 
-	clt.Say(">#main>!welcome>welcome to cherry server %s # %s", clt.name, STRINGVER)
+	clt.Say(">#main>!welcome>welcome to cherry server %s # %s", clt.Name, STRINGVER)
 
 	for {
 
 		// we don't want to read from a socket that is logging out
-		if clt.status == USER_LOGGINOUT {
+		if clt.Status.Load() == USER_LOGGINOUT {
 			return
 		}
 
 		line, err := clt.read()
 		if err != nil {
-			INFO.Printf("@%s disconnected (%s)", clt.name, clt.conn.RemoteAddr())
-			clt.BroadcastButMe(">#main>!disconnect>@%s disconnected", clt.name)
+			INFO.Printf("%s disconnected (%s)", clt, clt.conn.RemoteAddr())
+			clt.UpdateInMain(">!disconnect>%s disconnected", clt)
 			clt.Close()
 
 			return
@@ -90,7 +97,7 @@ func (clt *Client) Say(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
-	clt.Write(line + "\n")
+	clt.write(line + "\n")
 }
 
 // Send len(Lines) with a lead message to the client
@@ -110,12 +117,12 @@ func (clt *Client) SayN(lead string, Lines []string) {
 		NumElems -= 1
 	}
 
-	clt.Write(output.String())
+	clt.write(output.String())
 
 }
 
-// Write a message to the client. Limited to 255 chars.
-func (clt *Client) Write(line string) (n int, err error) {
+// write a message to the client. Limited to 255 chars.
+func (clt *Client) write(line string) (n int, err error) {
 
 	if len(line) == 0 {
 		return
@@ -127,16 +134,18 @@ func (clt *Client) Write(line string) (n int, err error) {
 		data = data[:255]
 	}
 
-	clt.conn_mutex.Lock() // TODO: do we need this lock? We needed if for websocket.
 	DataLength, err := clt.conn.Write(data)
-	clt.conn_mutex.Unlock()
+
+	if err != nil {
+		DEBUG.Printf("%s.write() failed with err: %s", clt, err)
+	}
 
 	return DataLength, err
 }
 
 // check if client is logged
 func (clt *Client) isLogged() bool {
-	return clt.status == USER_LOGGED
+	return clt.Status.Load() == USER_LOGGED
 }
 
 // Read message sent by client, limited to 255 chars
@@ -166,8 +175,8 @@ func Broadcast(format string, args ...interface{}) {
 	CLIENTS.Range(broadcast)
 }
 
-// to be user by the server, send a message to everyone connected (excluding the sender)
-func (clt *Client) BroadcastButMe(format string, args ...interface{}) {
+// to be user by the server, send a message to everyone connected to the main channel (excluding the sender)
+func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 
 	line := fmt.Sprintf(format, args...)
 
@@ -177,30 +186,23 @@ func (clt *Client) BroadcastButMe(format string, args ...interface{}) {
 			return true
 		}
 
-		client.Write(line + "\n")
+		client.write(">#main" + line + "\n")
 		return true
 	}
 
 	CLIENTS.Range(broadcast)
 }
 
-// to be user by the users, send a message to everyone USER_LOGGED but the client.
-func (clt *Client) SayToAllButMe(format string, args ...interface{}) {
+// delete me from all the channels. This is extremely CPU consuming.
+// TODO: add a slice of channels that the user has joined.
+func (clt *Client) RemoveMeFromAllChannels() {
 
-	line := fmt.Sprintf(format, args...)
+	removeClient := func(key string, channel *Channel) bool {
 
-	say := func(key string, client *Client) bool {
-
-		if clt == client { // we don't want to send the message to us
-			return true
-		}
-
-		if clt.isLogged() { // we want to send the message only to
-			client.Write(">#main>@" + clt.name + ">" + line + "\n")
-		}
+		channel.removeClient(clt)
 
 		return true
 	}
 
-	CLIENTS.Range(say)
+	CHANNELS.Range(removeClient)
 }
