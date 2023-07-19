@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -59,6 +60,32 @@ func TestValidUsername(t *testing.T) {
 			}
 			if gotValidusername != tt.wantValidusername {
 				t.Errorf("ValidUsername() = %v, want %v", gotValidusername, tt.wantValidusername)
+			}
+		})
+	}
+}
+
+func Test_split2(t *testing.T) {
+
+	tests := []struct {
+		s          string
+		sep        string
+		wantFirst  string
+		wantSecond string
+	}{
+		{"", " ", "", ""},
+		{"AA", " ", "AA", ""},
+		{"AA BB", " ", "AA", "BB"},
+		{"AA BB CC", " ", "AA", "BB CC"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf(`'%s' '%s'`, tt.s, tt.sep), func(t *testing.T) {
+			gotFirst, gotSecond := split2(tt.s, tt.sep)
+			if gotFirst != tt.wantFirst {
+				t.Errorf("split2() gotFirst = %v, want %v", gotFirst, tt.wantFirst)
+			}
+			if gotSecond != tt.wantSecond {
+				t.Errorf("split2() gotSecond = %v, want %v", gotSecond, tt.wantSecond)
 			}
 		})
 	}
