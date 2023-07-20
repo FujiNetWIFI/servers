@@ -3,6 +3,7 @@ package main
 import (
 	"runtime"
 	"sort"
+	"strings"
 )
 
 func init_commands() {
@@ -21,6 +22,7 @@ func init_commands() {
 	COMMANDS["leave"] = do_leave
 	COMMANDS["list"] = do_list
 	COMMANDS["license"] = do_license
+	COMMANDS["history"] = do_history
 }
 
 func do_help(clt *Client, args string) {
@@ -37,6 +39,7 @@ func do_help(clt *Client, args string) {
 			"/hlist                     - show available hidden channels",
 			"/join <#channel>           - join/create a channel",
 			"/hjoin <#channel>          - join/create hidden channel",
+			"/history <#channel>        - return previous messages",
 			"/license					- view license agreement",
 			"/logoff                    - logoff"})
 
@@ -154,6 +157,26 @@ func do_say(clt *Client, args string) {
 
 	channel.Say(clt, "%s", message)
 
+}
+
+// get previous n messages written to channel
+func do_history(clt *Client, channelName string) {
+
+	channel, ok := CHANNELS.Load(channelName)
+
+	if !ok {
+		clt.Say("%s is not a valid channel", channelName)
+		return
+	}
+
+	var history []string
+	for _, p := range channel.history.readAll() {
+		if p != nil {
+			history = append(history, strings.TrimPrefix(*p, ">"))
+		}
+	}
+
+	clt.SayN(">/history>", history)
 }
 
 // update login levels. Unused for now
@@ -285,7 +308,7 @@ func do_login(clt *Client, args string) {
 
 	/* Update player */
 
-	clt.Say("/login>0>you're now %s", clt)
+	clt.Say(">/login>0>you're now %s", clt)
 	clt.UpdateInMain(">!login>%s has joined the server", clt)
 
 	INFO.Printf("%s has logged in as %s", oldName, clt)
@@ -327,6 +350,11 @@ func do_join(clt *Client, args string) {
 	}
 
 	channelName, _ := split2(args, " ")
+
+	// Multiple users can add at the same time, or a channel can be deleted from Map
+	// after the initial lookup.
+	CHNMTX.Lock()
+	defer CHNMTX.Unlock()
 
 	channel, ok := CHANNELS.Load(channelName)
 
@@ -373,6 +401,11 @@ func do_hjoin(clt *Client, args string) {
 
 	channelName, _ := split2(args, " ")
 
+	// Multiple users can add at the same time, or a channel can be deleted from Map
+	// after the initial lookup.
+	CHNMTX.Lock()
+	defer CHNMTX.Unlock()
+
 	channel, ok := CHANNELS.Load(channelName)
 
 	if ok {
@@ -418,6 +451,11 @@ func do_leave(clt *Client, args string) {
 	}
 
 	channelName, _ := split2(args, " ")
+
+	// Multiple users can add at the same time, or a channel can be deleted from Map
+	// after the initial lookup.
+	CHNMTX.Lock()
+	defer CHNMTX.Unlock()
 
 	channel, ok := CHANNELS.Load(channelName)
 

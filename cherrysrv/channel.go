@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -10,8 +11,9 @@ type Channel struct {
 	clients      []*Client // clients in the channel.
 	Name         string    // Name of the channel (incl #)
 	hidden       bool
-	closeOnEmpty bool // only #main should have this as false
-	sync.RWMutex      // for adding/removing client connections
+	closeOnEmpty bool        // only #main should have this as false
+	sync.RWMutex             // for adding/removing client connections
+	history      *ringbuffer // keep the last n messages for repeating
 }
 
 func newChannel(name string, hiddenChannel bool) *Channel {
@@ -21,6 +23,7 @@ func newChannel(name string, hiddenChannel bool) *Channel {
 		hidden:       hiddenChannel,
 		closeOnEmpty: true,
 		RWMutex:      sync.RWMutex{},
+		history:      newRingBuffer(10),
 	}
 }
 
@@ -85,12 +88,6 @@ func (channel *Channel) addClient(newClient *Client) {
 	channel.Lock()
 	defer channel.Unlock()
 
-	// check if a previous action emptied a channel
-	if len(channel.clients) == 0 {
-		DEBUG.Printf("%s had 0 clients on addClient, adding it to the directory", channel)
-		CHANNELS.Store(channel.Key(), channel)
-	}
-
 	channel.clients = append(channel.clients, newClient)
 }
 
@@ -149,8 +146,10 @@ func (channel *Channel) Say(from *Client, format string, args ...interface{}) {
 }
 
 func (c *Channel) write(from *Client, message string) {
+	trimmed := strings.TrimSpace(message)
 	c.RLock()
 	defer c.RUnlock()
+	c.history.add(&trimmed)
 
 	len := len(c.clients)
 
