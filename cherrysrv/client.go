@@ -16,9 +16,10 @@ const (
 
 // Client connection storing basic PC data
 type Client struct {
-	conn   *net.TCPConn // tcpsocket connection.
-	Name   string       // Name of the user.
-	Status atomic.Int32
+	conn     *net.TCPConn // tcpsocket connection.
+	Name     string       // Name of the user.
+	Status   atomic.Int32
+	Channels []*Channel
 }
 
 func (c *Client) String() string {
@@ -193,16 +194,19 @@ func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 	CLIENTS.Range(broadcast)
 }
 
-// delete me from all the channels. This is extremely CPU consuming.
-// TODO: add a slice of channels that the user has joined.
 func (clt *Client) RemoveMeFromAllChannels() {
-
-	removeClient := func(key string, channel *Channel) bool {
-
+	for _, channel := range clt.Channels {
 		channel.removeClient(clt)
-
-		return true
 	}
 
-	CHANNELS.Range(removeClient)
+	clt.Channels = nil
+}
+
+func (clt *Client) RemoveChannel(channel *Channel) {
+	for i, c := range clt.Channels {
+		if c == channel {
+			clt.Channels = append(clt.Channels[:i], clt.Channels[i+1:]...)
+			return
+		}
+	}
 }

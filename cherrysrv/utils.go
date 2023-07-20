@@ -48,9 +48,10 @@ func ValidUsername(username string) (validusername string, err error) {
 		return notvalid, fmt.Errorf("username cannot be longer than 16 chars")
 	}
 
-	if isDigit(username[1]) {
+	// this test is no longer necessary due to @ requirement
+	/*if isDigit(username[1]) {
 		return notvalid, fmt.Errorf("username cannot start with a number")
-	}
+	}*/
 
 	if !isASCIIPrintable(username[1:]) {
 		return notvalid, fmt.Errorf("username can only contain ASCII chars and numbers")

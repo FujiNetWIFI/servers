@@ -81,14 +81,15 @@ func (c *Channel) findClient(client *Client) bool {
 	return false
 }
 
-// TODO: Review subtle bug:
-// if addClient is blocked because removeClient is working
-// and removeClient leaves channel with 0 elements removing it
-// from CHANNELS directory completely, addClient will add a client to a
-// removed channel.
 func (channel *Channel) addClient(newClient *Client) {
 	channel.Lock()
 	defer channel.Unlock()
+
+	// check if a previous action emptied a channel
+	if len(channel.clients) == 0 {
+		DEBUG.Printf("%s had 0 clients on addClient, adding it to the directory", channel)
+		CHANNELS.Store(channel.Key(), channel)
+	}
 
 	channel.clients = append(channel.clients, newClient)
 }
@@ -125,11 +126,9 @@ func (channel *Channel) removeClient(client *Client) bool {
 
 	// len(c.clients) >= 2
 	// we loop through all the slice, NOT starting in pos=2
-
-	for i := 0; i < len; i++ {
-		if channel.clients[i] == client {
-			channel.clients[i] = channel.clients[len-1] // TODO: confirm is copying pointer, not content
-			channel.clients = channel.clients[:len-1]
+	for i, c := range channel.clients {
+		if c == client {
+			channel.clients = append(channel.clients[:i], channel.clients[i+1:]...)
 
 			return true
 		}
