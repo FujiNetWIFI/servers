@@ -10,11 +10,11 @@ import (
 
 const (
 	USER_NOTLOGGED = 1 // Player connected and mud waiting for login.
-	USER_LOGGED    = 2 // Player autheticated and currently playing.
+	USER_LOGGED    = 2 // Player autheticated and currently chatting.
 	USER_LOGGINOUT = 4 // Player being cleaned up, it won't accept any string sent to them.
 )
 
-// Client connection storing basic PC data
+// Client connection storing basic user data
 type Client struct {
 	conn   *net.TCPConn // tcpsocket connection.
 	Name   string       // Name of the user.
@@ -29,7 +29,7 @@ func newClient(conn *net.TCPConn) *Client {
 
 	client := &Client{
 		conn: conn,
-		Name: "@" + gensym("Anon"),
+		Name: gensym("@Anon"),
 	}
 	client.Status.Store(USER_NOTLOGGED)
 
@@ -152,6 +152,10 @@ func (clt *Client) isLogged() bool {
 func (client *Client) read() (string, error) {
 
 	netData, err := bufio.NewReader(client.conn).ReadString('\n')
+
+	if err != nil {
+		DEBUG.Printf("%s.read() failed with err: %s", client, err)
+	}
 
 	if len(netData) > 255 {
 		netData = netData[:255]
