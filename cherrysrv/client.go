@@ -16,8 +16,8 @@ const (
 
 // Client connection storing basic PC data
 type Client struct {
-	conn     *net.TCPConn // tcpsocket connection.
-	Name     string       // Name of the user.
+	conn     net.Conn // tcpsocket connection.
+	Name     string   // Name of the user.
 	Status   atomic.Int32
 	Channels []*Channel
 }
@@ -26,7 +26,7 @@ func (c *Client) String() string {
 	return c.Name
 }
 
-func newClient(conn *net.TCPConn) *Client {
+func newClient(conn net.Conn) *Client {
 
 	client := &Client{
 		conn: conn,
