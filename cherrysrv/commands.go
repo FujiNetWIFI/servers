@@ -304,7 +304,6 @@ func do_login(clt *Client, args string) {
 	mainChannel, _ := CHANNELS.Load("#main")
 
 	mainChannel.addClient(clt)
-	clt.Channels = append(clt.Channels, mainChannel)
 
 	/* Update player */
 
@@ -360,7 +359,6 @@ func do_join(clt *Client, args string) {
 
 	if ok {
 		channel.addClient(clt)
-		clt.Channels = append(clt.Channels, channel)
 		channel.Say(clt, "joined the channel")
 
 		return
@@ -377,7 +375,6 @@ func do_join(clt *Client, args string) {
 
 	NewChannel := newChannel(channelName, false)
 	NewChannel.addClient(clt)
-	clt.Channels = append(clt.Channels, NewChannel)
 
 	CHANNELS.Store(NewChannel.Key(), NewChannel)
 	DEBUG.Printf("adding %s to CHANNELS", NewChannel)
@@ -410,7 +407,6 @@ func do_hjoin(clt *Client, args string) {
 
 	if ok {
 		channel.addClient(clt)
-		clt.Channels = append(clt.Channels, channel)
 		channel.Say(clt, "hjoined the channel")
 
 		return
@@ -427,7 +423,6 @@ func do_hjoin(clt *Client, args string) {
 
 	NewChannel := newChannel(channelName, true)
 	NewChannel.addClient(clt)
-	clt.Channels = append(clt.Channels, NewChannel)
 
 	CHANNELS.Store(NewChannel.Key(), NewChannel)
 	DEBUG.Printf("adding %s to CHANNELS", NewChannel)

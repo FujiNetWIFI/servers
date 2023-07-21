@@ -183,7 +183,7 @@ func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 
 	broadcast := func(key string, client *Client) bool {
 
-		if clt == client { // we don't want to send the message to us
+		if clt == client || !client.isLogged() { // we don't want to send the message to us or non-logged users
 			return true
 		}
 

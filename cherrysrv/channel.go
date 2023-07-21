@@ -89,6 +89,7 @@ func (channel *Channel) addClient(newClient *Client) {
 	defer channel.Unlock()
 
 	channel.clients = append(channel.clients, newClient)
+	newClient.Channels = append(newClient.Channels, channel)
 }
 
 func (channel *Channel) removeClient(client *Client) bool {

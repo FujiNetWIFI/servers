@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// ringbuffer is a very niave ringbuffer that holds pointers to strings and returns
+// ringbuffer is a very naive ringbuffer that holds pointers to strings and returns
 // them in the order they were added. It uses locking to prevent threading issues.
 type ringbuffer struct {
 	buffer []*string

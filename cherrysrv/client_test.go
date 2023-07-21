@@ -7,6 +7,26 @@ import (
 	"testing"
 )
 
+func genClient() (c *Client, out net.Conn, in *bufio.Reader) {
+	server, out := net.Pipe()
+
+	in = bufio.NewReader(out)
+
+	c = newClient(server)
+	go c.clientLoop()
+
+	if res, _, err := in.ReadLine(); err == nil {
+		fmt.Println(string(res))
+	}
+
+	return
+}
+
+type multiCase struct {
+	i *bufio.Reader
+	s string
+}
+
 // TestClient is a set of ordered happy path tests
 func TestClient(t *testing.T) {
 	init_logger()
@@ -14,15 +34,7 @@ func TestClient(t *testing.T) {
 	main_channel := NewChannelMain("#main")
 	CHANNELS.Store(main_channel.Key(), main_channel)
 
-	server, client := net.Pipe()
-	connWrapper := bufio.NewReadWriter(bufio.NewReader(client), bufio.NewWriter(client))
-
-	nc := newClient(server)
-	go nc.clientLoop()
-
-	if res, _, err := connWrapper.ReadLine(); err == nil {
-		fmt.Println(string(res))
-	}
+	c1, out, in := genClient()
 
 	username := "@tester"
 	chan1 := "#test"
@@ -32,7 +44,7 @@ func TestClient(t *testing.T) {
 		input    []byte
 		expected []string
 	}{
-		{[]byte("/who\n"), []string{fmt.Sprintf(">/who>0>%s", nc.Name)}},
+		{[]byte("/who\n"), []string{fmt.Sprintf(">/who>0>%s", c1.Name)}},
 		{[]byte("/join #test\n"), []string{">/join>0>/join requires you to be logged"}},
 		{[]byte("/nusers\n"), []string{">/nusers>0>/nusers requires you to be logged"}},
 		{[]byte("/users\n"), []string{">/users>0>/users requires you to be logged"}},
@@ -59,13 +71,78 @@ func TestClient(t *testing.T) {
 	}
 
 	for _, test := range clientTests {
-		client.Write(test.input)
+		out.Write(test.input)
 
 		for i, ex := range test.expected {
-			if res, _, err := connWrapper.ReadLine(); err != nil {
+			if res, _, err := in.ReadLine(); err != nil {
 				t.Errorf("failed read, expected %s", test.expected[i])
 			} else if string(res) != ex {
 				t.Errorf("got %s, expected %s", string(res), ex)
+			}
+		}
+
+	}
+}
+
+// TestMultipleClients
+func TestMultipleClients(t *testing.T) {
+	init_logger()
+	init_commands()
+	main_channel := NewChannelMain("#main")
+	CHANNELS.Store(main_channel.Key(), main_channel)
+
+	_, out1, in1 := genClient()
+	_, out2, in2 := genClient()
+	_, out3, in3 := genClient()
+
+	username1 := "@tester1"
+	username2 := "@tester2"
+	username3 := "@tester3"
+
+	chan1 := "#test"
+
+	clientTests := []struct {
+		o        net.Conn
+		input    []byte
+		expected []multiCase
+	}{
+		{out1, []byte(fmt.Sprintf("/login %s\n", username1)),
+			[]multiCase{{in1, fmt.Sprintf(">/login>0>you're now %s", username1)}}},
+
+		{out2, []byte(fmt.Sprintf("/login %s\n", username1)),
+			[]multiCase{{in2, fmt.Sprintf(">/login>0>%s is already taken, please select another @name", username1)}}},
+
+		{out2, []byte(fmt.Sprintf("/login %s\n", username2)),
+			[]multiCase{{in2, fmt.Sprintf(">/login>0>you're now %s", username2)},
+				{in1, fmt.Sprintf(">#main>!login>%s has joined the server", username2)}}},
+
+		{out3, []byte(fmt.Sprintf("/login %s\n", username3)),
+			[]multiCase{{in3, fmt.Sprintf(">/login>0>you're now %s", username3)},
+				{in2, fmt.Sprintf(">#main>!login>%s has joined the server", username3)},
+				{in1, fmt.Sprintf(">#main>!login>%s has joined the server", username3)}}},
+
+		{out1, []byte(fmt.Sprintf("/join %s\n", chan1)),
+			[]multiCase{{in1, fmt.Sprintf(">/join>0>%s joined %s", username1, chan1)}}},
+
+		/*{out2, []byte(fmt.Sprintf("/join %s\n", chan1)),
+			[]multiCase{{in2, fmt.Sprintf(">/join>0>%s joined %s", username2, chan1)}}},
+
+		/*	{out3, []byte(fmt.Sprintf("/join %s\n", chan1)),
+			[]multiCase{{in3, fmt.Sprintf(">/join>0>%s joined %s", username3, chan1)}}},*/
+
+		/*{out1, in1, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username1)}},
+		{out2, in2, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username2)}},
+		{out3, in3, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username3)}},*/
+	}
+
+	for _, test := range clientTests {
+		test.o.Write(test.input)
+
+		for _, ex := range test.expected {
+			if res, _, err := ex.i.ReadLine(); err != nil {
+				t.Errorf("failed read on %p, expected %s", ex.i, ex.s)
+			} else if string(res) != ex.s {
+				t.Errorf("got %s, expected %s", string(res), ex.s)
 			}
 		}
 
