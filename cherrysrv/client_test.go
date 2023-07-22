@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 )
 
 func genClient() (c *Client, out net.Conn, in *bufio.Reader) {
@@ -24,7 +25,8 @@ func genClient() (c *Client, out net.Conn, in *bufio.Reader) {
 
 type multiCase struct {
 	i *bufio.Reader
-	s string
+	c net.Conn
+	s []string
 }
 
 // TestClient is a set of ordered happy path tests
@@ -84,6 +86,19 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func fullRead(buff *bufio.Reader, conn net.Conn, c chan []string) {
+	conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	var s []string
+	for {
+		if res, _, err := buff.ReadLine(); err != nil {
+			break
+		} else {
+			s = append(s, string(res))
+		}
+	}
+	c <- s
+}
+
 // TestMultipleClients
 func TestMultipleClients(t *testing.T) {
 	init_logger()
@@ -107,42 +122,66 @@ func TestMultipleClients(t *testing.T) {
 		expected []multiCase
 	}{
 		{out1, []byte(fmt.Sprintf("/login %s\n", username1)),
-			[]multiCase{{in1, fmt.Sprintf(">/login>0>you're now %s", username1)}}},
+			[]multiCase{{in1, out1, []string{fmt.Sprintf(">/login>0>you're now %s", username1)}}}},
 
 		{out2, []byte(fmt.Sprintf("/login %s\n", username1)),
-			[]multiCase{{in2, fmt.Sprintf(">/login>0>%s is already taken, please select another @name", username1)}}},
+			[]multiCase{{in2, out2, []string{fmt.Sprintf(">/login>0>%s is already taken, please select another @name", username1)}}}},
 
 		{out2, []byte(fmt.Sprintf("/login %s\n", username2)),
-			[]multiCase{{in2, fmt.Sprintf(">/login>0>you're now %s", username2)},
-				{in1, fmt.Sprintf(">#main>!login>%s has joined the server", username2)}}},
+			[]multiCase{{in2, out2, []string{fmt.Sprintf(">/login>0>you're now %s", username2)}},
+				{in1, out1, []string{fmt.Sprintf(">#main>!login>%s has joined the server", username2)}}}},
 
 		{out3, []byte(fmt.Sprintf("/login %s\n", username3)),
-			[]multiCase{{in3, fmt.Sprintf(">/login>0>you're now %s", username3)},
-				{in2, fmt.Sprintf(">#main>!login>%s has joined the server", username3)},
-				{in1, fmt.Sprintf(">#main>!login>%s has joined the server", username3)}}},
+			[]multiCase{{in3, out3, []string{fmt.Sprintf(">/login>0>you're now %s", username3)}},
+				{in2, out2, []string{fmt.Sprintf(">#main>!login>%s has joined the server", username3)}},
+				{in1, out1, []string{fmt.Sprintf(">#main>!login>%s has joined the server", username3)}}}},
 
 		{out1, []byte(fmt.Sprintf("/join %s\n", chan1)),
-			[]multiCase{{in1, fmt.Sprintf(">/join>0>%s joined %s", username1, chan1)}}},
+			[]multiCase{{in1, out1, []string{fmt.Sprintf(">/join>0>%s joined %s", username1, chan1)}}}},
 
-		/*{out2, []byte(fmt.Sprintf("/join %s\n", chan1)),
-			[]multiCase{{in2, fmt.Sprintf(">/join>0>%s joined %s", username2, chan1)}}},
+		{out2, []byte(fmt.Sprintf("/join %s\n", chan1)),
+			[]multiCase{{in2, out2, []string{fmt.Sprintf(">%s>%s>joined the channel", chan1, username2)}},
+				{in1, out1, []string{fmt.Sprintf(">%s>%s>joined the channel", chan1, username2)}}}},
 
-		/*	{out3, []byte(fmt.Sprintf("/join %s\n", chan1)),
-			[]multiCase{{in3, fmt.Sprintf(">/join>0>%s joined %s", username3, chan1)}}},*/
+		{out3, []byte(fmt.Sprintf("/join %s\n", chan1)),
+			[]multiCase{{in3, out3, []string{fmt.Sprintf(">%s>%s>joined the channel", chan1, username3)}},
+				{in2, out2, []string{fmt.Sprintf(">%s>%s>joined the channel", chan1, username3)}},
+				{in1, out1, []string{fmt.Sprintf(">%s>%s>joined the channel", chan1, username3)}}}},
 
-		/*{out1, in1, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username1)}},
-		{out2, in2, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username2)}},
-		{out3, in3, []byte("/logoff\n"), []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username3)}},*/
+		{out1, []byte(fmt.Sprintf("/say %s hello\n", chan1)),
+			[]multiCase{{in3, out3, []string{fmt.Sprintf(">%s>%s>hello", chan1, username1)}},
+				{in2, out2, []string{fmt.Sprintf(">%s>%s>hello", chan1, username1)}},
+				{in1, out1, []string{fmt.Sprintf(">%s>%s>hello", chan1, username1)}}}},
+
+		{out1, []byte("/logoff\n"),
+			[]multiCase{{in1, out1, []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username1)}},
+				{in2, out2, []string{fmt.Sprintf(">#main>!logoff>%s is leaving", username1)}},
+				{in3, out3, []string{fmt.Sprintf(">#main>!logoff>%s is leaving", username1)}}}},
+		{out2, []byte("/logoff\n"),
+			[]multiCase{{in2, out2, []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username2)}},
+				{in3, out3, []string{fmt.Sprintf(">#main>!logoff>%s is leaving", username2)}}}},
+		{out3, []byte("/logoff\n"),
+			[]multiCase{{in3, out3, []string{fmt.Sprintf(">/logoff>0>Goodbye %s", username3)}}}},
 	}
 
 	for _, test := range clientTests {
 		test.o.Write(test.input)
 
-		for _, ex := range test.expected {
-			if res, _, err := ex.i.ReadLine(); err != nil {
-				t.Errorf("failed read on %p, expected %s", ex.i, ex.s)
-			} else if string(res) != ex.s {
-				t.Errorf("got %s, expected %s", string(res), ex.s)
+		var rets []chan []string
+		for i, ex := range test.expected {
+			rets = append(rets, make(chan []string))
+			go fullRead(ex.i, ex.c, rets[i])
+		}
+		for i, ex := range test.expected {
+			res := <-rets[i]
+			if len(ex.s) != len(res) {
+				t.Errorf("got %v, expected %v", res, ex.s)
+			} else {
+				for i, s := range ex.s {
+					if s != res[i] {
+						t.Errorf("got %s, expected %s", res[i], s)
+					}
+				}
 			}
 		}
 
