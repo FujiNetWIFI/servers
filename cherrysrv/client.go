@@ -16,16 +16,17 @@ const (
 
 // Client connection storing basic PC data
 type Client struct {
-	conn   *net.TCPConn // tcpsocket connection.
-	Name   string       // Name of the user.
-	Status atomic.Int32
+	conn     net.Conn // tcpsocket connection.
+	Name     string   // Name of the user.
+	Status   atomic.Int32
+	Channels []*Channel
 }
 
 func (c *Client) String() string {
 	return c.Name
 }
 
-func newClient(conn *net.TCPConn) *Client {
+func newClient(conn net.Conn) *Client {
 
 	client := &Client{
 		conn: conn,
@@ -182,7 +183,7 @@ func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 
 	broadcast := func(key string, client *Client) bool {
 
-		if clt == client { // we don't want to send the message to us
+		if clt == client || !client.isLogged() { // we don't want to send the message to us or non-logged users
 			return true
 		}
 
@@ -193,16 +194,19 @@ func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 	CLIENTS.Range(broadcast)
 }
 
-// delete me from all the channels. This is extremely CPU consuming.
-// TODO: add a slice of channels that the user has joined.
 func (clt *Client) RemoveMeFromAllChannels() {
-
-	removeClient := func(key string, channel *Channel) bool {
-
+	for _, channel := range clt.Channels {
 		channel.removeClient(clt)
-
-		return true
 	}
 
-	CHANNELS.Range(removeClient)
+	clt.Channels = nil
+}
+
+func (clt *Client) RemoveChannel(channel *Channel) {
+	for i, c := range clt.Channels {
+		if c == channel {
+			clt.Channels = append(clt.Channels[:i], clt.Channels[i+1:]...)
+			return
+		}
+	}
 }

@@ -28,6 +28,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -57,6 +58,7 @@ var (
 	COMMANDS  = make(map[string]do_command)
 	CLIENTS   cmap.Map[string, *Client] // CLIENTS  cmap.Cmap
 	CHANNELS  cmap.Map[string, *Channel]
+	CHNMTX    = sync.Mutex{}
 	SCHEDULER *tasks.Scheduler
 	TIME      uint64
 	STARTEDON time.Time
