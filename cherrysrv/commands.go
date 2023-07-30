@@ -389,7 +389,7 @@ func do_hjoin(clt *Client, args string) {
 	}
 
 	NewChannel := newChannel(channelName, true)
-	channel.addClient(clt)
+	NewChannel.addClient(clt)
 
 	CHANNELS.Store(NewChannel.Key(), NewChannel)
 	DEBUG.Printf("adding %s to CHANNELS", NewChannel)
