@@ -43,12 +43,12 @@ func TestValidUsername(t *testing.T) {
 		wantErr           bool
 	}{
 		//		{"empty string", "", NOSTRING, true},
-		{"valid name", "JohnnyCash", "JohnnyCash", false},
-		{"valid name w/numbers", "JohnnyCash12", "JohnnyCash12", false},
+		{"valid name", "@JohnnyCash", "@JohnnyCash", false},
+		{"valid name w/numbers", "@JohnnyCash12", "@JohnnyCash12", false},
 		{"name with space", "Johnny Cash", NOSTRING, true},
 		{"srv", "srv", NOSTRING, true},
-		{"name too long", "a1234567890123456", NOSTRING, true},
-		{"name at limit", "a123456789012345", "a123456789012345", false},
+		{"name too long", "@a123456789012345", NOSTRING, true},
+		{"name at limit", "@a12345678901234", "@a12345678901234", false},
 		{"name starts w/number", "1John", NOSTRING, true},
 	}
 	for _, tt := range tests {
