@@ -6,12 +6,19 @@ import (
 	"sync"
 )
 
+// client status
+const (
+	CHANNEL_WORKING      = 1 // channel created and with users
+	CHANNEL_SHUTTINGDOWN = 2 // channel with no users, shutting down
+)
+
 type Channel struct {
 	clients      []*Client // clients in the channel.
 	Name         string    // Name of the channel (incl #)
 	hidden       bool
 	closeOnEmpty bool // only #main should have this as false
-	sync.RWMutex      // for adding/removing client connections
+	Status       int
+	sync.RWMutex // for adding/removing client connections
 }
 
 func newChannel(name string, hiddenChannel bool) *Channel {
@@ -20,8 +27,10 @@ func newChannel(name string, hiddenChannel bool) *Channel {
 		Name:         name,
 		hidden:       hiddenChannel,
 		closeOnEmpty: true,
+		Status:       CHANNEL_WORKING,
 		RWMutex:      sync.RWMutex{},
 	}
+
 }
 
 func NewChannelMain(name string) *Channel {
@@ -30,8 +39,11 @@ func NewChannelMain(name string) *Channel {
 		Name:         name,
 		hidden:       false,
 		closeOnEmpty: false,
-		RWMutex:      sync.RWMutex{},
+		Status:       CHANNEL_WORKING,
+
+		RWMutex: sync.RWMutex{},
 	}
+
 }
 
 // return the key to index the channel
@@ -52,6 +64,7 @@ func (c *Channel) Count() int {
 	return len(c.clients)
 }
 
+// return the client names of the clients currently in this channel
 func (c *Channel) ClientNames() (output []string) {
 	c.RLock()
 	defer c.RUnlock()
@@ -68,12 +81,13 @@ func (c *Channel) ClientNames() (output []string) {
 	return output
 }
 
-func (c *Channel) findClient(client *Client) bool {
+// find if a certain client is in this channel
+func (c *Channel) contains(client *Client) bool {
 	c.RLock()
 	defer c.RUnlock()
 
 	for i := 0; i < len(c.clients); i++ {
-		if c.clients[i].Name == client.Name {
+		if c.clients[i] == client {
 			return true
 		}
 	}
@@ -86,13 +100,21 @@ func (c *Channel) findClient(client *Client) bool {
 // and removeClient leaves channel with 0 elements removing it
 // from CHANNELS directory completely, addClient will add a client to a
 // removed channel.
-func (channel *Channel) addClient(newClient *Client) {
+func (channel *Channel) addClient(newClient *Client) bool {
 	channel.Lock()
 	defer channel.Unlock()
 
+	if channel.Status == CHANNEL_SHUTTINGDOWN {
+		return false
+	}
+
 	channel.clients = append(channel.clients, newClient)
+
+	return true
 }
 
+// remove client and return bool if successful.
+// if it's the last channel, remove the channel from the server
 func (channel *Channel) removeClient(client *Client) bool {
 	channel.Lock()
 	defer channel.Unlock()
@@ -100,14 +122,17 @@ func (channel *Channel) removeClient(client *Client) bool {
 	len := len(channel.clients)
 
 	// len(c.clients) = 0 or 1, we manage them as special cases
-	// let's treat them manually:
 
 	if len == 0 {
 		DEBUG.Printf("%s has 0 clients and this should not be possible", channel)
 		return false
 	}
 
-	if len == 1 && channel.clients[0].Name == client.Name {
+	// single client in the group and is the one we want to remove.
+	if len == 1 && channel.clients[0] == client {
+		if channel.closeOnEmpty {
+			channel.Status = CHANNEL_SHUTTINGDOWN
+		}
 		channel.clients = []*Client{}
 
 		if channel.closeOnEmpty {
@@ -119,16 +144,13 @@ func (channel *Channel) removeClient(client *Client) bool {
 		return true
 	}
 
-	if len == 1 && channel.clients[0].Name != client.Name {
-		return false
-	}
-
-	// len(c.clients) >= 2
-	// we loop through all the slice, NOT starting in pos=2
+	// otherwise we loop through all the slice, NOT starting in pos=2,
+	// removing it when we find it.
+	// Because we have >= 2 clients we do not remove the channel.
 
 	for i := 0; i < len; i++ {
 		if channel.clients[i] == client {
-			channel.clients[i] = channel.clients[len-1] // TODO: confirm is copying pointer, not content
+			channel.clients[i] = channel.clients[len-1]
 			channel.clients = channel.clients[:len-1]
 
 			return true

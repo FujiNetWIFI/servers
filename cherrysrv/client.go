@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 )
 
+// client status
 const (
 	USER_NOTLOGGED = 1 // Player connected and mud waiting for login.
 	USER_LOGGED    = 2 // Player autheticated and currently chatting.
@@ -46,8 +47,6 @@ func (c *Client) Key() string {
 
 // Close a client connection following ws protocol plus removing the internal handlers in the mud.
 func (clt *Client) Close() {
-
-	clt.Status.Swap(USER_LOGGINOUT)
 
 	clt.RemoveMeFromAllChannels()
 	clt.conn.Close()
@@ -112,12 +111,16 @@ func (clt *Client) SayN(lead string, Lines []string) {
 	NumElems -= 1 // we count from NumElems-1 to 0
 
 	for _, line := range Lines {
-		num := fmt.Sprintf("%d", NumElems)
-		output.WriteString(lead + num + ">" + line + "\n")
+		text := fmt.Sprintf("%s%d>%s\n", lead, NumElems, line)
+
+		if len(text) >= 255 {
+			text = text[:254] + "\n"
+		}
+		output.WriteString(text)
 		NumElems -= 1
 	}
 
-	clt.write(output.String())
+	clt.writeNoLimit(output.String())
 
 }
 
@@ -128,13 +131,21 @@ func (clt *Client) write(line string) (n int, err error) {
 		return
 	}
 
-	data := []byte(line)
-
-	if len(data) > 255 {
-		data = data[:255]
+	if len(line) > 255 {
+		line = line[:255]
 	}
 
-	DataLength, err := clt.conn.Write(data)
+	return clt.writeNoLimit(line)
+}
+
+// writeNoLimit a message to the client. Unlimited length.
+func (clt *Client) writeNoLimit(line string) (n int, err error) {
+
+	if len(line) == 0 {
+		return
+	}
+
+	DataLength, err := clt.conn.Write([]byte(line))
 
 	if err != nil {
 		DEBUG.Printf("%s.write() failed with err: %s", clt, err)

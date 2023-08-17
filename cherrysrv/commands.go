@@ -37,7 +37,7 @@ func do_help(clt *Client, args string) {
 			"/hlist                     - show available hidden channels",
 			"/join <#channel>           - join/create a channel",
 			"/hjoin <#channel>          - join/create hidden channel",
-			"/license					- view license agreement",
+			"/license                   - view license agreement",
 			"/logoff                    - logoff"})
 
 }
@@ -149,6 +149,11 @@ func do_say(clt *Client, args string) {
 
 	if !ok {
 		clt.Say("%s is not a valid channel", channelName)
+		return
+	}
+
+	if !channel.contains(clt) {
+		clt.Say("you must /join %s before you can write", channel.Name)
 		return
 	}
 
@@ -330,8 +335,12 @@ func do_join(clt *Client, args string) {
 	channel, ok := CHANNELS.Load(channelName)
 
 	if ok {
-		channel.addClient(clt)
-		channel.Say(clt, "joined the channel")
+		if channel.addClient(clt) {
+			channel.Say(clt, "joined the channel")
+			return
+		}
+
+		channel.Say(clt, "unable to join, channel shutting down")
 
 		return
 	}
@@ -373,8 +382,12 @@ func do_hjoin(clt *Client, args string) {
 	channel, ok := CHANNELS.Load(channelName)
 
 	if ok {
-		channel.addClient(clt)
-		channel.Say(clt, "hjoined the channel")
+		if channel.addClient(clt) {
+			channel.Say(clt, "hjoined the channel")
+			return
+		}
+
+		channel.Say(clt, "unable to join, hchannel shutting down")
 
 		return
 	}
@@ -418,7 +431,7 @@ func do_leave(clt *Client, args string) {
 
 	if ok {
 
-		if !channel.findClient(clt) {
+		if !channel.contains(clt) {
 			clt.Say(">/leave>0>you're not in channel %s", channelName)
 			return
 		}
