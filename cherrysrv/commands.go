@@ -284,7 +284,7 @@ func do_login(clt *Client, args string) {
 
 	/* Update player */
 
-	clt.Say("/login>0>you're now %s", clt)
+	clt.Say(">/login>0>you're now %s", clt)
 	clt.UpdateInMain(">!login>%s has joined the server", clt)
 
 	INFO.Printf("%s has logged in as %s", oldName, clt)
