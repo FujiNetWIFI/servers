@@ -10,11 +10,11 @@ import (
 
 const (
 	USER_NOTLOGGED = 1 // Player connected and mud waiting for login.
-	USER_LOGGED    = 2 // Player autheticated and currently playing.
+	USER_LOGGED    = 2 // Player autheticated and currently chatting.
 	USER_LOGGINOUT = 4 // Player being cleaned up, it won't accept any string sent to them.
 )
 
-// Client connection storing basic PC data
+// Client connection storing basic client data
 type Client struct {
 	conn   *net.TCPConn // tcpsocket connection.
 	Name   string       // Name of the user.
