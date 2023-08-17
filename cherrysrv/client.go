@@ -153,6 +153,10 @@ func (client *Client) read() (string, error) {
 
 	netData, err := bufio.NewReader(client.conn).ReadString('\n')
 
+	if err != nil {
+		DEBUG.Printf("%s.read() failed with err: %s", client, err)
+	}
+
 	if len(netData) > 255 {
 		netData = netData[:255]
 	}
