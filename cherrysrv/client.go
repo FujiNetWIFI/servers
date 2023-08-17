@@ -29,7 +29,7 @@ func newClient(conn *net.TCPConn) *Client {
 
 	client := &Client{
 		conn: conn,
-		Name: "@" + gensym("Anon"),
+		Name: gensym("@Anon"),
 	}
 	client.Status.Store(USER_NOTLOGGED)
 
