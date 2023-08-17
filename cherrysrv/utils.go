@@ -111,15 +111,6 @@ func no(x interface{}) bool {
 	return false
 }
 
-// confirm v is a slice
-func IsSlice[T any](v T) bool {
-	return reflect.TypeOf(v).Kind() == reflect.Slice
-}
-
-type Indexable[T int | string] interface {
-	Key() (value T, name string)
-}
-
 func split2(s string, sep string) (first string, second string) {
 
 	split := strings.SplitN(s, sep, 2)
