@@ -107,15 +107,15 @@ func (clt *Client) SayN(lead string, Lines []string) {
 	if NumElems == 0 {
 		return
 	}
+
 	var output strings.Builder
 	NumElems -= 1 // we count from NumElems-1 to 0
 
 	for _, line := range Lines {
 		text := fmt.Sprintf("%s%d>%s\n", lead, NumElems, line)
 
-		if len(text) >= 255 {
-			text = text[:254] + "\n"
-		}
+		text = shorten255(text)
+
 		output.WriteString(text)
 		NumElems -= 1
 	}
@@ -131,9 +131,7 @@ func (clt *Client) write(line string) (n int, err error) {
 		return
 	}
 
-	if len(line) > 255 {
-		line = line[:255]
-	}
+	line = shorten255(line)
 
 	return clt.writeNoLimit(line)
 }
@@ -168,11 +166,9 @@ func (client *Client) read() (string, error) {
 		DEBUG.Printf("%s.read() failed with err: %s", client, err)
 	}
 
-	if len(netData) > 255 {
-		netData = netData[:255]
-	}
+	netData = shorten255(netData)
 
-	return netData, err
+	return netData, nil
 }
 
 // to be used by the server, send a message to everyone connected (including the sender)
@@ -208,8 +204,7 @@ func (clt *Client) UpdateInMain(format string, args ...interface{}) {
 	CLIENTS.Range(broadcast)
 }
 
-// delete me from all the channels. This is extremely CPU consuming.
-// TODO: add a slice of channels that the user has joined.
+// delete me from all the channels. This can be optimised in the future.
 func (clt *Client) RemoveMeFromAllChannels() {
 
 	removeClient := func(key string, channel *Channel) bool {
