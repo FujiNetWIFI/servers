@@ -45,11 +45,12 @@ func TestValidUsername(t *testing.T) {
 		//		{"empty string", "", NOSTRING, true},
 		{"valid name", "@JohnnyCash", "@JohnnyCash", false},
 		{"valid name w/numbers", "@JohnnyCash12", "@JohnnyCash12", false},
-		{"name with space", "Johnny Cash", NOSTRING, true},
-		{"srv", "srv", NOSTRING, true},
+		{"name with space", "@Johnny Cash", NOSTRING, true},
+		{"srv", "@srv", NOSTRING, true},
 		{"name too long", "@a123456789012345", NOSTRING, true},
 		{"name at limit", "@a12345678901234", "@a12345678901234", false},
-		{"name starts w/number", "1John", NOSTRING, true},
+		{"name starts w/number", "@1John", NOSTRING, true},
+		{"name starts without @", "John", NOSTRING, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,6 +87,39 @@ func Test_split2(t *testing.T) {
 			}
 			if gotSecond != tt.wantSecond {
 				t.Errorf("split2() gotSecond = %v, want %v", gotSecond, tt.wantSecond)
+			}
+		})
+	}
+}
+
+func TestValidChannelname(t *testing.T) {
+	var NOSTRING string
+
+	tests := []struct {
+		name                  string
+		channelname           string
+		wantVaalidchannelname string
+		wantErr               bool
+	}{
+		//		{"empty string", "", NOSTRING, true},
+		{"valid name", "#fun", "#fun", false},
+		{"valid name w/numbers", "#channel1", "#channel1", false},
+		{"name with space", "#more channel", NOSTRING, true},
+		{"#main", "#main", NOSTRING, true},
+		{"name too long", "#a123456789012345", NOSTRING, true},
+		{"name at limit", "#a12345678901234", "#a12345678901234", false},
+		{"name starts w/number", "#1John", NOSTRING, true},
+		{"name starts without #", "channel", NOSTRING, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotVaalidchannelname, err := ValidChannelname(tt.channelname)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidChannelname() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotVaalidchannelname != tt.wantVaalidchannelname {
+				t.Errorf("ValidChannelname() = %v, want %v", gotVaalidchannelname, tt.wantVaalidchannelname)
 			}
 		})
 	}

@@ -36,12 +36,12 @@ func ValidUsername(username string) (validusername string, err error) {
 
 	var notvalid string
 
-	if username == "srv" {
-		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
-	}
-
 	if username[0] != '@' {
 		return notvalid, fmt.Errorf("username must start with '@'")
+	}
+
+	if username == "@srv" {
+		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
 	}
 
 	if len(username) > 16 {
@@ -63,12 +63,12 @@ func ValidChannelname(channelname string) (vaalidchannelname string, err error) 
 
 	var notvalid string
 
-	if channelname == "#main" {
-		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
-	}
-
 	if channelname[0] != '#' {
 		return notvalid, fmt.Errorf("channelname must start with '#'")
+	}
+
+	if channelname == "#main" {
+		return notvalid, fmt.Errorf("this is a reserved name that cannot be used")
 	}
 
 	if len(channelname) > 16 {
