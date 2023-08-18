@@ -115,7 +115,7 @@ func main() {
 	for {
 		conn, err := server.AcceptTCP()
 		if err != nil {
-			WARN.Printf("Unable to accept connection on localhost:1512 (%s)", err)
+			WARN.Printf("Unable to accept connection on %s (%s)", srvaddr, err)
 			continue
 		}
 		go newClient(conn).clientLoop()
