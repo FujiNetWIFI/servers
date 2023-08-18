@@ -63,7 +63,7 @@ var (
 )
 
 const (
-	VERSION   = "3.0.1"
+	VERSION   = "3.0.2"
 	STRINGVER = "cherry srv " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
