@@ -148,17 +148,16 @@ func do_say(clt *Client, args string) {
 	channel, ok := CHANNELS.Load(channelName)
 
 	if !ok {
-		clt.Say("%s is not a valid channel", channelName)
+		clt.Say(">/say>0>%s is not a valid channel", channelName)
 		return
 	}
 
 	if !channel.contains(clt) {
-		clt.Say("you must /join %s before you can write", channel.Name)
+		clt.Say(">/say>0>you must /join %s before you can write", channel.Name)
 		return
 	}
 
 	channel.Say(clt, "%s", message)
-
 }
 
 // update login levels. Unused for now
@@ -349,7 +348,7 @@ func do_join(clt *Client, args string) {
 
 	if err != nil {
 		clt.Say(">/join>0>%s is not a valid channelname because %s", args, err.Error())
-		WARN.Printf("user %s unable to create channel %s  due to: %s", clt, args, err.Error())
+		WARN.Printf("user %s unable to create channel %s due to: %s", clt, args, err.Error())
 
 		return
 	}
@@ -454,8 +453,6 @@ func do_list(clt *Client, args string) {
 
 		return
 	}
-
-	/* Do command */
 
 	var out []string
 
