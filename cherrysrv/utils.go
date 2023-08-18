@@ -128,3 +128,12 @@ func split2(s string, sep string) (first string, second string) {
 func trim(s string) string {
 	return strings.Trim(s, " \t\n\r")
 }
+
+// if len(line) >= 255, reduce it to 254 + "\n"
+func shorten255(line string) string {
+	if len(line) >= 255 {
+		return line[:254] + "\n"
+	}
+
+	return line
+}
