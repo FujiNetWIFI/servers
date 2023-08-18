@@ -17,8 +17,8 @@ type Channel struct {
 	Name         string    // Name of the channel (incl #)
 	hidden       bool
 	closeOnEmpty bool // only #main should have this as false
-	Status       int
-	sync.RWMutex // for adding/removing client connections
+	Status       int  // CHANNEL_WORKING, CHANNEL_SHUTTINGDOWN
+	sync.RWMutex      // for adding/removing client connections
 }
 
 func newChannel(name string, hiddenChannel bool) *Channel {
