@@ -95,11 +95,7 @@ func (c *Channel) contains(client *Client) bool {
 	return false
 }
 
-// TODO: Review subtle bug:
-// if addClient is blocked because removeClient is working
-// and removeClient leaves channel with 0 elements removing it
-// from CHANNELS directory completely, addClient will add a client to a
-// removed channel.
+// add client considering if the channel is shutting down
 func (channel *Channel) addClient(newClient *Client) bool {
 	channel.Lock()
 	defer channel.Unlock()
