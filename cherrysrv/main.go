@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -87,8 +86,6 @@ func main() {
 	init_commands()
 	init_scheduler()
 	init_time()
-
-	rand.Seed(time.Now().UnixNano())
 
 	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
 	if err != nil {
