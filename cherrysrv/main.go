@@ -71,7 +71,7 @@ func main() {
 	var srvaddr string
 	var help bool
 
-	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp4 server")
+	flag.StringVar(&srvaddr, "srvaddr", "", "<address:port> for tcp server")
 	flag.BoolVar(&help, "help", false, "show this help")
 
 	flag.Parse()
@@ -87,15 +87,9 @@ func main() {
 	init_scheduler()
 	init_time()
 
-	TCPAddr, err := net.ResolveTCPAddr("tcp", srvaddr)
+	server, err := net.Listen("tcp", srvaddr)
 	if err != nil {
-		ERROR.Fatalf("Unable to resolve address on tcp4://%s (%s)", srvaddr, err)
-		return
-	}
-
-	server, err := net.ListenTCP("tcp4", TCPAddr)
-	if err != nil {
-		ERROR.Fatalf("Unable to serve on tcp4://%s (%s)", srvaddr, err)
+		ERROR.Fatalf("Unable to serve on tcp://%s (%s)", srvaddr, err)
 		return
 	}
 	defer server.Close()
@@ -110,7 +104,7 @@ func main() {
 	DEBUG.Printf("adding %s to CHANNELS", main_channel)
 
 	for {
-		conn, err := server.AcceptTCP()
+		conn, err := server.Accept()
 		if err != nil {
 			WARN.Printf("Unable to accept connection on %s (%s)", srvaddr, err)
 			continue
