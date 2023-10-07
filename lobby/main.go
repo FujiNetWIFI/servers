@@ -201,6 +201,7 @@ func init_webhook(evtaddr string) {
 		WARN.Printf("%s cannot be resolved to an ip. Eventserver won't be used.", url.Host)
 	}
 
+	INFO.Printf("%s will be used as eventserver webhook", evtaddr)
 	EVTSERVER_WEBHOOK = *url
 
 }
