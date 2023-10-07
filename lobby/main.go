@@ -186,6 +186,7 @@ func init_html(srvaddr string) {
 // check the url submited via command line is a valid webhook
 func init_webhook(evtaddr string) {
 	if len(evtaddr) == 0 {
+		EVTSERVER_WEBHOOK = ""
 		return
 	}
 

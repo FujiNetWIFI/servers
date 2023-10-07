@@ -195,7 +195,9 @@ func UpsertServer(c *gin.Context) {
 		return
 	}
 
-	go PostToEventServer(server)
+	if len(EVTSERVER_WEBHOOK) > 0 {
+		go PostToEventServer(server)
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"success": true,
 		"message": "Server correctly updated"})
