@@ -46,10 +46,12 @@ var SERVERS_HTML []byte
 
 func main() {
 
-	var srvaddr string
+	var srvaddr, evtaddr string
 	var help bool
 
 	flag.StringVar(&srvaddr, "srvaddr", ":8080", "<address:port> for http server")
+	flag.StringVar(&evtaddr, "evtaddr", "", "<http> for event server webhook")
+
 	flag.BoolVar(&help, "help", false, "show this help")
 
 	flag.Parse()
