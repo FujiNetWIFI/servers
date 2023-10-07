@@ -33,7 +33,7 @@ var (
 	SCHEDULER         *tasks.Scheduler
 	TIME              uint64
 	STARTEDON         time.Time
-	EVTSERVER_WEBHOOK url.URL
+	EVTSERVER_WEBHOOK string
 )
 
 const (
@@ -202,6 +202,6 @@ func init_webhook(evtaddr string) {
 	}
 
 	INFO.Printf("%s will be used as eventserver webhook", evtaddr)
-	EVTSERVER_WEBHOOK = *url
+	EVTSERVER_WEBHOOK = evtaddr
 
 }
