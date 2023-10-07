@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"flag"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -27,10 +29,11 @@ var (
 )
 
 var (
-	DATABASE  *lobbyDB
-	SCHEDULER *tasks.Scheduler
-	TIME      uint64
-	STARTEDON time.Time
+	DATABASE          *lobbyDB
+	SCHEDULER         *tasks.Scheduler
+	TIME              uint64
+	STARTEDON         time.Time
+	EVTSERVER_WEBHOOK url.URL
 )
 
 const (
@@ -67,6 +70,7 @@ func main() {
 	init_time()
 	init_db()
 	init_html(srvaddr)
+	init_webhook(evtaddr)
 
 	router := gin.Default()
 
@@ -177,4 +181,25 @@ func init_html(srvaddr string) {
 
 	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$srvaddr$$"), []byte(srvaddr))
 	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$version$$"), []byte(VERSION))
+}
+
+func init_webhook(evtaddr string) {
+	if len(evtaddr) == 0 {
+		return
+	}
+
+	url, err := url.Parse(evtaddr)
+	if err != nil {
+		WARN.Printf("%s is not a valid url for the event server webhook. Eventserver won't be used", evtaddr)
+		return
+	}
+
+	_, err = net.LookupIP(url.Host)
+
+	if err != nil {
+		WARN.Printf("%s cannot be resolved to an ip. Eventserver won't be used.", url.Host)
+	}
+
+	EVTSERVER_WEBHOOK = *url
+
 }
