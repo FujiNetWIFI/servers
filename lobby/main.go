@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"flag"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -27,14 +29,15 @@ var (
 )
 
 var (
-	DATABASE  *lobbyDB
-	SCHEDULER *tasks.Scheduler
-	TIME      uint64
-	STARTEDON time.Time
+	DATABASE          *lobbyDB
+	SCHEDULER         *tasks.Scheduler
+	TIME              uint64
+	STARTEDON         time.Time
+	EVTSERVER_WEBHOOK string
 )
 
 const (
-	VERSION   = "5.0.1"
+	VERSION   = "5.1.1"
 	STRINGVER = "fujinet persistent lobby  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -46,10 +49,12 @@ var SERVERS_HTML []byte
 
 func main() {
 
-	var srvaddr string
+	var srvaddr, evtaddr string
 	var help bool
 
 	flag.StringVar(&srvaddr, "srvaddr", ":8080", "<address:port> for http server")
+	flag.StringVar(&evtaddr, "evtaddr", "", "<http> for event server webhook")
+
 	flag.BoolVar(&help, "help", false, "show this help")
 
 	flag.Parse()
@@ -65,6 +70,7 @@ func main() {
 	init_time()
 	init_db()
 	init_html(srvaddr)
+	init_webhook(evtaddr)
 
 	router := gin.Default()
 
@@ -175,4 +181,28 @@ func init_html(srvaddr string) {
 
 	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$srvaddr$$"), []byte(srvaddr))
 	DOCHTML = bytes.ReplaceAll(DOCHTML, []byte("$$version$$"), []byte(VERSION))
+}
+
+// check the url submited via command line is a valid webhook
+func init_webhook(evtaddr string) {
+	if len(evtaddr) == 0 {
+		EVTSERVER_WEBHOOK = ""
+		return
+	}
+
+	url, err := url.Parse(evtaddr)
+	if err != nil {
+		WARN.Printf("%s is not a valid url for the event server webhook. Eventserver won't be used", evtaddr)
+		return
+	}
+
+	_, err = net.LookupIP(url.Host)
+
+	if err != nil {
+		WARN.Printf("%s cannot be resolved to an ip. Eventserver won't be used.", url.Host)
+	}
+
+	INFO.Printf("%s will be used as eventserver webhook", evtaddr)
+	EVTSERVER_WEBHOOK = evtaddr
+
 }
