@@ -7,8 +7,8 @@ build:
 install-db: db/lobby.sqlite3
 
 db/lobby.sqlite3: lobby_schema.sql
-	-@mkdir db
-	-@rm db/lobby.sqlite3*
+	-@mkdir db || true 2> /dev/null
+	-@rm db/lobby.sqlite3*  2> /dev/null || true
 	sqlite3 -bail db/lobby.sqlite3 < lobby_schema.sql 
 
 run:	build
@@ -34,6 +34,7 @@ test:
 
 help:
 	@printf "make (all)		-- create local database (if needed) and run the server\n\
+	 ·   install-db -- set up sqlite backend\n\
 	 ·   build		-- build the code\n\
 	 ·   run		-- start the server\n\
 	 ·   test		-- run code tests\n\
