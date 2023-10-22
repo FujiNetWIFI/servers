@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/url"
@@ -37,7 +38,7 @@ var (
 )
 
 const (
-	VERSION   = "5.1.1"
+	VERSION   = "5.2.1"
 	STRINGVER = "fujinet persistent lobby  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -50,14 +51,20 @@ var SERVERS_HTML []byte
 func main() {
 
 	var srvaddr, evtaddr string
-	var help bool
+	var help, version bool
 
 	flag.StringVar(&srvaddr, "srvaddr", ":8080", "<address:port> for http server")
 	flag.StringVar(&evtaddr, "evtaddr", "", "<http> for event server webhook")
 
+	flag.BoolVar(&version, "version", false, "show current version")
 	flag.BoolVar(&help, "help", false, "show this help")
 
 	flag.Parse()
+
+	if version {
+		fmt.Fprintln(os.Stderr, VERSION)
+		return
+	}
 
 	if help || len(srvaddr) == 0 {
 		flag.PrintDefaults()
