@@ -19,7 +19,7 @@ backup:
 	cd .. && tar cvzf `date "+%Y-%m-%d"`-lobbyPersist.tar.gz lobbyPersist && cd lobbyPersist
 
 dblist: 
-	@echo "DATABASE: lobby.sqlite3
+	@echo "DATABASE: lobby.sqlite3"
 	@echo
 	@sqlite3 -column  -header db/lobby.sqlite3 $(TABLES_QUERY)
 	@echo 
