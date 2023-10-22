@@ -36,7 +36,6 @@ help:
 	@printf "make (all)		-- create local database (if needed) and run the server\n\
 	 ·   build		-- build the code\n\
 	 ·   run		-- start the server\n\
-	 ·   clean		-- remove the database\n\
 	 ·   test		-- run code tests\n\
 	 ·   dblist		-- generate db reports\n\
 	 ·   backup		-- backup all directory\n\
