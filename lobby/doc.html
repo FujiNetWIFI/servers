@@ -37,6 +37,12 @@ $ GIN_MODE=release ./lobbyPersist -srvaddr http://my.server.address:port/
 DB: 2023/10/22 20:47:14 Connected to lobby.sqlite3 </pre>
         This will bind the server to the address provided in the -srvaddr field (http://my.server.address:port/)
       </p>
+      <p>Additionally, you can request the Lobby Server to update a <a href="https://github.com/dillera/fujinetGameAlerts">Fujinet Game Alert</a> server
+        with the availabilty of the games servers. For this, use the param -evtaddr: 
+        <pre>
+$ ./lobbyPersist -srvaddr http://my.server.address:port/ -evtaddr http://fujinetGameAlerts.server/
+        </pre>
+      </p>
       <p>You can also get the version of the Lobby server with the -version param:
         <pre>
 # ./lobbyPersist -version
