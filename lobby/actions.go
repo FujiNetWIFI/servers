@@ -262,31 +262,6 @@ func DeleteServer(c *gin.Context) {
 }
 
 // update the status of the server to the eventserver webhook
-func PostToEventServer(server GameServer) error {
-
-	json, err := json.MarshalIndent(server, "", "\t")
-	if err != nil {
-		ERROR.Printf("Unable to json.Marshal %v", server)
-		return err
-	}
-
-	req, _ := http.NewRequest("POST", EVTSERVER_WEBHOOK, bytes.NewBuffer(json))
-	req.Header.Set("X-Lobby-Client", VERSION)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 2 * time.Second}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		ERROR.Printf("Unable to post event to webhook: %s", EVTSERVER_WEBHOOK)
-		return err
-	}
-	defer resp.Body.Close()
-
-	return nil
-}
-
-// update the status of the server to the eventserver webhook
 // supports updates (POST) and deletion (DELETE)
 func CallEventWebHook(method string, ServerData any, time time.Duration) error {
 
