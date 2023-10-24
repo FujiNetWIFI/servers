@@ -196,7 +196,7 @@ func UpsertServer(c *gin.Context) {
 	}
 
 	if len(EVTSERVER_WEBHOOK) > 0 {
-		go PostToEventServer(server)
+		go CallEventWebHook("POST", server, 2*time.Second)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"success": true,
@@ -253,6 +253,10 @@ func DeleteServer(c *gin.Context) {
 		return
 	}
 
+	if len(EVTSERVER_WEBHOOK) > 0 {
+		go CallEventWebHook("DELETE", server, 2*time.Second)
+	}
+
 	c.JSON(http.StatusNoContent, gin.H{"success": true,
 		"message": "Server correctly deleted"})
 }
@@ -284,11 +288,11 @@ func PostToEventServer(server GameServer) error {
 
 // update the status of the server to the eventserver webhook
 // supports updates (POST) and deletion (DELETE)
-func CallEventWebHook(method string, server GameServer, time time.Duration) error {
+func CallEventWebHook(method string, ServerData any, time time.Duration) error {
 
-	json, err := json.MarshalIndent(server, "", "\t")
+	json, err := json.MarshalIndent(ServerData, "", "\t")
 	if err != nil {
-		ERROR.Printf("Unable to json.Marshal %v", server)
+		ERROR.Printf("Unable to json.Marshal %v", ServerData)
 		return err
 	}
 
@@ -309,8 +313,6 @@ func CallEventWebHook(method string, server GameServer, time time.Duration) erro
 		return err
 	}
 	defer resp.Body.Close()
-
-	return nil
 
 	return nil
 }
