@@ -281,3 +281,36 @@ func PostToEventServer(server GameServer) error {
 
 	return nil
 }
+
+// update the status of the server to the eventserver webhook
+// supports updates (POST) and deletion (DELETE)
+func CallEventWebHook(method string, server GameServer, time time.Duration) error {
+
+	json, err := json.MarshalIndent(server, "", "\t")
+	if err != nil {
+		ERROR.Printf("Unable to json.Marshal %v", server)
+		return err
+	}
+
+	req, err := http.NewRequest(method, EVTSERVER_WEBHOOK, bytes.NewBuffer(json))
+
+	if err != nil {
+		ERROR.Printf("Unable to create http.NewRequest for event webhook")
+		return err
+	}
+	req.Header.Set("X-Lobby-Client", VERSION)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: time}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		ERROR.Printf("Unable to post event to webhook: %s", EVTSERVER_WEBHOOK)
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+
+	return nil
+}
