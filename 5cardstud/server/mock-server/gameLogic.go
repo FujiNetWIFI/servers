@@ -367,6 +367,11 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 	if state.clientPlayer < 0 && len(state.Players) < 8 {
 		state.addPlayer(playerName, false)
 		state.clientPlayer = len(state.Players) - 1
+
+		// Set the ping for this player so they are counted as active when updating the lobby
+		state.playerPing()
+
+		// Update the lobby with the new state (new player joined)
 		state.updateLobby()
 	}
 
@@ -924,14 +929,16 @@ func (state *GameState) updateLobby() {
 	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table)
 }
 
+// Return number of active human players in the table, for the lobby
 func (state *GameState) getHumanPlayerCountInfo() (int, int) {
 	humanAvailSlots := 8
 	humanPlayerCount := 0
+	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 
 	for _, player := range state.Players {
 		if player.isBot {
 			humanAvailSlots--
-		} else if player.Status != STATUS_LEFT {
+		} else if player.Status != STATUS_LEFT && player.lastPing.Compare(cutoff) > 0 {
 			humanPlayerCount++
 		}
 	}
