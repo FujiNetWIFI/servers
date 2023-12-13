@@ -81,7 +81,6 @@ func ticker(s string) func() error {
 	}
 }
 
-// this should be updated to handle multiple games
 func init_game(games ...*Game) {
 
 	for i := 0; i < len(games); i++ {
@@ -89,5 +88,3 @@ func init_game(games ...*Game) {
 	}
 
 }
-
-func init_routes()

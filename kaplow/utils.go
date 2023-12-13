@@ -34,8 +34,9 @@ func (m Map) NamedM(name string) Map {
 type MapSlice []Map
 
 func (m MapSlice) M() Map {
-	return Map{"Name": "List-of-Maps", "Value": m}
+	return Map{"Name": "list-of-maps", "Value": m}
 }
+
 func (m MapSlice) NamedM(name string) Map {
 	return Map{"Name": name, "Value": m}
 }
