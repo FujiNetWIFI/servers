@@ -4,7 +4,10 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -16,12 +19,13 @@ import (
 var ( // GLOBALS
 	GAMES     = NewConcurrentGameSlice()
 	SCHEDULER *tasks.Scheduler
+	STARTEDON time.Time = time.Now()
 	TIME      uint64
 	RAND      = makeNumGen()
 )
 
 const (
-	VERSION   = "0.0.4"
+	VERSION   = "0.0.5"
 	STRINGVER = "kaplow game server  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
 )
 
@@ -30,6 +34,8 @@ func main() {
 	init_game(
 		makeGame("Kaplow!!", "Basic rules (10 sec turn)"),
 		makeGame("Kaplow!!", "All shooting crazy (10 sec turn)"))
+
+	init_os_signal()
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -47,6 +53,7 @@ func main() {
 	router.Post("/games/{id:^[1-9][0-9]*}/leave", PostLeavePlayer) // For player to leave the game.
 	router.Post("/games/{id:^[1-9][0-9]*}/play", PostNewPlayer)    // Add player to the game.
 
+	router.Get("/version", ShowStatus)
 	router.Get("/games/", ShowGames) // List all available games in html/json
 	router.Get("/", Root)
 
@@ -81,10 +88,40 @@ func ticker(s string) func() error {
 	}
 }
 
+func init_os_signal() {
+
+	sigchnl := make(chan os.Signal, 1)
+	signal.Notify(sigchnl)
+
+	go SignalHandler(sigchnl)
+}
+
+func SignalHandler(sigchan chan os.Signal) {
+
+	for {
+		signal := <-sigchan
+
+		switch signal {
+
+		case syscall.SIGTERM:
+			slog.Warn("Got SIGTERM. Program will terminate cleanly now.")
+			os.Exit(143)
+		case syscall.SIGINT:
+			slog.Warn("Got SIGINT. Program will terminate cleanly now.")
+			os.Exit(137)
+		}
+	}
+}
+
 func init_game(games ...*Game) {
 
 	for i := 0; i < len(games); i++ {
 		GAMES.Append(games[i])
 	}
 
+}
+
+// return how long has the server been runing
+func uptime(start time.Time) string {
+	return time.Since(start).String()
 }

@@ -159,7 +159,7 @@ func IfElse[T any](condition bool, yes T, no T) T {
 
 // write data []byte and write it to w http.ResponseWriter
 
-func HTTPWriteByteResponse(w http.ResponseWriter, httpStatus int, data []byte) bool {
+func HTTPByteResponse(w http.ResponseWriter, httpStatus int, data []byte) bool {
 	w.WriteHeader(httpStatus)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
@@ -197,7 +197,7 @@ func httpStatusToText(httpStatus int) (number string, description string) {
 }
 
 // transform data to a JSON and write it to w http.ResponseWriter
-func HTTPWriteJsonResponse(w http.ResponseWriter, httpStatus int, data Mapeable) bool {
+func HTTPJsonResponse(w http.ResponseWriter, httpStatus int, data Mapeable) bool {
 
 	dataMap := data.M()
 
@@ -223,7 +223,7 @@ func HTTPWriteJsonResponse(w http.ResponseWriter, httpStatus int, data Mapeable)
 }
 
 // transform data using tpl template and write it to w http.ResponseWriter
-func HTTPWriteTemplateResponse(w http.ResponseWriter, tpl string, data Mapeable) bool {
+func HTTPTemplateResponse(w http.ResponseWriter, tpl string, data Mapeable) bool {
 
 	dataMap := data.M()
 
