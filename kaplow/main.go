@@ -20,8 +20,8 @@ var ( // GLOBALS
 	GAMES     = NewConcurrentGameSlice()
 	SCHEDULER *tasks.Scheduler
 	STARTEDON time.Time = time.Now()
-	TIME      uint64
-	RAND      = makeNumGen()
+	TIME      uint64    = 0
+	RAND                = makeNumGen()
 )
 
 const (
@@ -66,8 +66,6 @@ func main() {
 
 func init_scheduler() {
 	SCHEDULER := tasks.New()
-
-	TIME = 0
 
 	SCHEDULER.Add(&tasks.Task{
 		Interval: time.Duration(1 * time.Second),
