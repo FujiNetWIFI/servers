@@ -7,9 +7,11 @@ Source to servers for games and apps that work with FujiNet
     80x192 16 grey shade `GRAPHICS 9`), and make it available via HTTP for
     an Atari with a #FujiNet and its `N:` device.
 
-- "cherrysrv" - A simple chat multu-channel server that works over TCP.
+- "cherrysrv" - A simple chat multi-channel server that works over TCP.
 
 - "fujinet-game-server" - The beginnings of a multi-player game server that works over UDP.
+
+- "kaplow" - A server to play a scorched earth like game.
 
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
