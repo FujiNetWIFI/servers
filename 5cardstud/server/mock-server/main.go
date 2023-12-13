@@ -121,6 +121,7 @@ func apiLeave(c *gin.Context) {
 
 		if state.clientPlayer >= 0 {
 			state.clientLeave()
+			state.updateLobby()
 			saveState(state)
 		}
 	}()
