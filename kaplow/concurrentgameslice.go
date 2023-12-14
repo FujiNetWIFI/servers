@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -22,11 +23,18 @@ func (cs *ConcurrentGameSlice) Len() int {
 	return len(cs.items)
 }
 
-func (cs *ConcurrentGameSlice) Append(game *Game) {
+// append and return a pointer to the game because the Append updates ServerUrl
+func (cs *ConcurrentGameSlice) Append(game *Game) (updatedGame *Game) {
 	cs.Lock()
 	defer cs.Unlock()
 
+	pos := len(cs.items)
+
+	game.ServerUrl += fmt.Sprintf("/games/%d/", pos)
+
 	cs.items = append(cs.items, game)
+
+	return game
 }
 
 func (cs *ConcurrentGameSlice) GetAtPos(index int) (game *Game, exists bool) {
