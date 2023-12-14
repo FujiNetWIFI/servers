@@ -116,8 +116,8 @@ func IsPrintableAscii(uri string) bool {
 
 	if uri == "" {
 		return false
-
 	}
+
 	for i := 0; i < len(uri); i++ {
 		if !(uri[i] >= 33 && uri[i] <= 126) {
 			return false
