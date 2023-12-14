@@ -59,6 +59,7 @@ func main() {
 		makeGame("Kaplow!! (crazy 10s)", "http://"+srvaddr))
 
 	init_os_signal()
+	init_scheduler()
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -80,7 +81,7 @@ func main() {
 	router.Get("/games/", ShowGames) // List all available games in html/json
 	router.Get("/", Root)
 
-	slog.Info("Serving in :8080")
+	slog.Info("Serving in " + srvaddr)
 	err := http.ListenAndServe(srvaddr, router)
 	if err != nil {
 		slog.Error("start", "There's an error with the server: ", err)
