@@ -59,15 +59,29 @@ func UpdateLobby(maxPlayers int, curPlayers int, isOnline bool, Server string, S
 	SERVERDETAILS.Server = Server
 	SERVERDETAILS.Serverurl = Serverurl
 
-	jsonPayload, err := json.MarshalIndent(SERVERDETAILS, "", "\t")
+	return updateLobby(SERVERDETAILS, "POST")
+}
+
+func RemoveLobby(Serverurl string) bool {
+
+	todelete := GameServerDelete{
+		Serverurl: Serverurl,
+	}
+
+	return updateLobby(todelete, "DELETE")
+}
+
+func updateLobby(data interface{}, http_verb string) bool {
+
+	jsonPayload, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
-		slog.Warn("UpdateLobby", "Unable to persist GAMESERVERDETAILS: ", SERVERDETAILS)
+		slog.Warn("updateLobby", "Unable to persist struct: ", data)
 		return false
 	}
 
-	request, err := http.NewRequest("POST", LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
+	request, err := http.NewRequest(http_verb, LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		slog.Warn("LobbyUpdate", "Unable to create new update request to: ", LOBBY_ENDPOINT_UPSERT)
+		slog.Warn("LobbyUpdate", "Unable to create new ", http_verb, " request to: ", LOBBY_ENDPOINT_UPSERT)
 		return false
 	}
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
@@ -75,7 +89,7 @@ func UpdateLobby(maxPlayers int, curPlayers int, isOnline bool, Server string, S
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		slog.Warn("UpdateLobby", "Unable to POST request to: ", LOBBY_ENDPOINT_UPSERT)
+		slog.Warn("UpdateLobby", "Unable to ", http_verb, "request to: ", LOBBY_ENDPOINT_UPSERT)
 		return false
 	}
 	defer response.Body.Close()
@@ -90,48 +104,6 @@ func UpdateLobby(maxPlayers int, curPlayers int, isOnline bool, Server string, S
 		}
 
 		slog.Debug("UpdateLobby", "Lobby response body: ", string(body))
-	}
-
-	return true
-}
-
-func RemoveLobby(Serverurl string) bool {
-
-	todelete := GameServerDelete{
-		Serverurl: Serverurl,
-	}
-
-	jsonPayload, err := json.MarshalIndent(todelete, "", "\t")
-	if err != nil {
-		slog.Warn("RemoveLobby", "Unable to persist GAMESERVERDETAILS: ", SERVERDETAILS)
-		return false
-	}
-
-	request, err := http.NewRequest("DELETE", LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		slog.Warn("RemoveLobby", "Unable to create new delete request to: ", LOBBY_ENDPOINT_UPSERT)
-		return false
-	}
-	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		slog.Warn("RemoveLobby", "Unable to DELETE request to: ", LOBBY_ENDPOINT_UPSERT)
-		return false
-	}
-	defer response.Body.Close()
-
-	slog.Debug("RemoveLobby", "Lobby response status: ", response.StatusCode)
-
-	if response.StatusCode > 300 {
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			slog.Warn("RemoveLobby", "Unable to read Lobby response body: ", err)
-			return false
-		}
-
-		slog.Debug("RemoveLobby", "Lobby response body: ", string(body))
 	}
 
 	return true
