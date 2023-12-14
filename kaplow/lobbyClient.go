@@ -36,7 +36,7 @@ type GameClient struct {
 
 // Defaults for this game server
 
-func UpdateLobby(GameName string, maxPlayers int, curPlayers int, isOnline bool, Server string, Serverurl string) bool {
+func UpdateLobby(GameName string, maxPlayers int, curPlayers int, isOnline bool, Server string, Serverurl string) error {
 
 	// Appkey/game are hard coded, but the others could be read from a config file
 
@@ -46,21 +46,16 @@ func UpdateLobby(GameName string, maxPlayers int, curPlayers int, isOnline bool,
 		Server:     Server,
 		Region:     "us",
 		Serverurl:  Serverurl,
+		Status:     IfElse(isOnline, "online", "offline"),
 		Maxplayers: maxPlayers,
 		Curplayers: curPlayers,
 		Clients:    []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/kapow.xex"}},
 	}
 
-	if isOnline {
-		toupdate.Status = "online"
-	} else {
-		toupdate.Status = "offline"
-	}
-
 	return contactLobby(toupdate, "POST")
 }
 
-func RemoveLobby(Serverurl string) bool {
+func RemoveLobby(Serverurl string) error {
 
 	todelete := GameServerDelete{
 		Serverurl: Serverurl,
@@ -69,18 +64,19 @@ func RemoveLobby(Serverurl string) bool {
 	return contactLobby(todelete, "DELETE")
 }
 
-func contactLobby(data interface{}, http_verb string) bool {
+// update lobby server with the data and associated http_verb = ["POST", "DELETE"]
+func contactLobby(data interface{}, http_verb string) error {
 
 	jsonPayload, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		slog.Warn("updateLobby", "Unable to persist struct: ", data)
-		return false
+		return err
 	}
 
 	request, err := http.NewRequest(http_verb, LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		slog.Warn("LobbyUpdate", "Unable to create new ", http_verb, " request to: ", LOBBY_ENDPOINT_UPSERT)
-		return false
+		return err
 	}
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -88,7 +84,7 @@ func contactLobby(data interface{}, http_verb string) bool {
 	response, err := client.Do(request)
 	if err != nil {
 		slog.Warn("UpdateLobby", "Unable to ", http_verb, "request to: ", LOBBY_ENDPOINT_UPSERT)
-		return false
+		return err
 	}
 	defer response.Body.Close()
 
@@ -98,11 +94,11 @@ func contactLobby(data interface{}, http_verb string) bool {
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
 			slog.Warn("UpdateLobby", "Unable to read Lobby response body: ", err)
-			return false
+			return err
 		}
 
 		slog.Debug("UpdateLobby", "Lobby response body: ", string(body))
 	}
 
-	return true
+	return nil
 }

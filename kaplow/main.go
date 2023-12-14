@@ -140,7 +140,9 @@ func init_game(games ...*Game) {
 
 	for i := 0; i < len(games); i++ {
 		GAMES.Append(games[i])
-		games[i].UpdateLobby()
+		if err := games[i].UpdateLobby(); err != nil {
+			slog.Error("init_game", "Unable to update lobbyserver at server", LOBBY_ENDPOINT_UPSERT, "with game", games[i].Name)
+		}
 	}
 
 }

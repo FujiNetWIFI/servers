@@ -109,10 +109,10 @@ func (g *Game) Shoot(p Player, angle float32, power int) {
 	// + update tanks
 }
 
-func (g *Game) UpdateLobby() bool {
+func (g *Game) UpdateLobby() error {
 	return UpdateLobby(g.Name, 5, 0, true, g.Server, g.ServerUrl)
 }
 
-func (g *Game) DeleteLobby() bool {
+func (g *Game) DeleteLobby() error {
 	return RemoveLobby(g.ServerUrl)
 }
