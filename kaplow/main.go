@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,9 +32,29 @@ const (
 
 func main() {
 
+	var srvaddr string
+	var help, version bool
+
+	flag.StringVar(&srvaddr, "srvaddr", ":8080", "<address:port> for http server")
+
+	flag.BoolVar(&version, "version", false, "show current version")
+	flag.BoolVar(&help, "help", false, "show this help")
+
+	flag.Parse()
+
+	if version {
+		fmt.Fprintln(os.Stderr, VERSION)
+		return
+	}
+
+	if help || len(srvaddr) == 0 {
+		flag.PrintDefaults()
+		return
+	}
+
 	init_game(
-		makeGame("Kaplow!!", "Basic rules (10 sec turn)"),
-		makeGame("Kaplow!!", "All shooting crazy (10 sec turn)"))
+		makeGame("Kaplow!! (basic 10s)", "http://kapow.server/"),
+		makeGame("Kaplow!! (crazy 10s)", "http://kapow.server/"))
 
 	init_os_signal()
 
@@ -57,7 +79,7 @@ func main() {
 	router.Get("/", Root)
 
 	slog.Info("Serving in :8080")
-	err := http.ListenAndServe(":8080", router)
+	err := http.ListenAndServe(srvaddr, router)
 	if err != nil {
 		slog.Error("start", "There's an error with the server: ", err)
 		os.Exit(1)
@@ -115,6 +137,7 @@ func init_game(games ...*Game) {
 
 	for i := 0; i < len(games); i++ {
 		GAMES.Append(games[i])
+		games[i].UpdateLobby()
 	}
 
 }
