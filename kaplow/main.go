@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -57,10 +56,11 @@ func main() {
 	router.Get("/games/", ShowGames) // List all available games in html/json
 	router.Get("/", Root)
 
-	log.Println("Serving in :8080")
+	slog.Info("Serving in :8080")
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
-		log.Fatalf("There's an error with the server, %s", err)
+		slog.Error("start", "There's an error with the server: ", err)
+		os.Exit(1)
 	}
 }
 

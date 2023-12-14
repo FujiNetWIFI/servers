@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -210,7 +209,7 @@ func HTTPJsonResponse(w http.ResponseWriter, httpStatus int, data Mapeable) bool
 	byteData, err := json.MarshalIndent(dataMap, "", "\t")
 
 	if err != nil {
-		slog.Error("HTTPWriteJsonResponse", "unable to Marshal json", dataMap)
+		slog.Error("HTTPJsonResponse", "unable to Marshal json", dataMap)
 	}
 
 	w.WriteHeader(httpStatus)
@@ -229,7 +228,7 @@ func HTTPTemplateResponse(w http.ResponseWriter, tpl string, data Mapeable) bool
 
 	t, err := template.ParseGlob("./templates/*.gtpl")
 	if err != nil {
-		log.Printf("template is incorrect: %s (%s)", tpl, err)
+		slog.Error("HTTPTemplateResponse", "template is incorrect: ", tpl, "err: ", err)
 		http.Error(w, "500 - Something bad happened parsing the template!", http.StatusInternalServerError)
 
 		return false
@@ -237,7 +236,7 @@ func HTTPTemplateResponse(w http.ResponseWriter, tpl string, data Mapeable) bool
 
 	err = t.ExecuteTemplate(w, tpl, dataMap)
 	if err != nil {
-		log.Printf("error processing template: %s (%s)", tpl, err)
+		slog.Error("HTTPTemplateResponse", "error processing template: ", tpl, "err: ", err)
 		http.Error(w, "500 - Something bad happened parsing the template!", http.StatusInternalServerError)
 
 		return false
@@ -246,6 +245,7 @@ func HTTPTemplateResponse(w http.ResponseWriter, tpl string, data Mapeable) bool
 	return true
 }
 
+// decode structure from req.Body (using io.Reader interface) and store it in v Checkeable
 func HTTPDecodeStructFromPost(r io.Reader, v Checkeable) error {
 	if err := json.NewDecoder(r).Decode(&v); err != nil {
 		return err
