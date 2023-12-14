@@ -23,12 +23,13 @@ func (cs *ConcurrentGameSlice) Len() int {
 	return len(cs.items)
 }
 
-// append and return a pointer to the game because the Append updates ServerUrl
+// append updating ServerURL with the game id and
+// return a pointer to the game in case we need the updated object
 func (cs *ConcurrentGameSlice) Append(game *Game) (updatedGame *Game) {
 	cs.Lock()
 	defer cs.Unlock()
 
-	pos := len(cs.items)
+	pos := len(cs.items) + 1
 
 	game.ServerUrl += fmt.Sprintf("/games/%d/", pos)
 
