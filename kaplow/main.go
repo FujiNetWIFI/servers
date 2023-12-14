@@ -52,9 +52,11 @@ func main() {
 		return
 	}
 
+	srvaddr = CleanServerAddr(srvaddr)
+
 	init_game(
-		makeGame("Kaplow!! (basic 10s)", "http://kapow.server/"),
-		makeGame("Kaplow!! (crazy 10s)", "http://kapow.server/"))
+		makeGame("Kaplow!! (basic 10s)", "http://"+srvaddr),
+		makeGame("Kaplow!! (crazy 10s)", "http://"+srvaddr))
 
 	init_os_signal()
 

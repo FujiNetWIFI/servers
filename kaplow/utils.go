@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -124,6 +125,13 @@ func IsPrintableAscii(uri string) bool {
 	}
 
 	return true
+}
+
+// If exist, remove leading http:// and / at the tail
+func CleanServerAddr(srvaddr string) string {
+	srvaddr = strings.TrimLeft(srvaddr, "http://")
+	srvaddr = strings.TrimRight(srvaddr, "/")
+	return srvaddr
 }
 
 // return value if doesn't meet condition, otherwise nil of T
