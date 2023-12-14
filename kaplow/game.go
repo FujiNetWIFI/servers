@@ -24,6 +24,7 @@ func makePlayer(name string, ip string, column int) Player {
 type Game struct {
 	sync.Mutex `json:"-"`
 	Name       string // PrintableAscici, len < 32 chars
+	Server     string
 	ServerUrl  string
 	Ground     [256]int // this is the ground line. It contains heights [0, 191]
 	Players    []Player // Alive and dead players
@@ -32,7 +33,7 @@ type Game struct {
 
 func makeGame(name string, baseurl string) *Game {
 	g := &Game{
-		ServerUrl: baseurl,
+		Server:    baseurl,
 		CurPlayer: -1,
 		Name:      name}
 
@@ -109,7 +110,7 @@ func (g *Game) Shoot(p Player, angle float32, power int) {
 }
 
 func (g *Game) UpdateLobby() bool {
-	return UpdateLobby(5, 0, true, g.Name, g.ServerUrl)
+	return UpdateLobby(g.Name, 5, 0, true, g.Server, g.ServerUrl)
 }
 
 func (g *Game) DeleteLobby() bool {

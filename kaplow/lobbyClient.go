@@ -35,31 +35,29 @@ type GameClient struct {
 }
 
 // Defaults for this game server
-// Appkey/game are hard coded, but the others could be read from a config file
-var SERVERDETAILS = GameServer{
-	Appkey:    1,
-	Game:      "Kapow!",
-	Region:    "us",
-	Serverurl: "https://5card.carr-designs.com/",
-	Clients: []GameClient{
-		{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/kapow.xex"},
-	},
-}
 
-func UpdateLobby(maxPlayers int, curPlayers int, isOnline bool, Server string, Serverurl string) bool {
+func UpdateLobby(GameName string, maxPlayers int, curPlayers int, isOnline bool, Server string, Serverurl string) bool {
 
-	SERVERDETAILS.Maxplayers = maxPlayers
-	SERVERDETAILS.Curplayers = curPlayers
-	if isOnline {
-		SERVERDETAILS.Status = "online"
-	} else {
-		SERVERDETAILS.Status = "offline"
+	// Appkey/game are hard coded, but the others could be read from a config file
+
+	toupdate := GameServer{
+		Game:       GameName,
+		Appkey:     1,
+		Server:     Server,
+		Region:     "us",
+		Serverurl:  Serverurl,
+		Maxplayers: maxPlayers,
+		Curplayers: curPlayers,
+		Clients:    []GameClient{{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/kapow.xex"}},
 	}
 
-	SERVERDETAILS.Server = Server
-	SERVERDETAILS.Serverurl = Serverurl
+	if isOnline {
+		toupdate.Status = "online"
+	} else {
+		toupdate.Status = "offline"
+	}
 
-	return updateLobby(SERVERDETAILS, "POST")
+	return contactLobby(toupdate, "POST")
 }
 
 func RemoveLobby(Serverurl string) bool {
@@ -68,10 +66,10 @@ func RemoveLobby(Serverurl string) bool {
 		Serverurl: Serverurl,
 	}
 
-	return updateLobby(todelete, "DELETE")
+	return contactLobby(todelete, "DELETE")
 }
 
-func updateLobby(data interface{}, http_verb string) bool {
+func contactLobby(data interface{}, http_verb string) bool {
 
 	jsonPayload, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {

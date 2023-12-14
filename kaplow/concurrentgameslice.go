@@ -31,7 +31,7 @@ func (cs *ConcurrentGameSlice) Append(game *Game) (updatedGame *Game) {
 
 	pos := len(cs.items) + 1
 
-	game.ServerUrl += fmt.Sprintf("/games/%d/", pos)
+	game.ServerUrl += fmt.Sprintf("%s/games/%d/", game.Server, pos)
 
 	cs.items = append(cs.items, game)
 
