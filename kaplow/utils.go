@@ -95,6 +95,16 @@ func Atoi(StrNum string, ResultIfFail int) int {
 	return num
 }
 
+func Atof(StrNum string, ResultIfFail float64) float64 {
+	num, err := strconv.ParseFloat(StrNum, 64)
+
+	if err != nil {
+		return ResultIfFail
+	}
+
+	return num
+}
+
 // return err if meets condition
 func ErrorIf(condition bool, err error) error {
 	if condition {

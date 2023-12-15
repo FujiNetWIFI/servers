@@ -22,7 +22,7 @@ func (p *PlayerCred) IsCorrect() bool {
 }
 
 type Shoot struct {
-	Name  string // IsPrintableAscii
+	Name  string // IsPrintableAscii with no spaces
 	Angle int    // ∋ [-180, 180]
 	Power int    // ∋ [0, 100]
 }
@@ -31,7 +31,7 @@ func (s *Shoot) CheckInput() (err error) {
 	return errors.Join(
 		ErrorIf(!IsPrintableAscii(s.Name), fmt.Errorf("key: 'Shoot.Name' Error: Value must contain printable characters only")),
 		ErrorIf(s.Angle < -180 || s.Angle > 180, fmt.Errorf("key: 'Shoot.Angle' Error: Value must be between -180 and 180")),
-		ErrorIf(s.Power < 0 || s.Power > 100, fmt.Errorf("key: 'Shoot.Power' Error: Value must be between -180 and 180")),
+		ErrorIf(s.Power < 0 || s.Power > 100, fmt.Errorf("key: 'Shoot.Power' Error: Value must be between 0 and 100")),
 	)
 
 }
