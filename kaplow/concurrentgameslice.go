@@ -39,12 +39,13 @@ func (cs *ConcurrentGameSlice) Append(game *Game) (updatedGame *Game) {
 }
 
 func (cs *ConcurrentGameSlice) GetAtPos(index int) (game *Game, exists bool) {
-	cs.RLock()
-	defer cs.RUnlock()
 
 	if index < 0 {
 		return game, false
 	}
+
+	cs.RLock()
+	defer cs.RUnlock()
 
 	if index < len(cs.items) {
 		return cs.items[index], true
