@@ -108,6 +108,7 @@ func ErrorIf(condition bool, err error) error {
 	return nil
 }
 
+// TODO: Change err != nil to err == nil and review full codebase
 func IsValidURI(uri string) bool {
 	_, err := url.ParseRequestURI(uri)
 
