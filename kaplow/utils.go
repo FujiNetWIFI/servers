@@ -117,7 +117,7 @@ func ErrorIf(condition bool, err error) error {
 func IsValidURI(uri string) bool {
 	_, err := url.ParseRequestURI(uri)
 
-	return err != nil
+	return err == nil
 }
 
 // uri should be ascii-8 string

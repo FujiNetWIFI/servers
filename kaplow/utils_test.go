@@ -61,3 +61,21 @@ func TestIsPrintableAscii(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidURI(t *testing.T) {
+
+	tests := []struct {
+		uri  string
+		want bool
+	}{
+		{"http://example.com", true},
+		{"this has to fail", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.uri, func(t *testing.T) {
+			if got := IsValidURI(tt.uri); got != tt.want {
+				t.Errorf("IsValidURI() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
