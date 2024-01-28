@@ -1,6 +1,6 @@
 # APOD for Fujinet
 
-by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2021-06-05
+by Bill Kendrick, bill@newbreedsoftware.com, 2020-12-10 - 2024-01-28
 
 ## Purpose
 Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
