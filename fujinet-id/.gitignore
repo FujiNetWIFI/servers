@@ -1,0 +1,4 @@
+db/*
+fujinet-id
+.env
+server.*
