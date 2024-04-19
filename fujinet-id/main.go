@@ -77,10 +77,12 @@ func main() {
 	router.POST("/genPubKey", GenPubKey) // username#privatekey --> username!publickey, token
 	router.POST("/getPubKey", GetPubKey) // token --> username!publickey, token
 	router.GET("/version", ShowStatus)
+	router.GET("/license", ShowLicense)
 
 	// https://gist.github.com/denji/12b3a568f092ab951456
-	router.RunTLS(srvaddr, "server.crt", "server.key")
-
+	if err := router.RunTLS(srvaddr, "server.crt", "server.key"); err != nil {
+		ERROR.Fatalf("Unable to start TLS server (%s)", err)
+	}
 }
 
 /*
