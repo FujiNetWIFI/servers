@@ -5,7 +5,7 @@ func txGameServerGetAll() (output GameServerClientSlice, err error) {
 
 	// output should be: online first, offline last. Inside each category, newer last ping goes first
 
-	err = DATABASE.Select(&output, "SELECT * FROM GameServerClients ORDER BY Status DESC, Lastping DESC ")
+	err = DATABASE.Select(&output, "SELECT * FROM GameServerClients ORDER BY Game, Status DESC, Curplayers DESC, Server ")
 
 	if err != nil {
 		DB.Printf("%s error: %s", extendedFnName(), err)
@@ -23,7 +23,8 @@ func txGameServerGetBy(platform string, appkey int, pagesize int, pagenumber int
 
 	// Note that SQLite LIKE operator is case-insensitive. It means "A" LIKE "a" is true.
 	if appkey == -1 {
-		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 ORDER BY Status DESC, Lastping DESC LIMIT $2 OFFSET $3", "%"+platform+"%", pagesize, pagenumber*pagesize)
+		// Sort by Game (so client can efficiently group by game name), Status (so OFFLINE stay at the bottom), Curplayers (so populated servers are at the top), and finally Server name
+		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 ORDER BY Game, Status DESC, Curplayers DESC, Server LIMIT $2 OFFSET $3", "%"+platform+"%", pagesize, pagenumber*pagesize)
 	} else {
 		err = DATABASE.Select(&output, "SELECT * FROM GameServerClients WHERE client_platform LIKE $1 AND appkey=$2 ORDER BY Status DESC, Lastping DESC LIMIT $3 OFFSET $4", "%"+platform+"%", appkey, pagesize, pagenumber*pagesize)
 	}

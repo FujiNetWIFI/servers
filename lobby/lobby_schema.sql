@@ -32,14 +32,6 @@ CREATE TABLE GameServer (
 	maxplayers INT NOT NULL,
 	curplayers INT NOT NULL, 
     lastping datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-
-    CHECK(status = 'online' OR status = 'offline'),
-    CHECK(appkey >= 1 AND appkey <= 255),
-    CHECK(maxplayers >= 0 AND curplayers >= 0 AND curplayers <= maxplayers)
-    CHECK(length(region) <= 12),
-    CHECK(length(server) <= 32),
-    CHECK(length(game) <= 12),
-    CHECK(length(serverurl) <= 64)
 );
 CREATE UNIQUE INDEX idx_GameServer_Serverurl ON GameServer (Serverurl ASC);
 
@@ -48,8 +40,7 @@ CREATE TABLE Clients (
     serverurl TEXT NOT NULL,
     client_platform TEXT NOT NULL, 
     client_url      TEXT NOT NULL, 
-    FOREIGN KEY(serverurl) REFERENCES GameServer(serverurl) ON DELETE CASCADE,
-    CHECK(length(client_url) <= 64)
+    FOREIGN KEY(serverurl) REFERENCES GameServer(serverurl) ON DELETE CASCADE
 );
 CREATE INDEX idx_Clients_Serverurl ON Clients (Serverurl ASC);
 

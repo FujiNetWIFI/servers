@@ -5,27 +5,30 @@
 body,html {padding:0;margin:0;font-family: 'Press Start 2P'; font-size:16px; background-color: #000e4d;line-height:24px}
 body {padding:0 16px;}
 body, a{color: #b3f4ff; text-decoration-thickness: 2px}
+h1 {font-size: 20px; transform: scaleX(1.5); transform-origin: left}
 table {line-height:24px;}
-td {padding:16px 24px 0 24px}
-td.plat {padding-left: 0;padding-right:16px}
-td.game {padding-left:0}
+td {padding:0px 24px}
+td.plat {padding-right:16px}
+td.game {padding:14px 0 4px}
+td.server {padding-left:0}
 td.players {padding-right:0}
-tr.header td{border-bottom:2px solid #b3f4ff; padding-bottom:4px}
+tr.header td{border-bottom:2px solid #b3f4ff; padding-bottom:4px; padding-right:0}
 img {height:15px; vertical-align: top;margin-top:3px}
 .info {margin:128px 0 16px; line-height:24px; word-wrap: break-word;}
 </style></head>
 
 <body>
 
-<P>#FUJINET GAME LOBBY</P>
+<H1>#FUJINET GAME LOBBY</H1>
 <TABLE cellpadding="0" cellspacing="0">
-  <TR class="header"><TD class="plat"><!-- Platform --></TD></TD><TD class="game">GAME</TD><TD>SERVER</TD><TD><img src="data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAeCAMAAAB61OwbAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAF1JREFUKJHdUkEOwCAIayf//zK7oGI0KReTZT0hKaWAbAg4MtiDBwKDsArMp1SwYz0ADxt1D/8mxKK4rapfq96Ca75+bks1nuK9hfRwj2DA4T9FghWFRkH4wpiS8ALPyQlJO5PlNwAAAABJRU5ErkJggg==" /></TD></TR>
+  <TR class="header"><TD class="game" colspan="2">GAME / SERVER</TD><TD><img src="data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAeCAMAAAB61OwbAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAF1JREFUKJHdUkEOwCAIayf//zK7oGI0KReTZT0hKaWAbAg4MtiDBwKDsArMp1SwYz0ADxt1D/8mxKK4rapfq96Ca75+bks1nuK9hfRwj2DA4T9FghWFRkH4wpiS8ALPyQlJO5PlNwAAAABJRU5ErkJggg==" /></TD></TR>
   $$SERVERS$$
 </TABLE>
 
 <div class="info">
+  <p>Load the Lobby by pressing <span style="background-color: #b3f4ff;color: #000e4d;padding-top: 2px;">L</span> in the FujiNet Config</p>
   <p>Lobby client:  fujinet.online/ATARI/_lobby.xex</p>
-  Want to add a server? <a href="/docs">Read the docs</a>
+  <p style="margin-top:48px">Want to add a server? <a href="/docs">Read the docs</a></p>
 </div>
 
 </body></html>
