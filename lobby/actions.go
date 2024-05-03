@@ -103,21 +103,33 @@ func ShowServersHtml(c *gin.Context) {
 	<td class='plat'>
 		<img src='%s'/>
 	</td>
-	<td class='game'>%s</td>
-	<td>%s</td>
+	<td class='server'>%s</td>
 	<td class='players'>%d/%d %s </td>
 </tr>
 `
+	GameTemplate := `
+<tr>
+	<td colspan='3' class='game'>%s</td>	
+</tr>
+`
+
 	PlayersAvailable := "<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAkCAMAAADfNcjQAAAAElBMVEUAAAD///+z9P9qfPR9hLL////Dr+VQAAAABnRSTlP//////wCzv6S/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVQ4jWNkYsAPCMlTQQELAwMDAyMOyf/0ccOogsGjgBlXWqCjG1iYB4Eb/kMZ/9B0oPNp6AZGmApcdtPBDQA1JQVVAQAtagAAAABJRU5ErkJggg==' />"
 
 	var servers string
+	prevGame := ""
 
 	for _, gsc := range GameServerClient {
+		if gsc.Status == "online" {
+			if prevGame != gsc.Game {
+				servers += fmt.Sprintf(GameTemplate, html.EscapeString(gsc.Game))
+				prevGame = gsc.Game
+			}
 
-		switch strings.ToLower(gsc.Client_platform) {
-		case "atari":
-			AtariIcon := "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
-			servers += fmt.Sprintf(ServerTemplate, AtariIcon, html.EscapeString(gsc.Game), html.EscapeString(gsc.Server), gsc.Curplayers, gsc.Maxplayers, IfElse(gsc.Curplayers > 0, PlayersAvailable, " "))
+			switch strings.ToLower(gsc.Client_platform) {
+			case "atari":
+				AtariIcon := "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
+				servers += fmt.Sprintf(ServerTemplate, AtariIcon, html.EscapeString(gsc.Server), IfElse(gsc.Status == "online", gsc.Curplayers, 0), IfElse(gsc.Status == "online", gsc.Maxplayers, 0), IfElse(gsc.Curplayers > 0, PlayersAvailable, " "))
+			}
 		}
 	}
 
