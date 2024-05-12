@@ -64,11 +64,15 @@ var moveLookup = map[string]string{
 	"RA": "RAISE",
 }
 
-var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "Grif", "AI"}
+var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "Grif", "GPT"}
+
+// For simplicity on the 8bit side (using switch statement), using a single character for each key.
+// DOUBLE CHECK that letter isn't already in use on the object!
+// Double characters are used for the list objects (validMoves and players)
 
 type validMove struct {
-	Move string `json:"move"`
-	Name string `json:"name"`
+	Move string `json:"m"`
+	Name string `json:"n"`
 }
 
 type card struct {
@@ -86,12 +90,12 @@ const (
 )
 
 type Player struct {
-	Name   string `json:"name"`
-	Status Status `json:"status"`
-	Bet    int    `json:"bet"`
-	Move   string `json:"move"`
-	Purse  int    `json:"purse"`
-	Hand   string `json:"hand"`
+	Name   string `json:"n"`
+	Status Status `json:"s"`
+	Bet    int    `json:"b"`
+	Move   string `json:"m"`
+	Purse  int    `json:"p"`
+	Hand   string `json:"h"`
 
 	// Internal
 	isBot    bool
@@ -101,28 +105,29 @@ type Player struct {
 
 type GameState struct {
 	// External (JSON)
-	LastResult   string      `json:"lastResult"`
-	Round        int         `json:"round"`
-	Pot          int         `json:"pot"`
-	ActivePlayer int         `json:"activePlayer"`
-	MoveTime     int         `json:"moveTime"`
-	Viewing      int         `json:"viewing"`
-	ValidMoves   []validMove `json:"validMoves"`
-	Players      []Player    `json:"players"`
+	LastResult   string      `json:"l"`
+	Round        int         `json:"r"`
+	Pot          int         `json:"p"`
+	ActivePlayer int         `json:"a"`
+	MoveTime     int         `json:"m"`
+	Viewing      int         `json:"v"`
+	ValidMoves   []validMove `json:"vm"`
+	Players      []Player    `json:"pl"`
 
 	// Internal
-	deck         []card
-	deckIndex    int
-	currentBet   int
-	gameOver     bool
-	clientPlayer int
-	table        string
-	wonByFolds   bool
-	isMockGame   bool
-	moveExpires  time.Time
-	serverName   string
-	raiseCount   int
-	raiseAmount  int
+	deck          []card
+	deckIndex     int
+	currentBet    int
+	gameOver      bool
+	clientPlayer  int
+	table         string
+	wonByFolds    bool
+	isMockGame    bool
+	moveExpires   time.Time
+	serverName    string
+	raiseCount    int
+	raiseAmount   int
+	registerLobby bool
 }
 
 // Used to send a list of available tables
@@ -141,7 +146,7 @@ func initializeGameServer() {
 	}
 }
 
-func createGameState(playerCount int, isMockGame bool) *GameState {
+func createGameState(playerCount int, isMockGame bool, registerLobby bool) *GameState {
 
 	deck := []card{}
 
@@ -158,6 +163,7 @@ func createGameState(playerCount int, isMockGame bool) *GameState {
 	state.Round = 0
 	state.ActivePlayer = -1
 	state.isMockGame = isMockGame
+	state.registerLobby = registerLobby
 
 	// Force between 2 and 8 players during mock games
 	if isMockGame {
@@ -192,7 +198,7 @@ func (state *GameState) updateMockPlayerCount(playerCount int) {
 func (state *GameState) newRound() {
 
 	// Drop any players that left last round
-	state.dropInactivePlayers(true)
+	state.dropInactivePlayers(true, false)
 
 	// Check if multiple players are still playing
 	if state.Round > 0 {
@@ -363,6 +369,12 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 	}
 	state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
 
+	// If a new player is joining, remove any old players that timed out to make space
+	if state.clientPlayer < 0 {
+		// Drop any players that left to make space
+		state.dropInactivePlayers(false, true)
+	}
+
 	// Add new player if there is room
 	if state.clientPlayer < 0 && len(state.Players) < 8 {
 		state.addPlayer(playerName, false)
@@ -485,7 +497,7 @@ func (state *GameState) runGameLogic() {
 
 		// Create a new game if the end game delay is past
 		if int(time.Until(state.moveExpires).Seconds()) < 0 {
-			state.dropInactivePlayers(false)
+			state.dropInactivePlayers(false, false)
 			state.Round = 0
 			state.Pot = 0
 			state.gameOver = false
@@ -544,8 +556,11 @@ func (state *GameState) runGameLogic() {
 		return
 	}
 
-	// Edge case - player leaves when it is their move - skip over them
-	if state.Players[state.ActivePlayer].Status == STATUS_LEFT {
+	// Edge cases
+	// - player leaves when it is their move - skip over them
+	// - player's turn but they are waiting (out of this hand)
+	if state.Players[state.ActivePlayer].Status == STATUS_LEFT ||
+		state.Players[state.ActivePlayer].Status == STATUS_WAITING {
 		state.nextValidPlayer()
 		return
 	}
@@ -624,9 +639,13 @@ func (state *GameState) runGameLogic() {
 }
 
 // Drop players that left or have not pinged within the expected timeout
-func (state *GameState) dropInactivePlayers(inMiddleOfGame bool) {
+func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlayer bool) {
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 	players := []Player{}
+	currentPlayerName := ""
+	if state.clientPlayer > -1 {
+		currentPlayerName = state.Players[state.clientPlayer].Name
+	}
 
 	for _, player := range state.Players {
 		if len(state.Players) > 0 && player.Status != STATUS_LEFT && (inMiddleOfGame || player.isBot || player.lastPing.Compare(cutoff) > 0) {
@@ -639,15 +658,22 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool) {
 		return
 	}
 
-	// Update the client player index in case it changed due to players being dropped
-	if len(players) > 0 {
-		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, state.Players[state.clientPlayer].Name) })
-	}
-
 	// Store if players were dropped, before updating the state player array
 	playersWereDropped := len(state.Players) != len(players)
 
-	state.Players = players
+	if playersWereDropped {
+		state.Players = players
+	}
+
+	// If a new player is joining, don't bother updating anything else
+	if dropForNewPlayer {
+		return
+	}
+
+	// Update the client player index in case it changed due to players being dropped
+	if len(players) > 0 {
+		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, currentPlayerName) })
+	}
 
 	// If only one player is left, we are waiting for more
 	if len(state.Players) < 2 {
@@ -681,7 +707,7 @@ func (state *GameState) clientLeave() {
 	// If the last player dropped, stop the game and update the lobby
 	if playersLeft == 0 {
 		state.endGame(true)
-		state.dropInactivePlayers(false)
+		state.dropInactivePlayers(false, false)
 		return
 	}
 }
@@ -919,7 +945,7 @@ func (state *GameState) createClientState() *GameState {
 }
 
 func (state *GameState) updateLobby() {
-	if state.isMockGame {
+	if state.isMockGame || !state.registerLobby {
 		return
 	}
 
