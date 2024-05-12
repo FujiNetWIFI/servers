@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -148,11 +149,14 @@ func apiTables(c *gin.Context) {
 		value, ok := stateMap.Load(table.Table)
 		if ok {
 			state := value.(*GameState)
-			humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
-			table.CurPlayers = humanPlayerCount
-			table.MaxPlayers = humanPlayerSlots
+			if state.registerLobby {
+				humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
+				table.CurPlayers = humanPlayerCount
+				table.MaxPlayers = humanPlayerSlots
+				tableOutput = append(tableOutput, table)
+			}
 		}
-		tableOutput = append(tableOutput, table)
+
 	}
 
 	c.JSON(http.StatusOK, tableOutput)
@@ -199,7 +203,7 @@ func getTableState(table string, playerName string, playerCount int) *GameState 
 		// Update player count for table if changed
 		if state.isMockGame && playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
 			if len(state.Players) > playerCount {
-				state = createGameState(playerCount, true)
+				state = createGameState(playerCount, true, false)
 				state.table = table
 			} else {
 				state.updateMockPlayerCount(playerCount)
@@ -207,7 +211,7 @@ func getTableState(table string, playerName string, playerCount int) *GameState 
 		}
 	} else {
 		// Create a brand new game
-		state = createGameState(playerCount, true)
+		state = createGameState(playerCount, true, false)
 		state.table = table
 		state.updateLobby()
 	}
@@ -228,18 +232,20 @@ func saveState(state *GameState) {
 func initializeRealTables() {
 
 	// Create the real servers (hard coded for now)
+	createRealTable("The Basement", "basement", 0, true)
+	createRealTable("The Den", "den", 0, true)
+	createRealTable("AI Room - 2 bots", "ai2", 2, true)
+	createRealTable("AI Room - 4 bots", "ai4", 4, true)
+	createRealTable("AI Room - 6 bots", "ai6", 6, true)
 
-	createRealTable("The Green Room - 6 bots", "green", 6)
-	createRealTable("The Blue Room  - 4 bots", "blue", 4)
-	createRealTable("The Red Room   - 2 bots", "red", 2)
-
-	createRealTable("The Basement", "basement", 0)
-	createRealTable("The Den", "den", 0)
+	for i := 1; i < 8; i++ {
+		createRealTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
+	}
 
 }
 
-func createRealTable(serverName string, table string, botCount int) {
-	state := createGameState(botCount, false)
+func createRealTable(serverName string, table string, botCount int, registerLobby bool) {
+	state := createGameState(botCount, false, registerLobby)
 	state.table = table
 	state.serverName = serverName
 	saveState(state)

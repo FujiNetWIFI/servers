@@ -23,7 +23,8 @@ var DefaultGameServerDetails = GameServer{
 	Region:    "us",
 	Serverurl: "https://5card.carr-designs.com/",
 	Clients: []GameClient{
-		{Platform: "atari", Url: "TNFS://ec.tnfs.io/atari/5card.xex"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/5card.xex"},
+		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/5card.po"},
 	},
 }
 
