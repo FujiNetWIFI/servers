@@ -1,6 +1,17 @@
 # 5 Card Stud Server
 This is a 5 Card Stud server written in GO. It started as a mock server for the purpose of writing 5 Card Stud clients and migrated into a full server supporting multiple clients. This is my first project in GO, so do not expect expert use of the language.  All game logic is written by scratch, with the exception of using github.com/gin-gonic/gin to rank the final 5 card hands.
 
+When running this locally, make sure you have an environment variable GO_LOCAL=1
+or you will affect the production system.
+
+To run the server:
+```
+go run .
+```
+
+This will create a localhost server at port 8080.
+
+
 It currently provides:
 * Multiple concurrent games (tables) via the `?table=[Alphanumeric value]` url parameter
 * Bots that simulate a game (Not highly intelligent, but they will check, bet, raise, and fold based on combiniation of random/simple decision logic)
