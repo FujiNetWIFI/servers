@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cardrank/cardrank"
+	"github.com/mitchellh/hashstructure/v2"
 	"golang.org/x/exp/slices"
 )
 
@@ -122,12 +123,12 @@ type GameState struct {
 	clientPlayer  int
 	table         string
 	wonByFolds    bool
-	isMockGame    bool
 	moveExpires   time.Time
 	serverName    string
 	raiseCount    int
 	raiseAmount   int
 	registerLobby bool
+	hash          string //   `json:"z"` // external later
 }
 
 // Used to send a list of available tables
@@ -146,7 +147,7 @@ func initializeGameServer() {
 	}
 }
 
-func createGameState(playerCount int, isMockGame bool, registerLobby bool) *GameState {
+func createGameState(playerCount int, registerLobby bool) *GameState {
 
 	deck := []card{}
 
@@ -162,13 +163,7 @@ func createGameState(playerCount int, isMockGame bool, registerLobby bool) *Game
 	state.deck = deck
 	state.Round = 0
 	state.ActivePlayer = -1
-	state.isMockGame = isMockGame
 	state.registerLobby = registerLobby
-
-	// Force between 2 and 8 players during mock games
-	if isMockGame {
-		playerCount = int(math.Min(math.Max(2, float64(playerCount)), 8))
-	}
 
 	// Pre-populate player pool with bots
 	for i := 0; i < playerCount; i++ {
@@ -179,20 +174,7 @@ func createGameState(playerCount int, isMockGame bool, registerLobby bool) *Game
 		state.LastResult = WAITING_MESSAGE
 	}
 
-	log.Print("Created GameState")
 	return &state
-}
-
-func (state *GameState) updateMockPlayerCount(playerCount int) {
-	if playerCount <= len(state.Players) || playerCount > 8 {
-		return
-	}
-
-	// Add bot players that are waiting to play the next game
-	delta := playerCount - len(state.Players)
-	for i := 0; i < delta; i++ {
-		state.addPlayer(botNames[len(state.Players)], true)
-	}
 }
 
 func (state *GameState) newRound() {
@@ -535,18 +517,11 @@ func (state *GameState) runGameLogic() {
 		}
 	}
 
-	// If a real game, return if the move timer has not expired
-	if !state.isMockGame {
-		// Check timer if no active player, or the active player hasn't already left
-		if state.ActivePlayer == -1 || state.Players[state.ActivePlayer].Status != STATUS_LEFT {
-			moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
-			if moveTimeRemaining > 0 {
-				return
-			}
-		}
-	} else {
-		// If in a mock game, return if the client is the active player
-		if !state.Players[state.ActivePlayer].isBot {
+	// Return if the move timer has not expired
+	// Check timer if no active player, or the active player hasn't already left
+	if state.ActivePlayer == -1 || state.Players[state.ActivePlayer].Status != STATUS_LEFT {
+		moveTimeRemaining := int(time.Until(state.moveExpires).Seconds())
+		if moveTimeRemaining > 0 {
 			return
 		}
 	}
@@ -937,15 +912,22 @@ func (state *GameState) createClientState() *GameState {
 		stateCopy.MoveTime -= MOVE_TIME_GRACE_SECONDS
 	}
 
-	if stateCopy.MoveTime < 0 {
+	// No need to send move time if the calling player isn't the active player
+	if stateCopy.MoveTime < 0 || stateCopy.ActivePlayer != 0 {
 		stateCopy.MoveTime = 0
 	}
+
+	// Compute hash - this will be compared with an incoming hash. If the same, the entire state does not
+	// need to be sent back. This speeds up checks for change in state
+	stateCopy.hash = "0"
+	hash, _ := hashstructure.Hash(stateCopy, hashstructure.FormatV2, nil)
+	stateCopy.hash = fmt.Sprintf("%d", hash)
 
 	return &stateCopy
 }
 
 func (state *GameState) updateLobby() {
-	if state.isMockGame || !state.registerLobby {
+	if !state.registerLobby {
 		return
 	}
 

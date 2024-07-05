@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +31,22 @@ func (m *KeyedMutex) Lock(key string) func() {
 }
 
 func main() {
-	log.Print("starting server...")
+	log.Print("Starting server...")
+
+	// Set environment flags
+	UpdateLobby = os.Getenv("GO_PROD") == "1"
+
+	if UpdateLobby {
+		log.Printf("This instance will update the lobby at " + LOBBY_ENDPOINT_UPSERT)
+	}
+
+	// Determine port for HTTP service.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Listing on port %s", port)
 
 	router := gin.Default()
 
@@ -53,20 +66,8 @@ func main() {
 
 	//	router.GET("/REFRESHLOBBY", apiRefresh)
 
-	// Determine port for HTTP service.
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-		log.Printf("defaulting to port %s", port)
-	}
-
-	// Local dev mode - do not update live lobby
-	localMode := os.Getenv("GO_LOCAL")
-
-	UpdateLobby = localMode != "1"
-
 	initializeGameServer()
-	initializeRealTables()
+	initializeTables()
 
 	router.Run(":" + port)
 }
@@ -77,89 +78,112 @@ func main() {
 // 3. Save state
 // 4. Return client centric state
 
+// request pattern
+// 1. get state (locks the state)
+//   A. Start a function that updates table state
+//   B. Defer unlocking the state until the current "state updating" function is complete
+//   C. If state is not nil, perform logic
+// 2. Serialize and return results
+
 // Executes a move for the client player, if that player is currently active
 func apiMove(c *gin.Context) {
 
-	state, unlock := getState(c, 0)
+	state, unlock := getState(c)
 	func() {
 		defer unlock()
 
-		// Access check - only move if the client is the active player
-		if state.clientPlayer == state.ActivePlayer {
-			move := strings.ToUpper(c.Param("move"))
-			state.performMove(move)
-			saveState(state)
+		if state != nil {
+			// Access check - only move if the client is the active player
+			if state.clientPlayer == state.ActivePlayer {
+				move := strings.ToUpper(c.Param("move"))
+				state.performMove(move)
+				saveState(state)
+				state = state.createClientState()
+			}
+		}
+	}()
+
+	serializeResults(c, state)
+}
+
+// Steps forward and returns the updated state
+func apiState(c *gin.Context) {
+	hash := c.Query("hash")
+	state, unlock := getState(c)
+
+	func() {
+		defer unlock()
+
+		if state != nil {
+			if state.clientPlayer >= 0 {
+				state.runGameLogic()
+				saveState(state)
+			}
 			state = state.createClientState()
 		}
 	}()
 
-	c.JSON(http.StatusOK, state)
-}
+	// Check if passed in hash matches the state
+	if state != nil && len(hash) > 0 && hash == state.hash {
+		serializeResults(c, "1")
+		return
+	}
 
-// Steps forward in the emulated game and returns the updated state
-func apiState(c *gin.Context) {
-	playerCount, _ := strconv.Atoi(c.DefaultQuery("count", "0"))
-	state, unlock := getState(c, playerCount)
-
-	func() {
-		defer unlock()
-		if state.clientPlayer >= 0 {
-			state.runGameLogic()
-			saveState(state)
-		}
-		state = state.createClientState()
-	}()
-
-	c.JSON(http.StatusOK, state)
+	serializeResults(c, state)
 }
 
 // Drop from the specified table
 func apiLeave(c *gin.Context) {
-	state, unlock := getState(c, 0)
+	state, unlock := getState(c)
 
 	func() {
 		defer unlock()
 
-		if state.clientPlayer >= 0 {
-			state.clientLeave()
-			state.updateLobby()
-			saveState(state)
+		if state != nil {
+			if state.clientPlayer >= 0 {
+				state.clientLeave()
+				state.updateLobby()
+				saveState(state)
+			}
 		}
 	}()
-	c.JSON(http.StatusOK, "bye")
+	serializeResults(c, "bye")
 }
 
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
 func apiView(c *gin.Context) {
 
-	state, unlock := getState(c, 0)
+	state, unlock := getState(c)
 	func() {
 		defer unlock()
 
-		state = state.createClientState()
+		if state != nil {
+			state = state.createClientState()
+		}
 	}()
 
-	c.IndentedJSON(http.StatusOK, state)
+	serializeResults(c, state)
 }
 
 // Returns a list of real tables with player/slots for the client
+// If passing "dev=1", will return developer testing tables instead of the live tables
 func apiTables(c *gin.Context) {
+	returnDevTables := c.Query("dev") == "1"
+
 	tableOutput := []GameTable{}
 	for _, table := range tables {
 		value, ok := stateMap.Load(table.Table)
 		if ok {
 			state := value.(*GameState)
-			if state.registerLobby {
+			if (returnDevTables && !state.registerLobby) || (!returnDevTables && state.registerLobby) {
 				humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
 				table.CurPlayers = humanPlayerCount
 				table.MaxPlayers = humanPlayerSlots
 				tableOutput = append(tableOutput, table)
 			}
 		}
-
 	}
-
-	c.JSON(http.StatusOK, tableOutput)
+	serializeResults(c, tableOutput)
 }
 
 // Forces an update of all tables to the lobby - useful for adhoc use if the Lobby restarts or loses info
@@ -172,11 +196,11 @@ func apiUpdateLobby(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, "Lobby Updated")
+	serializeResults(c, "Lobby Updated")
 }
 
 // Gets the current game state for the specified table and adds the player id of the client to it
-func getState(c *gin.Context, playerCount int) (*GameState, func()) {
+func getState(c *gin.Context) (*GameState, func()) {
 	table := c.Query("table")
 
 	if table == "" {
@@ -188,10 +212,7 @@ func getState(c *gin.Context, playerCount int) (*GameState, func()) {
 	// Lock by the table so to avoid multiple threads updating the same table state
 	unlock := tableMutex.Lock(table)
 
-	return getTableState(table, player, playerCount), unlock
-}
-
-func getTableState(table string, playerName string, playerCount int) *GameState {
+	// Load state
 	value, ok := stateMap.Load(table)
 
 	var state *GameState
@@ -199,53 +220,36 @@ func getTableState(table string, playerName string, playerCount int) *GameState 
 	if ok {
 		stateCopy := *value.(*GameState)
 		state = &stateCopy
-
-		// Update player count for table if changed
-		if state.isMockGame && playerCount > 1 && playerCount < 9 && playerCount != len(state.Players) {
-			if len(state.Players) > playerCount {
-				state = createGameState(playerCount, true, false)
-				state.table = table
-			} else {
-				state.updateMockPlayerCount(playerCount)
-			}
-		}
-	} else {
-		// Create a brand new game
-		state = createGameState(playerCount, true, false)
-		state.table = table
-		state.updateLobby()
+		state.setClientPlayerByName(player)
 	}
 
-	//player := c.Query("player")
-	if state.isMockGame {
-		state.clientPlayer = 0
-	} else {
-		state.setClientPlayerByName(playerName)
-	}
-	return state
+	return state, unlock
 }
 
 func saveState(state *GameState) {
 	stateMap.Store(state.table, state)
 }
 
-func initializeRealTables() {
+func initializeTables() {
 
 	// Create the real servers (hard coded for now)
-	createRealTable("The Basement", "basement", 0, true)
-	createRealTable("The Den", "den", 0, true)
-	createRealTable("AI Room - 2 bots", "ai2", 2, true)
-	createRealTable("AI Room - 4 bots", "ai4", 4, true)
-	createRealTable("AI Room - 6 bots", "ai6", 6, true)
+	createTable("The Basement", "basement", 0, true)
+	createTable("The Den", "den", 0, true)
+	createTable("AI Room - 2 bots", "ai2", 2, true)
+	createTable("AI Room - 4 bots", "ai4", 4, true)
+	createTable("AI Room - 6 bots", "ai6", 6, true)
+
+	// For client developers, create hidden tables for each # of bots (for ease of testing with a specific # of players in the game)
+	// These will not update the lobby
 
 	for i := 1; i < 8; i++ {
-		createRealTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
+		createTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
 	}
 
 }
 
-func createRealTable(serverName string, table string, botCount int, registerLobby bool) {
-	state := createGameState(botCount, false, registerLobby)
+func createTable(serverName string, table string, botCount int, registerLobby bool) {
+	state := createGameState(botCount, registerLobby)
 	state.table = table
 	state.serverName = serverName
 	saveState(state)
