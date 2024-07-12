@@ -13,7 +13,7 @@ import (
 
 // A sync.Map is used to save the state at the end of a request without needing synchronization
 // If a request errors out in the middle, it will not save the state, avoiding an invalid,
-// partially updated state.
+// partially updated state
 // A mutex is used so a given table can only be accessed by a single request at a time
 var stateMap sync.Map
 var tables []GameTable = []GameTable{}
@@ -235,31 +235,32 @@ func saveState(state *GameState) {
 func initializeTables() {
 
 	// Create the real servers (hard coded for now)
-	createTable("The Basement", "basement", 0, true)
-	createTable("The Den", "den", 0, true)
+	createTable("The Bar", "bar", 0, true)
+	createTable("Kitchen Table", "kit", 0, true)
 	createTable("AI Room - 2 bots", "ai2", 2, true)
 	createTable("AI Room - 4 bots", "ai4", 4, true)
-	createTable("AI Room - 6 bots", "ai6", 6, true)
 
 	// For client developers, create hidden tables for each # of bots (for ease of testing with a specific # of players in the game)
 	// These will not update the lobby
 
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 5; i++ {
 		createTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
 	}
 
 }
 
 func createTable(serverName string, table string, botCount int, registerLobby bool) {
-	state := createGameState(botCount, registerLobby)
+	state := createGameState(botCount)
 	state.table = table
 	state.serverName = serverName
+	state.registerLobby = registerLobby
+
 	saveState(state)
 	state.updateLobby()
 
 	tables = append([]GameTable{{Table: table, Name: serverName}}, tables...)
 
-	if UpdateLobby {
+	if UpdateLobby && registerLobby {
 		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 }
