@@ -106,16 +106,33 @@ func (state *GameState) newRound() {
 
 	// If brand new round, clear the ready flags (first index of scores) and set all scores to -1 (unset)
 	if state.Round == 0 {
+		players := []Player{}
 
+		// Add human players first
 		for i := 0; i < len(state.Players); i++ {
+
 			for j := 0; j < 16; j++ {
 				state.Players[i].Scores[j] = -1
 			}
-		}
-	}
+			if !state.Players[i].isBot {
 
-	// Drop any players that left last round
-	state.dropInactivePlayers(true, false)
+				// Re-assign clientPlayer for this request
+				if state.clientPlayer == i {
+					state.clientPlayer = len(players)
+				}
+				players = append(players, state.Players[i])
+			}
+		}
+
+		// Add bots second
+		for i := 0; i < len(state.Players); i++ {
+			if state.Players[i].isBot {
+				players = append(players, state.Players[i])
+			}
+		}
+
+		state.Players = players
+	}
 
 	// Check if multiple players are still playing
 	if len(state.Players) < 2 {
@@ -410,6 +427,14 @@ func (state *GameState) playerPing() {
 	state.Players[state.clientPlayer].lastPing = time.Now()
 }
 
+// Toggle ready state if waiting to start game
+func (state *GameState) toggleReady() {
+
+	if state.Round == 0 {
+		state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
+	}
+}
+
 // Performs the requested move for the active player, and returns true if successful
 func (state *GameState) performMove(move string, internalCall ...bool) bool {
 
@@ -511,7 +536,7 @@ func (state *GameState) rollDice(keep string) {
 
 	// If dice to keep was specified, move the dice from the current roll
 	// to the new roll
-	for i := len(keep); i >= 0; i-- {
+	for i := len(keep) - 1; i >= 0; i-- {
 		var existingIndex = strings.IndexAny(state.Dice, string(keep[i]))
 		if existingIndex > -1 {
 			newRoll = newRoll + string(state.Dice[existingIndex])
@@ -520,7 +545,7 @@ func (state *GameState) rollDice(keep string) {
 	}
 
 	for len(newRoll) < 5 {
-		newRoll = newRoll + string(rand.Intn(6)+1)
+		newRoll = newRoll + strconv.Itoa(rand.Intn(6)+1)
 	}
 
 	state.Dice = newRoll
@@ -530,7 +555,7 @@ func (state *GameState) rollDice(keep string) {
 
 func (state *GameState) getValidScores() []int {
 
-	scores := make([]int, 16)
+	scores := make([]int, 15)
 	currentScores := state.Players[state.ActivePlayer].Scores
 
 	// Sort the dice

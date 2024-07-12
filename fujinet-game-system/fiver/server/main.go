@@ -60,6 +60,9 @@ func main() {
 	router.GET("/move/:move", apiMove)
 	router.POST("/move/:move", apiMove)
 
+	router.GET("/ready", apiReady)
+	router.POST("/ready", apiReady)
+
 	router.GET("/leave", apiLeave)
 	router.POST("/leave", apiLeave)
 
@@ -99,6 +102,26 @@ func apiMove(c *gin.Context) {
 			if state.clientPlayer == state.ActivePlayer {
 				move := strings.ToUpper(c.Param("move"))
 				state.performMove(move)
+				saveState(state)
+				state = state.createClientState()
+			}
+		}
+	}()
+
+	serializeResults(c, state)
+}
+
+// Toggle if player is ready to start
+func apiReady(c *gin.Context) {
+
+	state, unlock := getState(c)
+	func() {
+		defer unlock()
+
+		if state != nil {
+			// Access check - only move if the client is a valid player
+			if state.clientPlayer >= 0 {
+				state.toggleReady()
 				saveState(state)
 				state = state.createClientState()
 			}
