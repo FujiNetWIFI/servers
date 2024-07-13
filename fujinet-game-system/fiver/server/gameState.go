@@ -12,9 +12,10 @@ type Player struct {
 	Scores []int  `json:"sc"`
 
 	// Internal
-	isBot     bool
-	lastPing  time.Time
-	isLeaving bool
+	isBot       bool
+	lastPing    time.Time
+	isLeaving   bool
+	isPenalized bool
 }
 
 type GameState struct {

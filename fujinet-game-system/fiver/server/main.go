@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,24 +53,21 @@ func main() {
 
 	router := gin.Default()
 
+	route := func(path string, handler gin.HandlerFunc) {
+		router.GET(path, handler)
+		router.POST(path, handler)
+	}
+
 	router.GET("/view", apiView)
-
-	router.GET("/state", apiState)
-	router.POST("/state", apiState)
-
-	router.GET("/move/:move", apiMove)
-	router.POST("/move/:move", apiMove)
-
-	router.GET("/ready", apiReady)
-	router.POST("/ready", apiReady)
-
-	router.GET("/leave", apiLeave)
-	router.POST("/leave", apiLeave)
-
 	router.GET("/tables", apiTables)
-	router.GET("/updateLobby", apiUpdateLobby)
 
-	//	router.GET("/REFRESHLOBBY", apiRefresh)
+	route("/state", apiState)
+	route("/ready", apiReady)
+	route("/roll/:keep", apiRoll)
+	route("/score/:index", apiScore)
+	route("/leave", apiLeave)
+
+	route("/updateLobby", apiUpdateLobby)
 
 	initializeGameServer()
 	initializeTables()
@@ -90,8 +88,8 @@ func main() {
 //   C. If state is not nil, perform logic
 // 2. Serialize and return results
 
-// Executes a move for the client player, if that player is currently active
-func apiMove(c *gin.Context) {
+// Score the current roll at the requested index for the client player, if that player is currently active
+func apiScore(c *gin.Context) {
 
 	state, unlock := getState(c)
 	func() {
@@ -100,8 +98,28 @@ func apiMove(c *gin.Context) {
 		if state != nil {
 			// Access check - only move if the client is the active player
 			if state.clientPlayer == state.ActivePlayer {
-				move := strings.ToUpper(c.Param("move"))
-				state.performMove(move)
+				index, _ := strconv.Atoi(c.Param("index"))
+				state.scoreRoll(index)
+				saveState(state)
+				state = state.createClientState()
+			}
+		}
+	}()
+
+	serializeResults(c, state)
+}
+
+// Score the current roll at the requested index for the client player, if that player is currently active
+func apiRoll(c *gin.Context) {
+
+	state, unlock := getState(c)
+	func() {
+		defer unlock()
+
+		if state != nil {
+			// Access check - only move if the client is the active player
+			if state.clientPlayer == state.ActivePlayer {
+				state.rollDice(c.Param("keep"))
 				saveState(state)
 				state = state.createClientState()
 			}
