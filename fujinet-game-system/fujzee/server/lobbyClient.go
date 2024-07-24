@@ -13,18 +13,20 @@ const (
 	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
 	//LOBBY_ENDPOINT_UPSERT = "http://lobby.rogersm.net:8080/server"
 	LOBBY_ENDPOINT_UPSERT = "http://lobby.fujinet.online/server"
+
+	LOBBY_CLIENT_APP_KEY = 0x03 // Registered at https://github.com/FujiNetWIFI/fujinet-firmware/wiki/SIO-Command-$DC-Open-App-Key#lobby-client-app-key-ids
 )
 
 // Defaults for this game server
 // Appkey/game are hard coded, but the others could be read from a config file
 var DefaultGameServerDetails = GameServer{
-	Appkey:    1,
-	Game:      "Fiver",
+	Appkey:    LOBBY_CLIENT_APP_KEY,
+	Game:      "Fujzee",
 	Region:    "us",
-	Serverurl: "https://fiver.carr-designs.com/",
+	Serverurl: "https://fujzee.carr-designs.com/",
 	Clients: []GameClient{
-		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fiver.xex"},
-		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/fiver.po"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujzee.xex"},
+		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/fujzee.po"},
 	},
 }
 

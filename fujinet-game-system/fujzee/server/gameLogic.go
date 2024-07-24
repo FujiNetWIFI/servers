@@ -63,7 +63,7 @@ const (
 	SCORE_SRUN      = 11
 	SCORE_LRUN      = 12
 	SCORE_CHANCE    = 13
-	SCORE_FIVER     = 14
+	SCORE_FUJZEE    = 14
 
 	SCORE_TOTAL = 15
 )
@@ -527,6 +527,8 @@ func (state *GameState) nextValidPlayer() {
 	state.rollDice("")
 }
 
+// Expects a string of dice indexes (1 based) to keep from the previous roll.
+// For example, consider a roll "31363". To keep all the 3's, the value "135" would be passed.
 func (state *GameState) rollDice(keep string) {
 
 	// Only roll when available
@@ -534,20 +536,28 @@ func (state *GameState) rollDice(keep string) {
 		return
 	}
 
-	newRoll := ""
+	keptDice := make(map[int]string)
 
-	// If dice to keep was specified, move the dice from the current roll
-	// to the new roll
-	for i := len(keep) - 1; i >= 0; i-- {
-		var existingIndex = strings.IndexAny(state.Dice, string(keep[i]))
-		if existingIndex > -1 {
-			newRoll = newRoll + string(state.Dice[existingIndex])
-			state.Dice = state.Dice[0:existingIndex] + state.Dice[existingIndex+1:]
+	// Lock in the keepers
+	if len(state.Dice) == 5 {
+		for i := 0; i < len(keep); i++ {
+			keepIndex, _ := strconv.Atoi(string(keep[i]))
+			if keepIndex >= 1 && keepIndex <= 6 {
+				keepIndex--
+				keptDice[keepIndex] = string(state.Dice[keepIndex])
+			}
 		}
 	}
 
-	for len(newRoll) < 5 {
-		newRoll = newRoll + strconv.Itoa(rand.Intn(6)+1)
+	// Build the new roll, rolling for any unkept dice,
+	newRoll := ""
+
+	for i := 0; i < 5; i++ {
+		if keptDice[i] == "" {
+			newRoll = newRoll + strconv.Itoa(rand.Intn(6)+1)
+		} else {
+			newRoll = newRoll + keptDice[i]
+		}
 	}
 
 	// Sort the dice for visual and logical convenience
@@ -576,8 +586,11 @@ func (state *GameState) getValidScores() ([]int, []string) {
 	}
 
 	// Split the dice string into an array of dice
-	dice := state.Dice
-	diceParts := strings.Split(dice, "")
+	diceParts := strings.Split(state.Dice, "")
+
+	// Sort the dice for convenience
+	sort.Strings(diceParts)
+	dice := strings.Join(diceParts, "")
 
 	// Build array of dice sets and dice total at the same time
 	diceTotal := 0
@@ -633,9 +646,9 @@ func (state *GameState) getValidScores() ([]int, []string) {
 		scores[SCORE_CHANCE] = diceTotal
 	}
 
-	// All five - fiver!
-	if currentScores[SCORE_FIVER] < 0 && len(diceSets) == 1 {
-		scores[SCORE_FIVER] = 50
+	// All five - Fujzee!
+	if currentScores[SCORE_FUJZEE] < 0 && len(diceSets) == 1 {
+		scores[SCORE_FUJZEE] = 50
 	}
 
 	return scores, diceSets

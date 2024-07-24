@@ -284,7 +284,7 @@ func initializeTables() {
 	// For client developers, create hidden tables for each # of bots (for ease of testing with a specific # of players in the game)
 	// These will not update the lobby
 
-	for i := 1; i < 5; i++ {
+	for i := 1; i < 4; i++ {
 		createTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
 	}
 
