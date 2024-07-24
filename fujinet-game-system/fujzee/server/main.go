@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 // A sync.Map is used to save the state at the end of a request without needing synchronization
 // If a request errors out in the middle, it will not save the state, avoiding an invalid,
-// partially updated state.
+// partially updated state
 // A mutex is used so a given table can only be accessed by a single request at a time
 var stateMap sync.Map
 var tables []GameTable = []GameTable{}
@@ -52,21 +53,21 @@ func main() {
 
 	router := gin.Default()
 
+	route := func(path string, handler gin.HandlerFunc) {
+		router.GET(path, handler)
+		router.POST(path, handler)
+	}
+
 	router.GET("/view", apiView)
-
-	router.GET("/state", apiState)
-	router.POST("/state", apiState)
-
-	router.GET("/move/:move", apiMove)
-	router.POST("/move/:move", apiMove)
-
-	router.GET("/leave", apiLeave)
-	router.POST("/leave", apiLeave)
-
 	router.GET("/tables", apiTables)
-	router.GET("/updateLobby", apiUpdateLobby)
 
-	//	router.GET("/REFRESHLOBBY", apiRefresh)
+	route("/state", apiState)
+	route("/ready", apiReady)
+	route("/roll/:keep", apiRoll)
+	route("/score/:index", apiScore)
+	route("/leave", apiLeave)
+
+	route("/updateLobby", apiUpdateLobby)
 
 	initializeGameServer()
 	initializeTables()
@@ -87,8 +88,8 @@ func main() {
 //   C. If state is not nil, perform logic
 // 2. Serialize and return results
 
-// Executes a move for the client player, if that player is currently active
-func apiMove(c *gin.Context) {
+// Score the current roll at the requested index for the client player, if that player is currently active
+func apiScore(c *gin.Context) {
 
 	state, unlock := getState(c)
 	func() {
@@ -97,8 +98,48 @@ func apiMove(c *gin.Context) {
 		if state != nil {
 			// Access check - only move if the client is the active player
 			if state.clientPlayer == state.ActivePlayer {
-				move := strings.ToUpper(c.Param("move"))
-				state.performMove(move)
+				index, _ := strconv.Atoi(c.Param("index"))
+				state.scoreRoll(index)
+				saveState(state)
+				state = state.createClientState()
+			}
+		}
+	}()
+
+	serializeResults(c, state)
+}
+
+// Score the current roll at the requested index for the client player, if that player is currently active
+func apiRoll(c *gin.Context) {
+
+	state, unlock := getState(c)
+	func() {
+		defer unlock()
+
+		if state != nil {
+			// Access check - only move if the client is the active player
+			if state.clientPlayer == state.ActivePlayer {
+				state.rollDice(c.Param("keep"))
+				saveState(state)
+				state = state.createClientState()
+			}
+		}
+	}()
+
+	serializeResults(c, state)
+}
+
+// Toggle if player is ready to start
+func apiReady(c *gin.Context) {
+
+	state, unlock := getState(c)
+	func() {
+		defer unlock()
+
+		if state != nil {
+			// Access check - only move if the client is a valid player
+			if state.clientPlayer >= 0 {
+				state.toggleReady()
 				saveState(state)
 				state = state.createClientState()
 			}
@@ -235,31 +276,32 @@ func saveState(state *GameState) {
 func initializeTables() {
 
 	// Create the real servers (hard coded for now)
-	createTable("The Basement", "basement", 0, true)
-	createTable("The Den", "den", 0, true)
+	createTable("The Bar", "bar", 0, true)
+	createTable("Kitchen Table", "kit", 0, true)
 	createTable("AI Room - 2 bots", "ai2", 2, true)
 	createTable("AI Room - 4 bots", "ai4", 4, true)
-	createTable("AI Room - 6 bots", "ai6", 6, true)
 
 	// For client developers, create hidden tables for each # of bots (for ease of testing with a specific # of players in the game)
 	// These will not update the lobby
 
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 4; i++ {
 		createTable(fmt.Sprintf("Dev Room - %d bots", i), fmt.Sprintf("dev%d", i), i, false)
 	}
 
 }
 
 func createTable(serverName string, table string, botCount int, registerLobby bool) {
-	state := createGameState(botCount, registerLobby)
+	state := createGameState(botCount)
 	state.table = table
 	state.serverName = serverName
+	state.registerLobby = registerLobby
+
 	saveState(state)
 	state.updateLobby()
 
 	tables = append([]GameTable{{Table: table, Name: serverName}}, tables...)
 
-	if UpdateLobby {
+	if UpdateLobby && registerLobby {
 		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 }

@@ -15,9 +15,16 @@ Source to servers for games and apps that work with FujiNet
 
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
-- "5cardstud" - A Multi-player/Multi-Platform Poker Server and Clients that impliment 5 Card Stud poker game. This is very much a work in progress.
+- "5cardstud" - A Multi-player/Multi-Platform implementation of 5 Card Stud Poker
   - Clients
+    - [fujinet-apps/5cardstud](https://github.com/FujiNetWIFI/fujinet-apps/tree/master/5cardstud) - 8 bit clients (C, FastBasic)
     - "client/pc/python" - PC client, written in Python.
   - Servers
     - "dummy-server/pc/Python" - Json server written in Python, serves random hands for client testing.
-    - "[server/mock-server](5cardstud/server/mock-server)" - Json Api server written in Go. It started as a mock server for the purpose of writing 5 Card Stud clients and migrated into a full server supporting multiple clients, with bots. It still supports mock tables to assist in writing/testing new clients.
+    - "[fujinet-game-system/5cardstud/server](fujinet-game-system/5cardstud/server)" - Game server written in Go
+
+- "Fujzee" - A Multi-player/Multi-Platform implementation of Yahtzee
+  - Servers
+    - "[fujinet-game-system/fujzee/server](fujinet-game-system/5cardstud/server)" - Game server written in Go
+  - Clients
+    - [fujinet-apps/fujzee](https://github.com/FujiNetWIFI/fujinet-apps/tree/master/fujzee) -  8 bit clients
