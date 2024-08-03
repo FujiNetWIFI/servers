@@ -9,7 +9,7 @@ import "time"
 type Player struct {
 	Name   string `json:"n"`
 	Alias  string `json:"a"`
-	Scores []int  `json:"sc"`
+	Scores []int  `json:"s"`
 
 	// Internal
 	isBot       bool
@@ -27,8 +27,9 @@ type GameState struct {
 	MoveTime     int      `json:"m"`
 	Viewing      int      `json:"v"`
 	Dice         string   `json:"d"`
+	Kept         string   `json:"k"`
 	Players      []Player `json:"pl"`
-	ValidScores  []int    `json:"vs"`
+	ValidScores  []int    `json:"s"`
 
 	// Internal
 	gameOver     bool

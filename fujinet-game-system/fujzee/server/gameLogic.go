@@ -536,6 +536,9 @@ func (state *GameState) rollDice(keep string) {
 		return
 	}
 
+	// Store kept in the state for other players to follow along
+	state.Kept = keep
+
 	keptDice := make(map[int]string)
 
 	// Lock in the keepers
@@ -688,8 +691,14 @@ func (state *GameState) createClientState() *GameState {
 			stateCopy.ActivePlayer = i - start
 		}
 
+		// If the round is 0, only return the first score (ready or not)
+		if stateCopy.Round == 0 {
+			statePlayers[playerIndex].Scores = statePlayers[playerIndex].Scores[0:1]
+		}
+
 		// Add this player to the copy of the state going out
 		stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
+
 	}
 
 	// Determine valid moves for this player (if their turn)
