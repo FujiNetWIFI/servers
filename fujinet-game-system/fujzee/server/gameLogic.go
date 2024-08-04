@@ -49,7 +49,7 @@ const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
 
 const PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
-const PROMPT_WAITING_ON_READY = "Ready up to play"
+const PROMPT_WAITING_ON_READY = "Waiting for everyone to ready up."
 const PROMPT_STARTING_IN = "Starting in "
 
 const (
@@ -173,7 +173,7 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 	// Add new player if the game hasn't started yet and spots are available
 	if state.clientPlayer < 0 && state.Round == 0 && len(state.Players) < MAX_PLAYERS {
 		state.addPlayer(playerName, false)
-		state.clientPlayer = len(state.Players) - 1
+		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
 
 		// Set the ping for this player so they are counted as active when updating the lobby
 		state.playerPing()

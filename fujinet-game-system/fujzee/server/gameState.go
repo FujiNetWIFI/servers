@@ -29,7 +29,7 @@ type GameState struct {
 	Dice         string   `json:"d"`
 	Kept         string   `json:"k"`
 	Players      []Player `json:"pl"`
-	ValidScores  []int    `json:"s"`
+	ValidScores  []int    `json:"c"`
 
 	// Internal
 	gameOver     bool
