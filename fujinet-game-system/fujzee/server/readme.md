@@ -78,10 +78,10 @@ You can view the state as-is by calling `/view`.
 
 * `/state` - Advance forward (AI/Game Logic) and return updated state
 * `/ready` - Toggle if this player is ready. When joining a table that does not have game in progress, all connected players must ready up to start.
-* `/roll/[keep]` - Re-roll when it is your player's turn. Specify the 1 based index of one or more dice to keep from the previous roll. For example:
-    * Given roll `11234`, to keep the ones, call `/roll/12`. 
-    * Given roll `11234`, to keep "1234" and only roll the first one, call `/roll/2345`. 
-    * Given roll `31363`, to keep all threes, call `/roll/135`. 
+* `/roll/[keepRoll]` - Re-roll when it is your player's turn, specifying to either keep or roll the dice at that index.`0` means keep and `1` means re-roll. For example:
+    * Given roll `11234`, to keep the ones, call `/roll/00111`. 
+    * Given roll `11234`, to keep "1234" and only roll the first die, call `/roll/10000`. 
+    * Given roll `31363`, to keep the threes and roll the 1 and 6, call `/roll/01010`. 
 * `/leave` - Leave the table. Each client should call this when a player exits the game
 * `/view?table=N` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time. Only `table` query parameter is required.
 * `/tables` - Returns a list of available REAL tables along with player information. No query parameters are required
