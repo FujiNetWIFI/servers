@@ -21,12 +21,12 @@ const (
 // Appkey/game are hard coded, but the others could be read from a config file
 var DefaultGameServerDetails = GameServer{
 	Appkey:    LOBBY_CLIENT_APP_KEY,
-	Game:      "Fujzee",
+	Game:      "Fujitzee",
 	Region:    "us",
-	Serverurl: "https://fujzee.carr-designs.com/",
+	Serverurl: "https://fujitzee.carr-designs.com/",
 	Clients: []GameClient{
-		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujzee.xex"},
-		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/fujzee.po"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujitzee.xex"},
+		//	{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/fujzee.po"},
 	},
 }
 

@@ -188,6 +188,11 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 func (state *GameState) endGame(abortGame bool) {
 	// The next request for /state will start a new game once the timer has counted down
 
+	// If the game hasn't started, no need to do anything.
+	if state.Round == 0 {
+		return
+	}
+
 	state.gameOver = true
 	state.ActivePlayer = -1
 	state.Round = 99
@@ -196,18 +201,20 @@ func (state *GameState) endGame(abortGame bool) {
 	winningPlayer := -1
 	winningScore := 0
 
-	for index, player := range state.Players {
+	if !abortGame {
+		for index, player := range state.Players {
 
-		// Calculate the player's final score
-		score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
-		for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
-			score += player.Scores[i]
-		}
-		player.Scores[SCORE_TOTAL] = score
+			// Calculate the player's final score
+			score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
+			for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
+				score += player.Scores[i]
+			}
+			player.Scores[SCORE_TOTAL] = score
 
-		if !abortGame && !player.isLeaving && score > winningScore {
-			winningPlayer = index
-			winningScore = score
+			if !player.isLeaving && score > winningScore {
+				winningPlayer = index
+				winningScore = score
+			}
 		}
 	}
 
@@ -219,7 +226,9 @@ func (state *GameState) endGame(abortGame bool) {
 		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
-		state.resetGame()
+		state.Prompt = "The game was aborted early"
+		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		//state.resetGame()
 	}
 
 	log.Println(state.Prompt)
@@ -425,7 +434,7 @@ func (state *GameState) clientLeave() {
 	// Check if no human players are playing. If so, end the game
 	playersLeft := 0
 	for _, player := range state.Players {
-		if !player.isLeaving {
+		if !player.isLeaving && !player.isBot {
 			playersLeft++
 		}
 	}
@@ -433,9 +442,8 @@ func (state *GameState) clientLeave() {
 	// If the last player dropped, stop the game and update the lobby
 	if playersLeft == 0 {
 		state.endGame(true)
-		state.dropInactivePlayers(false, false)
-		return
 	}
+	state.dropInactivePlayers(false, false)
 }
 
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
@@ -449,7 +457,7 @@ func (state *GameState) playerPing() {
 // Toggle ready state if waiting to start game
 func (state *GameState) toggleReady() {
 
-	if state.Round == 0 {
+	if state.Round == 0 && len(state.Players) > 1 {
 		// Toggle ready state for this player
 		state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
 
