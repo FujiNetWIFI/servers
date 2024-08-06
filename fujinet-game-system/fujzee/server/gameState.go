@@ -27,9 +27,9 @@ type GameState struct {
 	MoveTime     int      `json:"m"`
 	Viewing      int      `json:"v"`
 	Dice         string   `json:"d"`
-	Kept         string   `json:"k"`
+	KeepRoll     string   `json:"k"`
+	ValidScores  []int    `json:"c"`
 	Players      []Player `json:"pl"`
-	ValidScores  []int    `json:"s"`
 
 	// Internal
 	gameOver     bool

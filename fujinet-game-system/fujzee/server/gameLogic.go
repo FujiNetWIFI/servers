@@ -38,18 +38,18 @@ Winning hands - tied hands split the pot, remainder is discarded
 
 const MAX_PLAYERS = 6
 const MOVE_TIME_GRACE_SECONDS = 4
-const BOT_TIME_LIMIT = time.Second * time.Duration(3)
-const PLAYER_TIME_LIMIT = time.Second * time.Duration(30)
-const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(5)
-const ENDGAME_TIME_LIMIT = time.Second * time.Duration(12)
-const START_TIME_LIMIT = time.Second * time.Duration(11)
+const BOT_TIME_LIMIT = time.Second * time.Duration(2)
+const PLAYER_TIME_LIMIT = time.Second * time.Duration(45) // 45
+const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
+const ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
+const START_TIME_LIMIT = time.Second * time.Duration(5) // 11
 const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
 
 // Drop players who do not make a move in 5 minutes
 const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
 
 const PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
-const PROMPT_WAITING_ON_READY = "Ready up to play"
+const PROMPT_WAITING_ON_READY = "Waiting for everyone to ready up."
 const PROMPT_STARTING_IN = "Starting in "
 
 const (
@@ -105,7 +105,9 @@ func (state *GameState) newRound() {
 
 	// If brand new round, clear the ready flags (first index of scores) and set all scores to -1 (unset)
 	if state.Round == 0 {
+		state.gameOver = false
 		for i := 0; i < len(state.Players); i++ {
+			state.Players[i].Scores = make([]int, 16)
 			for j := 0; j < 16; j++ {
 				state.Players[i].Scores[j] = -1
 			}
@@ -129,7 +131,7 @@ func (state *GameState) addPlayer(playerName string, isBot bool) {
 
 	newPlayer := Player{
 		Name:        playerName,
-		Scores:      make([]int, 16),
+		Scores:      make([]int, 1),
 		isBot:       isBot,
 		isLeaving:   false,
 		isPenalized: false,
@@ -173,7 +175,7 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 	// Add new player if the game hasn't started yet and spots are available
 	if state.clientPlayer < 0 && state.Round == 0 && len(state.Players) < MAX_PLAYERS {
 		state.addPlayer(playerName, false)
-		state.clientPlayer = len(state.Players) - 1
+		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
 
 		// Set the ping for this player so they are counted as active when updating the lobby
 		state.playerPing()
@@ -209,8 +211,12 @@ func (state *GameState) endGame(abortGame bool) {
 		}
 	}
 
-	if winningPlayer > 0 {
-		state.Prompt = fmt.Sprintf("%s won with score %i", winningPlayer, winningScore)
+	if winningPlayer >= 0 {
+		nameIndex := 0
+		if state.Players[winningPlayer].isBot {
+			nameIndex = 1
+		}
+		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
 		state.resetGame()
@@ -222,7 +228,7 @@ func (state *GameState) endGame(abortGame bool) {
 func (state *GameState) resetGame() {
 
 	for i := 0; i < len(state.Players); i++ {
-		state.Players[i].Scores = make([]int, 16)
+		state.Players[i].Scores = make([]int, 1)
 		if state.Players[i].isBot {
 			state.Players[i].Scores[0] = 1 // Ready
 		}
@@ -280,7 +286,7 @@ func (state *GameState) runGameLogic() {
 	// Force an action for this player or BOT if they are in the game and have not folded
 	player := &state.Players[state.ActivePlayer]
 
-	validScores, diceSets := state.getValidScores()
+	validScores, diceSets, sortedDice := state.getValidScores()
 
 	if !player.isBot {
 		// Human player did not respond in time. If they haven't rolled at all, penalize them
@@ -297,17 +303,19 @@ func (state *GameState) runGameLogic() {
 
 	} else {
 
-		// Simple bot logic to re-roll and score
-		dice := state.Dice
-
 		// If not on the final roll, see if the bot should re-roll
 		if state.RollsLeft > 0 {
 
 			// If a small run, attempt to get large run if not yet scored
 			if validScores[SCORE_SRUN] > 0 && validScores[SCORE_LRUN] == 0 {
+
+				// Compact diceparts to just get unique digits - for easy run detection
+				diceParts := strings.Split(sortedDice, "")
+				diceDistinct := strings.Join(slices.Compact(diceParts), "")
+
 				for _, keep := range []string{"1234", "2345", "3456"} {
-					if strings.Contains(dice, keep) {
-						state.rollDice(keep)
+					if diceDistinct == keep {
+						state.rollDiceKeeping(keep)
 						return
 					}
 				}
@@ -332,7 +340,7 @@ func (state *GameState) runGameLogic() {
 				}
 
 				// Roll dice, keeping the first (largest) set
-				state.rollDice(diceSets[selectedSet])
+				state.rollDiceKeeping(diceSets[selectedSet])
 				return
 			}
 
@@ -433,6 +441,9 @@ func (state *GameState) clientLeave() {
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
 func (state *GameState) playerPing() {
 	state.Players[state.clientPlayer].lastPing = time.Now()
+
+	// An active player won't be penalized for now
+	state.Players[state.clientPlayer].isPenalized = false
 }
 
 // Toggle ready state if waiting to start game
@@ -455,9 +466,9 @@ func (state *GameState) toggleReady() {
 
 // Performs the requested score for the active player, and returns true if successful
 func (state *GameState) scoreRoll(index int, internalCall ...bool) bool {
-	validScores, _ := state.getValidScores()
+	validScores, _, _ := state.getValidScores()
 
-	// Check if a valid scire index was chosen
+	// Check if a valid score index was chosen
 	if index < len(validScores) && validScores[index] > -1 {
 
 		player := &state.Players[state.ActivePlayer]
@@ -468,15 +479,19 @@ func (state *GameState) scoreRoll(index int, internalCall ...bool) bool {
 		// Recalculate the upper total + bonus if changed
 		if index < SCORE_UPPER_TOTAL {
 			score := 0
-			for i := SCORE_ONES; i < SCORE_TOTAL; i++ {
+			filledIn := 0
+			for i := SCORE_ONES; i < SCORE_UPPER_TOTAL; i++ {
 				if player.Scores[i] > -1 {
 					score += player.Scores[i]
+					filledIn++
 				}
 			}
 
 			player.Scores[SCORE_UPPER_TOTAL] = score
 			if score >= 64 {
 				player.Scores[SCORE_UPPER_BONUS] = 35
+			} else if filledIn == 6 {
+				player.Scores[SCORE_UPPER_BONUS] = 0
 			}
 		}
 
@@ -521,54 +536,42 @@ func (state *GameState) nextValidPlayer() {
 	}
 
 	// Reset player timer and reset dice for the start of the player's turn
-	state.Prompt = state.Players[state.ActivePlayer].Name + "'s turn"
+	nameIndex := 0
+	if state.Players[state.ActivePlayer].isBot {
+		nameIndex = 1
+	}
+	state.Prompt = state.Players[state.ActivePlayer].Name[nameIndex:] + "'s turn"
 	state.Dice = ""
 	state.RollsLeft = 3
-	state.rollDice("")
+	state.rollDice("11111")
 }
 
-// Expects a string of dice indexes (1 based) to keep from the previous roll.
-// For example, consider a roll "31363". To keep all the 3's, the value "135" would be passed.
-func (state *GameState) rollDice(keep string) {
+// Expects a string of 5 dice indexes, either 0 or 1: 0=keep, 1=roll
+// For example, consider a roll "31363". To keep all the 3's and roll the 1 and 6, pass "01010"
+func (state *GameState) rollDice(keepRoll string) {
 
-	// Only roll when available
-	if state.RollsLeft == 0 {
+	// Only roll when available, and 5 dice are passed
+	if state.RollsLeft == 0 || len(keepRoll) != 5 {
 		return
 	}
 
-	// Store kept in the state for other players to follow along
-	state.Kept = keep
+	// Store keepRoll in the state for other players to follow along
+	state.KeepRoll = keepRoll
 
-	keptDice := make(map[int]string)
-
-	// Lock in the keepers
-	if len(state.Dice) == 5 {
-		for i := 0; i < len(keep); i++ {
-			keepIndex, _ := strconv.Atoi(string(keep[i]))
-			if keepIndex >= 1 && keepIndex <= 6 {
-				keepIndex--
-				keptDice[keepIndex] = string(state.Dice[keepIndex])
-			}
-		}
-	}
-
-	// Build the new roll, rolling for any unkept dice,
+	// Build the outcome of the new roll
 	newRoll := ""
 
+	// Preserve kept dice, rolling new dice
 	for i := 0; i < 5; i++ {
-		if keptDice[i] == "" {
+		if keepRoll[i] == '1' {
 			newRoll = newRoll + strconv.Itoa(rand.Intn(6)+1)
 		} else {
-			newRoll = newRoll + keptDice[i]
+			newRoll = newRoll + state.Dice[i:i+1]
 		}
 	}
 
-	// Sort the dice for visual and logical convenience
-	diceParts := strings.Split(newRoll, "")
-	sort.Strings(diceParts)
-
 	// Assign the new roll to state
-	state.Dice = strings.Join(diceParts, "")
+	state.Dice = newRoll
 
 	state.RollsLeft--
 
@@ -576,7 +579,35 @@ func (state *GameState) rollDice(keep string) {
 
 }
 
-func (state *GameState) getValidScores() ([]int, []string) {
+// Convenience function for Bot AI.
+func (state *GameState) rollDiceKeeping(keepList string) {
+	keepRoll := ""
+
+	for i := 0; i < 5; i++ {
+		keepThisDie := false
+
+		// Loop through each die in the keep list to see if it applies
+		for j := 0; j < len(keepList); j++ {
+			if state.Dice[i] == keepList[j] {
+				// If keeping, remove from the keep list so
+				keepList = keepList[:j] + keepList[j+1:]
+				keepThisDie = true
+				break
+			}
+		}
+
+		if keepThisDie {
+			keepRoll += "0"
+		} else {
+			keepRoll += "1"
+		}
+	}
+
+	state.rollDice(keepRoll)
+
+}
+
+func (state *GameState) getValidScores() ([]int, []string, string) {
 
 	scores := make([]int, 15)
 	currentScores := state.Players[state.ActivePlayer].Scores
@@ -610,6 +641,9 @@ func (state *GameState) getValidScores() ([]int, []string) {
 		}
 	}
 
+	// Get sorted list of unique digits - for easy run detection
+	diceDistinct := strings.Join(slices.Compact(diceParts), "")
+
 	// Now find the available dice combination and corresponding score the player may choose from for the current roll
 
 	// Upper - Check numbers 1 to 6
@@ -629,13 +663,13 @@ func (state *GameState) getValidScores() ([]int, []string) {
 		}
 	}
 
-	// Full house ( two sets, set of 2 and set of 3)
-	if currentScores[SCORE_FULLHOUSE] < 0 && len(diceSets) == 2 && len(diceSets[0]) >= 2 {
+	// Full house ( two sets, each at least 2 - effecively a set of 2 and set of 3)
+	if currentScores[SCORE_FULLHOUSE] < 0 && len(diceSets) == 2 && len(diceSets[0]) >= 2 && len(diceSets[1]) >= 2 {
 		scores[SCORE_FULLHOUSE] = 25
 	}
 
 	// Small run (1234, 2345, 3456)
-	if currentScores[SCORE_SRUN] < 0 && (dice == "1234" || dice == "2345" || dice == "3456") {
+	if currentScores[SCORE_SRUN] < 0 && (strings.Contains(diceDistinct, "1234") || strings.Contains(diceDistinct, "2345") || strings.Contains(diceDistinct, "3456")) {
 		scores[SCORE_SRUN] = 30
 	}
 
@@ -654,7 +688,7 @@ func (state *GameState) getValidScores() ([]int, []string) {
 		scores[SCORE_FUJZEE] = 50
 	}
 
-	return scores, diceSets
+	return scores, diceSets, dice
 }
 
 // Creates a copy of the state and modifies it to be from the
@@ -692,9 +726,9 @@ func (state *GameState) createClientState() *GameState {
 		}
 
 		// If the round is 0, only return the first score (ready or not)
-		if stateCopy.Round == 0 {
-			statePlayers[playerIndex].Scores = statePlayers[playerIndex].Scores[0:1]
-		}
+		//if stateCopy.Round == 0 {
+		//	statePlayers[playerIndex].Scores = statePlayers[playerIndex].Scores[0:1]
+		//}
 
 		// Add this player to the copy of the state going out
 		stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
@@ -703,7 +737,10 @@ func (state *GameState) createClientState() *GameState {
 
 	// Determine valid moves for this player (if their turn)
 	if stateCopy.ActivePlayer == 0 {
-		stateCopy.ValidScores, _ = state.getValidScores()
+		stateCopy.ValidScores, _, _ = state.getValidScores()
+
+		// Personalize prompt
+		stateCopy.Prompt = "Your turn"
 	}
 
 	// Determine the move time left. Reduce the number by the grace period, to allow for plenty of time for a response to be sent back and accepted
