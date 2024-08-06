@@ -39,10 +39,10 @@ Winning hands - tied hands split the pot, remainder is discarded
 const MAX_PLAYERS = 6
 const MOVE_TIME_GRACE_SECONDS = 4
 const BOT_TIME_LIMIT = time.Second * time.Duration(2)
-const PLAYER_TIME_LIMIT = time.Second * time.Duration(30)
+const PLAYER_TIME_LIMIT = time.Second * time.Duration(45) // 45
 const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
-const ENDGAME_TIME_LIMIT = time.Second * time.Duration(12)
-const START_TIME_LIMIT = time.Second * time.Duration(3) // 11
+const ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
+const START_TIME_LIMIT = time.Second * time.Duration(5) // 11
 const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
 
 // Drop players who do not make a move in 5 minutes
@@ -105,6 +105,7 @@ func (state *GameState) newRound() {
 
 	// If brand new round, clear the ready flags (first index of scores) and set all scores to -1 (unset)
 	if state.Round == 0 {
+		state.gameOver = false
 		for i := 0; i < len(state.Players); i++ {
 			state.Players[i].Scores = make([]int, 16)
 			for j := 0; j < 16; j++ {
@@ -210,8 +211,12 @@ func (state *GameState) endGame(abortGame bool) {
 		}
 	}
 
-	if winningPlayer > 0 {
-		state.Prompt = fmt.Sprintf("%s won with score %d", state.Players[winningPlayer].Name, winningScore)
+	if winningPlayer >= 0 {
+		nameIndex := 0
+		if state.Players[winningPlayer].isBot {
+			nameIndex = 1
+		}
+		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
 		state.resetGame()
@@ -303,8 +308,13 @@ func (state *GameState) runGameLogic() {
 
 			// If a small run, attempt to get large run if not yet scored
 			if validScores[SCORE_SRUN] > 0 && validScores[SCORE_LRUN] == 0 {
+
+				// Compact diceparts to just get unique digits - for easy run detection
+				diceParts := strings.Split(sortedDice, "")
+				diceDistinct := strings.Join(slices.Compact(diceParts), "")
+
 				for _, keep := range []string{"1234", "2345", "3456"} {
-					if strings.Contains(sortedDice, keep) {
+					if diceDistinct == keep {
 						state.rollDiceKeeping(keep)
 						return
 					}
@@ -458,7 +468,7 @@ func (state *GameState) toggleReady() {
 func (state *GameState) scoreRoll(index int, internalCall ...bool) bool {
 	validScores, _, _ := state.getValidScores()
 
-	// Check if a valid scire index was chosen
+	// Check if a valid score index was chosen
 	if index < len(validScores) && validScores[index] > -1 {
 
 		player := &state.Players[state.ActivePlayer]
@@ -469,15 +479,19 @@ func (state *GameState) scoreRoll(index int, internalCall ...bool) bool {
 		// Recalculate the upper total + bonus if changed
 		if index < SCORE_UPPER_TOTAL {
 			score := 0
+			filledIn := 0
 			for i := SCORE_ONES; i < SCORE_UPPER_TOTAL; i++ {
 				if player.Scores[i] > -1 {
 					score += player.Scores[i]
+					filledIn++
 				}
 			}
 
 			player.Scores[SCORE_UPPER_TOTAL] = score
 			if score >= 64 {
 				player.Scores[SCORE_UPPER_BONUS] = 35
+			} else if filledIn == 6 {
+				player.Scores[SCORE_UPPER_BONUS] = 0
 			}
 		}
 
@@ -522,7 +536,11 @@ func (state *GameState) nextValidPlayer() {
 	}
 
 	// Reset player timer and reset dice for the start of the player's turn
-	state.Prompt = state.Players[state.ActivePlayer].Name + "'s turn"
+	nameIndex := 0
+	if state.Players[state.ActivePlayer].isBot {
+		nameIndex = 1
+	}
+	state.Prompt = state.Players[state.ActivePlayer].Name[nameIndex:] + "'s turn"
 	state.Dice = ""
 	state.RollsLeft = 3
 	state.rollDice("11111")
@@ -623,6 +641,9 @@ func (state *GameState) getValidScores() ([]int, []string, string) {
 		}
 	}
 
+	// Get sorted list of unique digits - for easy run detection
+	diceDistinct := strings.Join(slices.Compact(diceParts), "")
+
 	// Now find the available dice combination and corresponding score the player may choose from for the current roll
 
 	// Upper - Check numbers 1 to 6
@@ -642,13 +663,13 @@ func (state *GameState) getValidScores() ([]int, []string, string) {
 		}
 	}
 
-	// Full house ( two sets, set of 2 and set of 3)
-	if currentScores[SCORE_FULLHOUSE] < 0 && len(diceSets) == 2 && len(diceSets[0]) >= 2 {
+	// Full house ( two sets, each at least 2 - effecively a set of 2 and set of 3)
+	if currentScores[SCORE_FULLHOUSE] < 0 && len(diceSets) == 2 && len(diceSets[0]) >= 2 && len(diceSets[1]) >= 2 {
 		scores[SCORE_FULLHOUSE] = 25
 	}
 
 	// Small run (1234, 2345, 3456)
-	if currentScores[SCORE_SRUN] < 0 && (dice == "1234" || dice == "2345" || dice == "3456") {
+	if currentScores[SCORE_SRUN] < 0 && (strings.Contains(diceDistinct, "1234") || strings.Contains(diceDistinct, "2345") || strings.Contains(diceDistinct, "3456")) {
 		scores[SCORE_SRUN] = 30
 	}
 

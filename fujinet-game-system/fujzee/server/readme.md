@@ -26,14 +26,15 @@ A game client will perform the following actions:
 #### Join a table
 1. There is no specific call to join a table. Simply retrieving the state for a table will cause the player to join that table.
 2. In a loop (waiting for players to ready up):
-    A. Call `/state?player=X&table=Y` to retrieve the latest state
-    B. Call `/ready?player=X&table=Y` to toggle if that player is ready or not
+    1. Call `/state?player=X&table=Y` to retrieve the latest state
+    2. Call `/ready?player=X&table=Y` to toggle if that player is ready or not
 3. Once all players have readied up, a count down starts and then gameplay begins. Players may unready to abort the countdown.
 
 #### Main gameplay loop
 1. In a loop:
-    A. Call `/state?player=X&table=Y` to retrieve that latest state
-    B. Call `/roll/[KEEP]?player=X&table=Y` to roll dice, keeping the specified index of dice to keep
+    1. Call `/state?player=X&table=Y` to retrieve that latest state
+    2. Call `/roll/[KEEP]?player=X&table=Y` to roll dice, keeping the specified index of dice to keep
+    3. Call `/score/[INDEX]?player=X&table=Y` with an index from validScores to score for that round
 2. If the player wishes to exit the game, the client should call `/leave?player=X&table=Y`
 
 
@@ -82,6 +83,7 @@ You can view the state as-is by calling `/view`.
     * Given roll `11234`, to keep the ones, call `/roll/00111`. 
     * Given roll `11234`, to keep "1234" and only roll the first die, call `/roll/10000`. 
     * Given roll `31363`, to keep the threes and roll the 1 and 6, call `/roll/01010`. 
+* `/score/[index]` - Score the specified index from valid scores array `vs[]` for the current player. The **value** in `vs[]` for that index must be `0` or greater. `-1` indicates an invalid score index (already scored previously), and will not result in a score.
 * `/leave` - Leave the table. Each client should call this when a player exits the game
 * `/view?table=N` - View the current state as-is without advancing, as formatted json. Useful for debugging in a browser alongside the client. **NOTE:** If you call this for an uninitated game, a different randomly initiated game will be returned every time. Only `table` query parameter is required.
 * `/tables` - Returns a list of available REAL tables along with player information. No query parameters are required
