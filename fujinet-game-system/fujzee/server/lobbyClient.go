@@ -21,7 +21,7 @@ const (
 // Appkey/game are hard coded, but the others could be read from a config file
 var DefaultGameServerDetails = GameServer{
 	Appkey:    LOBBY_CLIENT_APP_KEY,
-	Game:      "Fujitzee",
+	Game:      "Fujitzee BETA",
 	Region:    "us",
 	Serverurl: "https://fujitzee.carr-designs.com/",
 	Clients: []GameClient{

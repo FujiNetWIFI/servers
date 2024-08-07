@@ -21,28 +21,30 @@ The logic to support below is not all implemented, and will be done as time allo
 Rules -  Assume Limit betting: Anti 1, Bringin 2,  Low 5, High 10
 Suit Rank (for comparing first to act): S,H,D,C
 
-Winning hands - tied hands split the pot, remainder is discarded
+# Winning hands - tied hands split the pot, remainder is discarded
 
 1. All players anti (e.g.) 1
 2. First round
   - Player with lowest card goes first, with a mandatory bring in of 2. Option to make full bet (5)
-	- Play moves Clockwise
-	- Subsequent player can call 2 (assuming no full bet yet) or full bet 5
-	- Subsequent Raises are inrecements of the highest bet (5 first round, or of the highest bet in later rounds)
-	- Raises capped at 3 (e.g. max 20 = 5 + 3*5 round 1)
+  - Play moves Clockwise
+  - Subsequent player can call 2 (assuming no full bet yet) or full bet 5
+  - Subsequent Raises are inrecements of the highest bet (5 first round, or of the highest bet in later rounds)
+  - Raises capped at 3 (e.g. max 20 = 5 + 3*5 round 1)
+
 3. Remaining rounds
-	- Player with highest ranked visible hand goes first
-	- 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
-	- 4th street+ - 10
+  - Player with highest ranked visible hand goes first
+  - 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
+  - 4th street+ - 10
 */
+const MULTIPLIER = 0
 
 const MAX_PLAYERS = 6
 const MOVE_TIME_GRACE_SECONDS = 4
-const BOT_TIME_LIMIT = time.Second * time.Duration(2)
+const BOT_TIME_LIMIT = time.Second * time.Duration(2) * MULTIPLIER
 const PLAYER_TIME_LIMIT = time.Second * time.Duration(45) // 45
 const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
 const ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
-const START_TIME_LIMIT = time.Second * time.Duration(5) // 11
+const START_TIME_LIMIT = time.Second * time.Duration(5) * MULTIPLIER // 11
 const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
 
 // Drop players who do not make a move in 5 minutes
@@ -383,9 +385,17 @@ func (state *GameState) runGameLogic() {
 func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlayer bool) {
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 	players := []Player{}
+
+	// Track client player name and active player in case leaving shifts them
+
 	currentPlayerName := ""
 	if state.clientPlayer > -1 {
 		currentPlayerName = state.Players[state.clientPlayer].Name
+	}
+
+	activePlayerName := ""
+	if state.ActivePlayer > -1 {
+		activePlayerName = state.Players[state.ActivePlayer].Name
 	}
 
 	for _, player := range state.Players {
@@ -409,6 +419,12 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 	// Update the client player index in case it changed due to players being dropped
 	if len(players) > 0 {
 		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, currentPlayerName) })
+		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, activePlayerName) })
+
+		// Check if the active player is the one who left, in which case, it is the next player's turn
+		if !state.gameOver && state.Round > 0 && state.ActivePlayer < 0 {
+			state.nextValidPlayer()
+		}
 	}
 
 	// If only one player is left, we are waiting for more
@@ -722,6 +738,7 @@ func (state *GameState) createClientState() *GameState {
 		stateCopy.Viewing = 0
 	}
 
+	currentActivePlayer := stateCopy.ActivePlayer
 	// Loop through each players to add relative to calling player
 	for i := start; i < start+len(statePlayers); i++ {
 
@@ -729,7 +746,7 @@ func (state *GameState) createClientState() *GameState {
 		playerIndex := i % len(statePlayers)
 
 		// Update the ActivePlayer to be client relative
-		if playerIndex == stateCopy.ActivePlayer {
+		if playerIndex == currentActivePlayer {
 			stateCopy.ActivePlayer = i - start
 		}
 
@@ -744,7 +761,7 @@ func (state *GameState) createClientState() *GameState {
 	}
 
 	// Determine valid moves for this player (if their turn)
-	if stateCopy.ActivePlayer == 0 {
+	if stateCopy.ActivePlayer == 0 && stateCopy.Viewing == 0 {
 		stateCopy.ValidScores, _, _ = state.getValidScores()
 
 		// Personalize prompt
