@@ -387,6 +387,7 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 	players := []Player{}
 
 	// Track client player name and active player in case leaving shifts them
+	currentActivePlayer := state.ActivePlayer
 
 	currentPlayerName := ""
 	if state.clientPlayer > -1 {
@@ -421,8 +422,11 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, currentPlayerName) })
 		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, activePlayerName) })
 
-		// Check if the active player is the one who left, in which case, it is the next player's turn
+		// Check if the active player is the one who left, in which case, we need to start the turn of the next player in line
 		if !state.gameOver && state.Round > 0 && state.ActivePlayer < 0 {
+			// The player immediately after the leaving player now owns that index, so set activePlayer the the index before them
+			// and call nextValidPlayer() to start their turn
+			state.ActivePlayer = currentActivePlayer - 1
 			state.nextValidPlayer()
 		}
 	}

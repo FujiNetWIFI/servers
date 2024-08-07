@@ -18,7 +18,7 @@ func gc[K comparable](path string, f func(*gin.Context), opt_params ...[]gin.Par
 	return r.(K)
 }
 
-func TestPlayerLeavesMidGame(t *testing.T) {
+func TestPlayerLeavesMidGameNotTheirTurn(t *testing.T) {
 	setTestMode()
 
 	createTable("t1", "t1", 0, false)
@@ -52,7 +52,46 @@ func TestPlayerLeavesMidGame(t *testing.T) {
 	// Player 2's turn.
 	state = gc[*GameState](p2, apiState)
 	if state.ActivePlayer != 0 {
-		t.Fatal("Player 2 expected to be active after P1's LEFT!")
+		t.Fatal("Player 2 expected to be active after P1 LEFT!")
+	}
+
+}
+
+func TestPlayerLeavesOnTheirTun(t *testing.T) {
+	setTestMode()
+	table := "t2"
+	createTable(table, table, 0, false)
+	p1 := "/?player=p1&table=" + table
+	p2 := "/?player=p2&table=" + table
+	p3 := "/?player=p3&table=" + table
+
+	// Join game in order
+	state := gc[*GameState](p1, apiState)
+	state = gc[*GameState](p2, apiState)
+	state = gc[*GameState](p3, apiState)
+
+	// Ready up
+	state = gc[*GameState](p1, apiReady)
+	state = gc[*GameState](p2, apiReady)
+	state = gc[*GameState](p3, apiReady)
+
+	// Player 1's turn - score first value
+	state = gc[*GameState](p1, apiState)
+	state = gc[*GameState](p1, apiScore, []gin.Param{{Key: "index", Value: "1"}})
+
+	// Player 2's turn.
+	state = gc[*GameState](p2, apiState)
+	if state.ActivePlayer != 0 {
+		t.Fatal("Player 2 expected to be active after P1's turn!")
+	}
+
+	// Player 2 leaves the game
+	gc[string](p2, apiLeave)
+
+	// Player 3's turn.
+	state = gc[*GameState](p3, apiState)
+	if state.ActivePlayer != 0 {
+		t.Fatal("Player 3 expected to be active after P2 LEFT!")
 	}
 
 }
