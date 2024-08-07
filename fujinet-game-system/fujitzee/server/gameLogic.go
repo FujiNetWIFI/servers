@@ -13,30 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-/*
-5 Card Stud Rules below to serve as guideline.
-
-The logic to support below is not all implemented, and will be done as time allows.
-
-Rules -  Assume Limit betting: Anti 1, Bringin 2,  Low 5, High 10
-Suit Rank (for comparing first to act): S,H,D,C
-
-# Winning hands - tied hands split the pot, remainder is discarded
-
-1. All players anti (e.g.) 1
-2. First round
-  - Player with lowest card goes first, with a mandatory bring in of 2. Option to make full bet (5)
-  - Play moves Clockwise
-  - Subsequent player can call 2 (assuming no full bet yet) or full bet 5
-  - Subsequent Raises are inrecements of the highest bet (5 first round, or of the highest bet in later rounds)
-  - Raises capped at 3 (e.g. max 20 = 5 + 3*5 round 1)
-
-3. Remaining rounds
-  - Player with highest ranked visible hand goes first
-  - 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
-  - 4th street+ - 10
-*/
-const MULTIPLIER = 0
+const MULTIPLIER = 1 // Set to 0 for tests - need a better solution but this was quick (and dangerous!)
 
 const MAX_PLAYERS = 6
 const MOVE_TIME_GRACE_SECONDS = 4
