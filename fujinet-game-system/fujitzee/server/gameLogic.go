@@ -13,25 +13,31 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const MULTIPLIER = 1 // Set to 0 for tests - need a better solution but this was quick (and dangerous!)
-
-const MAX_PLAYERS = 6
-const MOVE_TIME_GRACE_SECONDS = 4
-const BOT_TIME_LIMIT = time.Second * time.Duration(2) * MULTIPLIER
-const PLAYER_TIME_LIMIT = time.Second * time.Duration(45) // 45
-const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
-const ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
-const START_TIME_LIMIT = time.Second * time.Duration(5) * MULTIPLIER // 11
-const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
-
-// Drop players who do not make a move in 5 minutes
-const PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
-
-const PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
-const PROMPT_WAITING_ON_READY = "Waiting for everyone to ready up."
-const PROMPT_STARTING_IN = "Starting in "
+// These can be set to 0 for testing scenarios, so are outside of const
+var BOT_TIME_LIMIT = time.Second * time.Duration(2)
+var START_TIME_LIMIT = time.Second * time.Duration(5)
 
 const (
+	MAX_PLAYERS                 = 6
+	MOVE_TIME_GRACE_SECONDS     = 4
+	PLAYER_TIME_LIMIT           = time.Second * time.Duration(45)
+	PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
+	ENDGAME_TIME_LIMIT          = time.Second * time.Duration(5)
+
+	// Drop players who do not make a move in 5 minutes
+	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
+
+	PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
+	PROMPT_WAITING_ON_READY         = "Waiting for everyone to ready up."
+	PROMPT_STARTING_IN              = "Starting in "
+	PROMPT_YOUR_TURN                = "Your turn"
+
+	// Special round values
+	ROUND_LOBBY    = 0
+	ROUND_FINAL    = 13
+	ROUND_GAMEOVER = 99
+
+	// Score index for notable score types
 	SCORE_ONES        = 0
 	SCORE_UPPER_TOTAL = 6
 	SCORE_UPPER_BONUS = 7
@@ -47,7 +53,7 @@ const (
 	SCORE_TOTAL = 15
 )
 
-var botNames = []string{"Clyd", "Jim", "Kirk", "Hulk", "Fry", "Meg", "Grif"}
+var botNames = []string{"Clyd", "Meg", "Kirk", "Jim"}
 
 // Used to send a list of available tables
 type GameTable struct {
@@ -58,6 +64,12 @@ type GameTable struct {
 }
 
 func initializeGameServer() {
+
+	// Set certain timeouts to 0 to facilitate running tests
+	if isTestMode {
+		BOT_TIME_LIMIT = 0
+		START_TIME_LIMIT = 0
+	}
 
 	// Append BOT to botNames array
 	for i := 0; i < len(botNames); i++ {
@@ -82,8 +94,8 @@ func createGameState(playerCount int) *GameState {
 
 func (state *GameState) newRound() {
 
-	// If brand new round, clear the ready flags (first index of scores) and set all scores to -1 (unset)
-	if state.Round == 0 {
+	// If brand new game, clear the ready flags (first index of scores) and set all scores to -1 (unset)
+	if state.Round == ROUND_LOBBY {
 		state.gameOver = false
 		for i := 0; i < len(state.Players); i++ {
 			state.Players[i].Scores = make([]int, 16)
@@ -95,7 +107,7 @@ func (state *GameState) newRound() {
 
 	// Check if multiple players are still playing
 	if len(state.Players) < 2 {
-		if state.Round > 0 {
+		if state.Round > ROUND_LOBBY {
 			state.endGame(false)
 		}
 		return
@@ -152,7 +164,7 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 	}
 
 	// Add new player if the game hasn't started yet and spots are available
-	if state.clientPlayer < 0 && state.Round == 0 && len(state.Players) < MAX_PLAYERS {
+	if state.clientPlayer < 0 && state.Round == ROUND_LOBBY && len(state.Players) < MAX_PLAYERS {
 		state.addPlayer(playerName, false)
 		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
 
@@ -168,13 +180,13 @@ func (state *GameState) endGame(abortGame bool) {
 	// The next request for /state will start a new game once the timer has counted down
 
 	// If the game hasn't started, no need to do anything.
-	if state.Round == 0 {
+	if state.Round == ROUND_LOBBY {
 		return
 	}
 
 	state.gameOver = true
 	state.ActivePlayer = -1
-	state.Round = 99
+	state.Round = ROUND_GAMEOVER
 	state.RollsLeft = 0
 
 	winningPlayer := -1
@@ -222,7 +234,7 @@ func (state *GameState) resetGame() {
 		}
 	}
 
-	state.Round = 0
+	state.Round = ROUND_LOBBY
 	state.ActivePlayer = -1
 	state.Prompt = PROMPT_WAITING_FOR_MORE_PLAYERS
 	state.moveExpires = time.Now().Add(0)
@@ -235,10 +247,10 @@ func (state *GameState) runGameLogic() {
 	state.playerPing()
 
 	// If still on round 0 (waiting to start), check if the game can start
-	if state.Round == 0 {
+	if state.Round == ROUND_LOBBY {
 
 		// Check if ready wait time has expired and at least one non bot player exists and all players are ready
-		if slices.ContainsFunc(state.Players, func(p Player) bool { return p.isBot == false }) &&
+		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isBot }) &&
 			!slices.ContainsFunc(state.Players, func(p Player) bool { return p.Scores[0] == 0 }) {
 			waitTime := int(time.Until(state.moveExpires).Seconds())
 			if waitTime < 1 {
@@ -409,7 +421,7 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 	}
 
 	// If only one player is left, we are waiting for more
-	if len(state.Players) < 2 {
+	if len(state.Players) < 2 && state.Round < ROUND_GAMEOVER {
 		state.Prompt = PROMPT_WAITING_FOR_MORE_PLAYERS
 	}
 
@@ -429,15 +441,20 @@ func (state *GameState) clientLeave() {
 	player.isLeaving = true
 
 	// Check if no human players are playing. If so, end the game
+	humanPlayersLeft := 0
 	playersLeft := 0
+
 	for _, player := range state.Players {
-		if !player.isLeaving && !player.isBot {
+		if !player.isLeaving {
 			playersLeft++
+			if !player.isBot {
+				humanPlayersLeft++
+			}
 		}
 	}
 
-	// If the last player dropped, stop the game and update the lobby
-	if playersLeft == 0 {
+	// If there aren't enough players to play, end the game
+	if playersLeft < 2 || humanPlayersLeft == 0 {
 		state.endGame(true)
 	}
 	state.dropInactivePlayers(false, false)
@@ -454,7 +471,7 @@ func (state *GameState) playerPing() {
 // Toggle ready state if waiting to start game
 func (state *GameState) toggleReady() {
 
-	if state.Round == 0 && len(state.Players) > 1 {
+	if state.Round == ROUND_LOBBY && len(state.Players) > 1 {
 		// Toggle ready state for this player
 		state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
 
@@ -530,8 +547,8 @@ func (state *GameState) nextValidPlayer() {
 	if state.ActivePlayer >= len(state.Players) {
 		state.ActivePlayer = 0
 
-		// If we reached the end of round 13, it's the end of the game!
-		if state.Round == 13 {
+		// If we reached the end of the final round, it's the end of the game!
+		if state.Round == ROUND_FINAL {
 			state.endGame(false)
 			return
 		} else {
@@ -731,11 +748,6 @@ func (state *GameState) createClientState() *GameState {
 			stateCopy.ActivePlayer = i - start
 		}
 
-		// If the round is 0, only return the first score (ready or not)
-		//if stateCopy.Round == 0 {
-		//	statePlayers[playerIndex].Scores = statePlayers[playerIndex].Scores[0:1]
-		//}
-
 		// Add this player to the copy of the state going out
 		stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
 
@@ -746,7 +758,7 @@ func (state *GameState) createClientState() *GameState {
 		stateCopy.ValidScores, _, _ = state.getValidScores()
 
 		// Personalize prompt
-		stateCopy.Prompt = "Your turn"
+		stateCopy.Prompt = PROMPT_YOUR_TURN
 	}
 
 	// Determine the move time left. Reduce the number by the grace period, to allow for plenty of time for a response to be sent back and accepted
@@ -794,5 +806,11 @@ func (state *GameState) getHumanPlayerCountInfo() (int, int) {
 			humanPlayerCount++
 		}
 	}
+
+	// If the game has started, there are no more human slots available
+	if state.Round > ROUND_LOBBY && state.Round < ROUND_GAMEOVER {
+		humanAvailSlots = humanPlayerCount
+	}
+
 	return humanAvailSlots, humanPlayerCount
 }
