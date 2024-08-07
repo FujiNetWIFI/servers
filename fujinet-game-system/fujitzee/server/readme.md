@@ -1,4 +1,4 @@
-# Fujzee
+# Fujitzee
 This is a Yahtzee clone server written in GO. 
 
 It currently provides:
@@ -8,7 +8,7 @@ It currently provides:
 
 ## Accessing the Game Server API
 
-1. You may call the public api at https://fujzee.carr-designs.com/
+1. You may call the public api at https://fujitzee.carr-designs.com/
 
 2. Alternatively, clone and run the server locally:
     ```

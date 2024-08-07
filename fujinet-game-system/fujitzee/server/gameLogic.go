@@ -13,36 +13,15 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-/*
-5 Card Stud Rules below to serve as guideline.
-
-The logic to support below is not all implemented, and will be done as time allows.
-
-Rules -  Assume Limit betting: Anti 1, Bringin 2,  Low 5, High 10
-Suit Rank (for comparing first to act): S,H,D,C
-
-Winning hands - tied hands split the pot, remainder is discarded
-
-1. All players anti (e.g.) 1
-2. First round
-  - Player with lowest card goes first, with a mandatory bring in of 2. Option to make full bet (5)
-	- Play moves Clockwise
-	- Subsequent player can call 2 (assuming no full bet yet) or full bet 5
-	- Subsequent Raises are inrecements of the highest bet (5 first round, or of the highest bet in later rounds)
-	- Raises capped at 3 (e.g. max 20 = 5 + 3*5 round 1)
-3. Remaining rounds
-	- Player with highest ranked visible hand goes first
-	- 3rd Street - 5, or if a pair is showing: 10, so max is 5*4 20 or 10*4 40
-	- 4th street+ - 10
-*/
+const MULTIPLIER = 1 // Set to 0 for tests - need a better solution but this was quick (and dangerous!)
 
 const MAX_PLAYERS = 6
 const MOVE_TIME_GRACE_SECONDS = 4
-const BOT_TIME_LIMIT = time.Second * time.Duration(2)
+const BOT_TIME_LIMIT = time.Second * time.Duration(2) * MULTIPLIER
 const PLAYER_TIME_LIMIT = time.Second * time.Duration(45) // 45
 const PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
 const ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
-const START_TIME_LIMIT = time.Second * time.Duration(5) // 11
+const START_TIME_LIMIT = time.Second * time.Duration(5) * MULTIPLIER // 11
 const NEW_ROUND_FIRST_PLAYER_BUFFER = 0
 
 // Drop players who do not make a move in 5 minutes
@@ -188,6 +167,11 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 func (state *GameState) endGame(abortGame bool) {
 	// The next request for /state will start a new game once the timer has counted down
 
+	// If the game hasn't started, no need to do anything.
+	if state.Round == 0 {
+		return
+	}
+
 	state.gameOver = true
 	state.ActivePlayer = -1
 	state.Round = 99
@@ -196,18 +180,20 @@ func (state *GameState) endGame(abortGame bool) {
 	winningPlayer := -1
 	winningScore := 0
 
-	for index, player := range state.Players {
+	if !abortGame {
+		for index, player := range state.Players {
 
-		// Calculate the player's final score
-		score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
-		for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
-			score += player.Scores[i]
-		}
-		player.Scores[SCORE_TOTAL] = score
+			// Calculate the player's final score
+			score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
+			for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
+				score += player.Scores[i]
+			}
+			player.Scores[SCORE_TOTAL] = score
 
-		if !abortGame && !player.isLeaving && score > winningScore {
-			winningPlayer = index
-			winningScore = score
+			if !player.isLeaving && score > winningScore {
+				winningPlayer = index
+				winningScore = score
+			}
 		}
 	}
 
@@ -219,7 +205,9 @@ func (state *GameState) endGame(abortGame bool) {
 		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
-		state.resetGame()
+		state.Prompt = "The game was aborted early"
+		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		//state.resetGame()
 	}
 
 	log.Println(state.Prompt)
@@ -374,9 +362,18 @@ func (state *GameState) runGameLogic() {
 func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlayer bool) {
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 	players := []Player{}
+
+	// Track client player name and active player in case leaving shifts them
+	currentActivePlayer := state.ActivePlayer
+
 	currentPlayerName := ""
 	if state.clientPlayer > -1 {
 		currentPlayerName = state.Players[state.clientPlayer].Name
+	}
+
+	activePlayerName := ""
+	if state.ActivePlayer > -1 {
+		activePlayerName = state.Players[state.ActivePlayer].Name
 	}
 
 	for _, player := range state.Players {
@@ -400,6 +397,15 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 	// Update the client player index in case it changed due to players being dropped
 	if len(players) > 0 {
 		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, currentPlayerName) })
+		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, activePlayerName) })
+
+		// Check if the active player is the one who left, in which case, we need to start the turn of the next player in line
+		if !state.gameOver && state.Round > 0 && state.ActivePlayer < 0 {
+			// The player immediately after the leaving player now owns that index, so set activePlayer the the index before them
+			// and call nextValidPlayer() to start their turn
+			state.ActivePlayer = currentActivePlayer - 1
+			state.nextValidPlayer()
+		}
 	}
 
 	// If only one player is left, we are waiting for more
@@ -425,7 +431,7 @@ func (state *GameState) clientLeave() {
 	// Check if no human players are playing. If so, end the game
 	playersLeft := 0
 	for _, player := range state.Players {
-		if !player.isLeaving {
+		if !player.isLeaving && !player.isBot {
 			playersLeft++
 		}
 	}
@@ -433,9 +439,8 @@ func (state *GameState) clientLeave() {
 	// If the last player dropped, stop the game and update the lobby
 	if playersLeft == 0 {
 		state.endGame(true)
-		state.dropInactivePlayers(false, false)
-		return
 	}
+	state.dropInactivePlayers(false, false)
 }
 
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
@@ -449,7 +454,7 @@ func (state *GameState) playerPing() {
 // Toggle ready state if waiting to start game
 func (state *GameState) toggleReady() {
 
-	if state.Round == 0 {
+	if state.Round == 0 && len(state.Players) > 1 {
 		// Toggle ready state for this player
 		state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
 
@@ -714,6 +719,7 @@ func (state *GameState) createClientState() *GameState {
 		stateCopy.Viewing = 0
 	}
 
+	currentActivePlayer := stateCopy.ActivePlayer
 	// Loop through each players to add relative to calling player
 	for i := start; i < start+len(statePlayers); i++ {
 
@@ -721,7 +727,7 @@ func (state *GameState) createClientState() *GameState {
 		playerIndex := i % len(statePlayers)
 
 		// Update the ActivePlayer to be client relative
-		if playerIndex == stateCopy.ActivePlayer {
+		if playerIndex == currentActivePlayer {
 			stateCopy.ActivePlayer = i - start
 		}
 
@@ -736,7 +742,7 @@ func (state *GameState) createClientState() *GameState {
 	}
 
 	// Determine valid moves for this player (if their turn)
-	if stateCopy.ActivePlayer == 0 {
+	if stateCopy.ActivePlayer == 0 && stateCopy.Viewing == 0 {
 		stateCopy.ValidScores, _, _ = state.getValidScores()
 
 		// Personalize prompt
