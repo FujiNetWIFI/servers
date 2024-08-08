@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 // Go Call (gc) - used to call api* functions directly, specifying the return type
 // Greatly reduces extra code around calling different functions
-func gc[K comparable](path string, f func(*gin.Context), opt_params ...[]gin.Param) K {
+func gc[K any](path string, f func(*gin.Context), opt_params ...[]gin.Param) K {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("GET", path, nil)
 	if len(opt_params) > 0 {
@@ -42,7 +42,7 @@ func gc[K comparable](path string, f func(*gin.Context), opt_params ...[]gin.Par
 func createTestTable(bots int) string {
 	tableIndex++
 	table := fmt.Sprintf("t%d", tableIndex)
-	createTable(table, table, bots, false)
+	createTable(table, table, bots, true)
 	return "&table=" + table
 }
 

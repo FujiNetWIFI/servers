@@ -16,13 +16,13 @@ import (
 // These can be set to 0 for testing scenarios, so are outside of const
 var BOT_TIME_LIMIT = time.Second * time.Duration(2)
 var START_TIME_LIMIT = time.Second * time.Duration(5)
+var ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
 
 const (
 	MAX_PLAYERS                 = 6
 	MOVE_TIME_GRACE_SECONDS     = 4
 	PLAYER_TIME_LIMIT           = time.Second * time.Duration(45)
 	PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
-	ENDGAME_TIME_LIMIT          = time.Second * time.Duration(5)
 
 	// Drop players who do not make a move in 5 minutes
 	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
@@ -31,6 +31,7 @@ const (
 	PROMPT_WAITING_ON_READY         = "Waiting for everyone to ready up."
 	PROMPT_STARTING_IN              = "Starting in "
 	PROMPT_YOUR_TURN                = "Your turn"
+	PROMPT_GAME_ABORTED             = "The game was aborted early"
 
 	// Special round values
 	ROUND_LOBBY    = 0
@@ -69,6 +70,7 @@ func initializeGameServer() {
 	if isTestMode {
 		BOT_TIME_LIMIT = 0
 		START_TIME_LIMIT = 0
+		ENDGAME_TIME_LIMIT = 0
 	}
 
 	// Append BOT to botNames array
@@ -105,10 +107,10 @@ func (state *GameState) newRound() {
 		}
 	}
 
-	// Check if multiple players are still playing
+	// If there aren't enough players to play, abort the game
 	if len(state.Players) < 2 {
 		if state.Round > ROUND_LOBBY {
-			state.endGame(false)
+			state.endGame(true)
 		}
 		return
 	}
@@ -217,9 +219,15 @@ func (state *GameState) endGame(abortGame bool) {
 		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
-		state.Prompt = "The game was aborted early"
-		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
-		//state.resetGame()
+
+		// If there are human players left, show the abort message so the winner can still view their scoreboard
+		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isLeaving && !p.isBot }) {
+			state.Prompt = PROMPT_GAME_ABORTED
+			state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+		} else {
+			// Otherwise, all the human players left, so reset the game right away
+			state.resetGame()
+		}
 	}
 
 	log.Println(state.Prompt)
@@ -453,7 +461,7 @@ func (state *GameState) clientLeave() {
 		}
 	}
 
-	// If there aren't enough players to play, end the game
+	// If there aren't enough players to play, abort the game
 	if playersLeft < 2 || humanPlayersLeft == 0 {
 		state.endGame(true)
 	}
@@ -462,10 +470,14 @@ func (state *GameState) clientLeave() {
 
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
 func (state *GameState) playerPing() {
-	state.Players[state.clientPlayer].lastPing = time.Now()
 
-	// An active player won't be penalized for now
-	state.Players[state.clientPlayer].isPenalized = false
+	// Only set ping if this player has an id
+	if state.clientPlayer >= 0 {
+		state.Players[state.clientPlayer].lastPing = time.Now()
+
+		// An active player won't be penalized for now
+		state.Players[state.clientPlayer].isPenalized = false
+	}
 }
 
 // Toggle ready state if waiting to start game
