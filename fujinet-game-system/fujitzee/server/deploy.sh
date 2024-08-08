@@ -5,4 +5,4 @@
 # After you deploy, it will NOT contact the Lobby until you create an environment variable called GO_PROD=1
 
 gcloud config set project fujitzee
-gcloud run deploy fujitzee --source . --region=us-central1 --min-instances=1 --max-instances=1
+gcloud run deploy fujitzee --source . --region=us-central1 --min-instances=0 --max-instances=1
