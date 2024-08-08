@@ -41,6 +41,7 @@ func main() {
 
 	if UpdateLobby {
 		log.Printf("This instance will update the lobby at " + LOBBY_ENDPOINT_UPSERT)
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// Determine port for HTTP service.
@@ -158,7 +159,11 @@ func apiState(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			if state.clientPlayer >= 0 {
+			// Retrieving state runs the logic for any players in the game
+			// OR in the event the game is over - in case all players in that game left
+			// TODO - determine what happens if both players time out in a game
+			// will a newcomer trigger the game to end?
+			if state.clientPlayer >= 0 || state.Round == 99 {
 				state.runGameLogic()
 				saveState(state)
 			}

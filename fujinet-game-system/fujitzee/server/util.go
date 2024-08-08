@@ -10,17 +10,13 @@ import (
 
 var isTestMode = false
 
-func setTestMode() {
-	isTestMode = true
-}
-
 // Serializes the results, either as json (default), or raw (close to FujiNet json parsing result)
 // raw=1 -  or as key[char 0]value[char 0] pairs
 // - fc=U/L - (may use with raw) force data case all upper or lower
 
 func serializeResults(c *gin.Context, obj any) {
 	if isTestMode {
-		c.Set("result", obj)
+		c.Set("testResult", obj)
 		return
 	}
 	if c.Query("raw") == "1" {
