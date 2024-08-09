@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cardrank/cardrank"
+	"github.com/ericcarrgh/cardrank"
 	"github.com/mitchellh/hashstructure/v2"
 	"golang.org/x/exp/slices"
 )
