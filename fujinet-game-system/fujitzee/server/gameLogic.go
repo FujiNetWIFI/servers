@@ -120,26 +120,43 @@ func (state *GameState) newRound() {
 	state.nextValidPlayer()
 }
 
-func (state *GameState) addPlayer(playerName string, isBot bool) {
+func (state *GameState) addPlayer(playerID string, isBot bool) {
 
 	newPlayer := Player{
-		Name:        playerName,
+		Name:        playerID,
+		id:          playerID,
 		Scores:      make([]int, 1),
 		isBot:       isBot,
 		isLeaving:   false,
 		isPenalized: false,
+		Alias:       0,
 	}
 
-	// Create single digit alias for the player, defaulting to numbers, then letters if all letters in the name are claimed
-	// A bot will always be referred to by a number
-	aliasSourceName := playerName + "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	// Determine unique single character alias for human players, defaulting to the first letter of their name
+	// A bot will always be referred to by the first character (a number)
+	if !isBot {
 
-	for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
-		alias := strings.ToUpper(string(aliasSourceName[i]))
-		if alias != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return p.Alias == alias }) {
-			newPlayer.Alias = alias
-			break
+		playerName := playerID
+
+		// Find an appropriate index
+		aliasSourceName := strings.ToUpper(playerName + "ZYXWUV")
+		for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
+			if string(aliasSourceName[i]) != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return strings.ToUpper(p.Name)[p.Alias] == aliasSourceName[i] }) {
+				newPlayer.Alias = i
+				break
+			}
 		}
+
+		// If one of the appended letters was found, add that to the player's name after a space
+		if newPlayer.Alias >= len(playerName) {
+			if len(playerName) > 6 {
+				playerName = playerName[:6]
+			}
+			playerName += " " + string(aliasSourceName[newPlayer.Alias])
+			newPlayer.Alias = 7
+			newPlayer.Name = playerName
+		}
+
 	}
 
 	// Add to end of human players but before bot players
@@ -151,13 +168,13 @@ func (state *GameState) addPlayer(playerName string, isBot bool) {
 	state.Players = slices.Insert(state.Players, insertIndex, newPlayer)
 }
 
-func (state *GameState) setClientPlayerByName(playerName string) {
+func (state *GameState) setClientPlayerByID(playerID string) {
 	// If no player name was passed, simply return. This is an anonymous viewer.
-	if len(playerName) == 0 {
+	if len(playerID) == 0 {
 		state.clientPlayer = -1
 		return
 	}
-	state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
+	state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.id, playerID) })
 
 	// If a new player is joining, remove any old players that timed out to make space
 	if state.clientPlayer < 0 {
@@ -167,8 +184,8 @@ func (state *GameState) setClientPlayerByName(playerName string) {
 
 	// Add new player if the game hasn't started yet and spots are available
 	if state.clientPlayer < 0 && state.Round == ROUND_LOBBY && len(state.Players) < MAX_PLAYERS {
-		state.addPlayer(playerName, false)
-		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.Name, playerName) })
+		state.addPlayer(playerID, false)
+		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.id, playerID) })
 
 		// Set the ping for this player so they are counted as active when updating the lobby
 		state.playerPing()
@@ -386,14 +403,14 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 	// Track client player name and active player in case leaving shifts them
 	currentActivePlayer := state.ActivePlayer
 
-	currentPlayerName := ""
+	currentPlayerID := ""
 	if state.clientPlayer > -1 {
-		currentPlayerName = state.Players[state.clientPlayer].Name
+		currentPlayerID = state.Players[state.clientPlayer].id
 	}
 
-	activePlayerName := ""
+	activePlayerID := ""
 	if state.ActivePlayer > -1 {
-		activePlayerName = state.Players[state.ActivePlayer].Name
+		activePlayerID = state.Players[state.ActivePlayer].id
 	}
 
 	for _, player := range state.Players {
@@ -416,8 +433,8 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 
 	// Update the client player index in case it changed due to players being dropped
 	if len(players) > 0 {
-		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, currentPlayerName) })
-		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.Name, activePlayerName) })
+		state.clientPlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.id, currentPlayerID) })
+		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.id, activePlayerID) })
 
 		// Check if the active player is the one who left, in which case, we need to start the turn of the next player in line
 		if !state.gameOver && state.Round > 0 && state.ActivePlayer < 0 {

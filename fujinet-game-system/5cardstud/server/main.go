@@ -40,6 +40,7 @@ func main() {
 
 	if UpdateLobby {
 		log.Printf("This instance will update the lobby at " + LOBBY_ENDPOINT_UPSERT)
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// Determine port for HTTP service.

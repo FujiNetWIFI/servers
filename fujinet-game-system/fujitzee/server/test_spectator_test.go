@@ -18,19 +18,19 @@ func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
 
 	// Join game in order
 	for _, player := range players {
-		gc[*GameState](player, apiState)
+		c(player, apiState)
 	}
 
 	// Spec joins
-	gc[*GameState](spec, apiState)
+	c(spec, apiState)
 
 	// All players ready up
 	for _, player := range players {
-		gc[*GameState](player, apiReady)
+		c(player, apiReady)
 	}
 
 	// Get state
-	state := gc[*GameState](spec, apiState)
+	state := c(spec, apiState).(*GameState)
 
 	// Spec's state should show round = 1
 	if state.Round != 1 {
@@ -45,7 +45,7 @@ func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
 	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
 	for i, player := range players {
 
-		state = gc[*GameState](player, apiState)
+		state = c(player, apiState).(*GameState)
 		if state.Prompt != PROMPT_YOUR_TURN {
 			t.Fatal("Player %i expected to see YOUR TURN prompt", i)
 		}
@@ -54,13 +54,13 @@ func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
 			t.Fatal("Player %i expected to see activePlayer 0", i)
 		}
 
-		state = gc[*GameState](spec, apiState)
+		state = c(spec, apiState).(*GameState)
 		if state.Prompt == PROMPT_YOUR_TURN {
 			t.Fatal("Spectator expected to see NOT see YOUR TURN prompt")
 		}
 
 		// Score a move to go to next player
-		gc[*GameState](player, apiScore, []gin.Param{{Key: "index", Value: "0"}})
+		c(player, apiScore, []gin.Param{{Key: "index", Value: "0"}})
 	}
 
 }
