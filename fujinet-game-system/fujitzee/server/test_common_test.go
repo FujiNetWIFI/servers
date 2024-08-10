@@ -25,9 +25,9 @@ func TestMain(m *testing.M) {
 // Test Helper Functions
 //////////////////////////////////////////////////////////////////////////////////////////
 
-// Go Call (gc) - used to call api* functions directly, specifying the return type
+// Call - used to call api* functions directly
 // Greatly reduces extra code around calling different functions
-func gc[K any](path string, f func(*gin.Context), opt_params ...[]gin.Param) K {
+func c(path string, f func(*gin.Context), opt_params ...[]gin.Param) any {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("GET", path, nil)
 	if len(opt_params) > 0 {
@@ -35,7 +35,7 @@ func gc[K any](path string, f func(*gin.Context), opt_params ...[]gin.Param) K {
 	}
 	f(c)
 	r, _ := c.Get("testResult")
-	return r.(K)
+	return r
 }
 
 // Helper function - creates a uniquely named table with the specified number of bots

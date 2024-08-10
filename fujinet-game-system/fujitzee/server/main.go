@@ -268,7 +268,7 @@ func getState(c *gin.Context) (*GameState, func()) {
 	if ok {
 		stateCopy := *value.(*GameState)
 		state = &stateCopy
-		state.setClientPlayerByName(player)
+		state.setClientPlayerByID(player)
 	}
 
 	return state, unlock

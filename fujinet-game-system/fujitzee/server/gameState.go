@@ -1,17 +1,23 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 // For simplicity on the 8bit side (using switch statement), using a single character for each key.
 // DOUBLE CHECK that letter isn't already in use on the object!
 // Double characters are used for the list objects
 
+// The json is then converted to a \0 separated list of key/values when &raw=1 is passed in
+// for further optimization
+
 type Player struct {
 	Name   string `json:"n"`
-	Alias  string `json:"a"`
+	Alias  int    `json:"a"`
 	Scores []int  `json:"s"`
 
 	// Internal
+	id          string
 	isBot       bool
 	lastPing    time.Time
 	isLeaving   bool
