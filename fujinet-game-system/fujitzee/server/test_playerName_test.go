@@ -10,7 +10,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////////////////
 
 func TestAllHumanPlayersSameName(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 	names := [...]string{"aaaaaaaa", "abaaaaaa", "aabaaaaa", "aaabaaaa", "aaaabaaa", "aaaaabaa"}
 	newNames := [...]string{"aaaaaaaa", "abaaaaaa", "aabaaa z", "aaabaa y", "aaaaba x", "aaaaab w"}
 

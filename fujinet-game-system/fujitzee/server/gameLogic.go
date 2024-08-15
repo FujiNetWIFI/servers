@@ -14,15 +14,16 @@ import (
 )
 
 // These can be set to 0 for testing scenarios, so are outside of const
-var BOT_TIME_LIMIT = time.Second * time.Duration(2)
-var START_TIME_LIMIT = time.Second * time.Duration(5)
-var ENDGAME_TIME_LIMIT = time.Second * time.Duration(5)
+var BOT_TIME_LIMIT = time.Second * 2
+var START_WAIT_TIME = time.Second * 5
+var START_WAIT_TIME_EXTRA = time.Second * 10
+var ENDGAME_TIME_LIMIT = time.Second * 5
 
 const (
 	MAX_PLAYERS                 = 6
 	MOVE_TIME_GRACE_SECONDS     = 4
-	PLAYER_TIME_LIMIT           = time.Second * time.Duration(45)
-	PLAYER_PENALIZED_TIME_LIMIT = time.Second * time.Duration(7)
+	PLAYER_TIME_LIMIT           = time.Second * 45
+	PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
 
 	// Drop players who do not make a move in 5 minutes
 	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
@@ -37,6 +38,12 @@ const (
 	ROUND_LOBBY    = 0
 	ROUND_FINAL    = 13
 	ROUND_GAMEOVER = 99
+
+	// Special score values
+	SCORE_VIEWING = -2
+	SCORE_UNSET   = -1
+	SCORE_READY   = 1
+	SCORE_UNREADY = 0
 
 	// Score index for notable score types
 	SCORE_ONES        = 0
@@ -64,14 +71,15 @@ type GameTable struct {
 	MaxPlayers int    `json:"m"`
 }
 
-func initializeGameServer() {
-
+func resetTestMode() {
 	// Set certain timeouts to 0 to facilitate running tests
-	if isTestMode {
-		BOT_TIME_LIMIT = 0
-		START_TIME_LIMIT = 0
-		ENDGAME_TIME_LIMIT = 0
-	}
+	BOT_TIME_LIMIT = 0
+	START_WAIT_TIME = 0
+	START_WAIT_TIME_EXTRA = 0
+	ENDGAME_TIME_LIMIT = 0
+}
+
+func initializeGameServer() {
 
 	// Append BOT to botNames array
 	for i := 0; i < len(botNames); i++ {
@@ -96,17 +104,6 @@ func createGameState(playerCount int) *GameState {
 
 func (state *GameState) newRound() {
 
-	// If brand new game, clear the ready flags (first index of scores) and set all scores to -1 (unset)
-	if state.Round == ROUND_LOBBY {
-		state.gameOver = false
-		for i := 0; i < len(state.Players); i++ {
-			state.Players[i].Scores = make([]int, 16)
-			for j := 0; j < 16; j++ {
-				state.Players[i].Scores[j] = -1
-			}
-		}
-	}
-
 	// If there aren't enough players to play, abort the game
 	if len(state.Players) < 2 {
 		if state.Round > ROUND_LOBBY {
@@ -115,13 +112,50 @@ func (state *GameState) newRound() {
 		return
 	}
 
+	// If brand new game, clear the ready flags (first index of scores) and set all scores to -1 (unset)
+	// Also set any players that are not ready to spectators/viewing
+	if state.Round == ROUND_LOBBY {
+		state.gameOver = false
+
+		players := []Player{}
+
+		// Initialize players, adding the playing players to the front of the list
+		for i := 0; i < len(state.Players); i++ {
+			player := &state.Players[i]
+
+			// This player is playing - initialize their scores
+			if player.Scores[0] == SCORE_READY {
+				player.Scores = make([]int, 16)
+				for j := 0; j < 16; j++ {
+					player.Scores[j] = SCORE_UNSET
+				}
+				// Append player
+				players = append(players, *player)
+			} else {
+				// Set player to viewing
+				player.isViewing = true
+				player.Scores[0] = SCORE_VIEWING
+			}
+		}
+
+		// Now loop through and add the spectating players at the end of the list
+		for _, player := range state.Players {
+			if player.isViewing {
+				players = append(players, player)
+			}
+		}
+
+		// Update the players array in the state with the newly sorted list
+		state.Players = players
+	}
+
 	state.Round++
 	state.ActivePlayer = -1
 	state.nextValidPlayer()
 }
 
 func (state *GameState) addPlayer(playerID string, isBot bool) {
-
+	isViewing := false
 	newPlayer := Player{
 		Name:        playerID,
 		id:          playerID,
@@ -129,43 +163,74 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 		isBot:       isBot,
 		isLeaving:   false,
 		isPenalized: false,
+		isViewing:   false,
 		Alias:       0,
 	}
 
-	// Determine unique single character alias for human players, defaulting to the first letter of their name
-	// A bot will always be referred to by the first character (a number)
 	if !isBot {
 
-		playerName := playerID
+		// Determine if the player is viewing, or if a bot should drop when they join
+		if state.Round != ROUND_LOBBY {
+			// Game started - player is viewing
+			newPlayer.Scores[0] = SCORE_VIEWING
+			newPlayer.isViewing = true
+			isViewing = true
+		} else {
+			if len(state.Players) > 5 {
+				// If the table is full, drop a bot when this player joins
+				_, _, _, botCount := state.getPlayerCounts()
 
-		// Find an appropriate index
-		aliasSourceName := strings.ToUpper(playerName + "ZYXWUV")
-		for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
-			if string(aliasSourceName[i]) != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return strings.ToUpper(p.Name)[p.Alias] == aliasSourceName[i] }) {
-				newPlayer.Alias = i
-				break
+				if botCount > 0 {
+					for i := len(state.Players) - 1; i >= 0; i-- {
+						if state.Players[i].isBot {
+							state.botBox = slices.Insert(state.botBox, len(state.botBox), state.Players[i])
+							state.Players = append(state.Players[:i], state.Players[i+1:]...)
+							break
+						}
+					}
+				}
+			}
+
+			// Determine unique single character alias for human players, defaulting to the first letter of their name
+			// A bot will always be referred to by the first character (a number)
+			playerName := playerID
+
+			// Find an appropriate index
+			aliasSourceName := strings.ToUpper(playerName + "ZYXWUV")
+			for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
+				if string(aliasSourceName[i]) != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return strings.ToUpper(p.Name)[p.Alias] == aliasSourceName[i] }) {
+					newPlayer.Alias = i
+					break
+				}
+			}
+
+			// If one of the appended letters was found, add that to the player's name after a space
+			if newPlayer.Alias >= len(playerName) {
+				if len(playerName) > 6 {
+					playerName = playerName[:6]
+				}
+				playerName += " " + string(aliasSourceName[newPlayer.Alias])
+				newPlayer.Alias = len(playerName) - 1
+				newPlayer.Name = playerName
 			}
 		}
-
-		// If one of the appended letters was found, add that to the player's name after a space
-		if newPlayer.Alias >= len(playerName) {
-			if len(playerName) > 6 {
-				playerName = playerName[:6]
-			}
-			playerName += " " + string(aliasSourceName[newPlayer.Alias])
-			newPlayer.Alias = 7
-			newPlayer.Name = playerName
-		}
-
 	}
 
 	// Add to end of human players but before bot players
 	insertIndex := slices.IndexFunc(state.Players, func(p Player) bool { return p.isBot })
-	if isBot || insertIndex < 0 {
+
+	// If a bot or viewer, add to end
+	if isBot || isViewing || insertIndex < 0 {
 		insertIndex = len(state.Players)
 	}
 
+	// If a bot, set to ready
+	if isBot {
+		newPlayer.Scores[0] = SCORE_READY
+	}
+
 	state.Players = slices.Insert(state.Players, insertIndex, newPlayer)
+
 }
 
 func (state *GameState) setClientPlayerByID(playerID string) {
@@ -182,8 +247,8 @@ func (state *GameState) setClientPlayerByID(playerID string) {
 		state.dropInactivePlayers(false, true)
 	}
 
-	// Add new player if the game hasn't started yet and spots are available
-	if state.clientPlayer < 0 && state.Round == ROUND_LOBBY && len(state.Players) < MAX_PLAYERS {
+	// Add player to game
+	if state.clientPlayer < 0 {
 		state.addPlayer(playerID, false)
 		state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.id, playerID) })
 
@@ -192,6 +257,11 @@ func (state *GameState) setClientPlayerByID(playerID string) {
 
 		// Update the lobby with the new state (new player joined)
 		state.updateLobby()
+	} else {
+		// If a new game and spots available, set this player as no longer viewing
+		if state.Round == ROUND_LOBBY && state.Players[state.clientPlayer].isViewing && len(state.Players) < MAX_PLAYERS {
+			state.Players[state.clientPlayer].isViewing = false
+		}
 	}
 }
 
@@ -238,7 +308,7 @@ func (state *GameState) endGame(abortGame bool) {
 	} else {
 
 		// If there are human players left, show the abort message so the winner can still view their scoreboard
-		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isLeaving && !p.isBot }) {
+		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isLeaving && !p.isViewing && !p.isBot }) {
 			state.Prompt = PROMPT_GAME_ABORTED
 			state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 		} else {
@@ -250,19 +320,46 @@ func (state *GameState) endGame(abortGame bool) {
 	log.Println(state.Prompt)
 }
 
-func (state *GameState) resetGame() {
-
-	for i := 0; i < len(state.Players); i++ {
-		state.Players[i].Scores = make([]int, 1)
-		if state.Players[i].isBot {
-			state.Players[i].Scores[0] = 1 // Ready
-		}
+// As players leave (in the lobby), add back bots to fill their spot, up to the number of bots
+// the server started with
+func (state *GameState) addBotsBackIn() {
+	if state.Round != ROUND_LOBBY {
+		return
 	}
 
+	for len(state.Players) < 6 && len(state.botBox) > 0 {
+		state.Players = slices.Insert(state.Players, len(state.Players), state.botBox[len(state.botBox)-1])
+		state.botBox = state.botBox[:len(state.botBox)-1]
+	}
+}
+
+func (state *GameState) resetGame() {
 	state.Round = ROUND_LOBBY
 	state.ActivePlayer = -1
-	state.Prompt = PROMPT_WAITING_FOR_MORE_PLAYERS
-	state.moveExpires = time.Now().Add(0)
+	state.moveExpires = time.Now()
+	state.startedStartCountdown = false
+
+	state.addBotsBackIn()
+
+	for i := 0; i < len(state.Players); i++ {
+		// Default to single score holding ready or not (defaulting to 0 - unready)
+		state.Players[i].Scores = make([]int, 1)
+
+		// Bots are always ready to play!
+		if state.Players[i].isBot {
+			state.Players[i].Scores[0] = SCORE_READY
+		}
+
+		// Clear if player was viewing or not, since we are at lobby
+		state.Players[i].isViewing = false
+	}
+
+	if len(state.Players) < 2 {
+		state.Prompt = PROMPT_WAITING_FOR_MORE_PLAYERS
+	} else {
+		state.Prompt = PROMPT_WAITING_ON_READY
+	}
+
 }
 
 // The heart of teh game. Runs a single cycle of game logic
@@ -275,8 +372,21 @@ func (state *GameState) runGameLogic() {
 	if state.Round == ROUND_LOBBY {
 
 		// Check if ready wait time has expired and at least one non bot player exists and all players are ready
-		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isBot }) &&
-			!slices.ContainsFunc(state.Players, func(p Player) bool { return p.Scores[0] == 0 }) {
+		canStartNow, totalHumansReady, totalHumansNotReady, _ := state.getPlayerCounts()
+
+		if canStartNow {
+
+			if !state.startedStartCountdown {
+				// Give a little extra start time if not everyone has readied up
+				if totalHumansReady < 6 && totalHumansNotReady > 0 {
+					state.moveExpires = time.Now().Add(START_WAIT_TIME_EXTRA)
+				} else {
+					// Everyone has readied up, so start sooner
+					state.moveExpires = time.Now().Add(START_WAIT_TIME)
+				}
+				state.startedStartCountdown = true
+			}
+
 			waitTime := int(time.Until(state.moveExpires).Seconds())
 			if waitTime < 1 {
 				state.newRound()
@@ -284,6 +394,8 @@ func (state *GameState) runGameLogic() {
 				state.Prompt = PROMPT_STARTING_IN + strconv.Itoa(waitTime)
 			}
 		} else {
+
+			state.startedStartCountdown = false
 			if len(state.Players) > 1 {
 				state.Prompt = PROMPT_WAITING_ON_READY
 			} else {
@@ -323,7 +435,7 @@ func (state *GameState) runGameLogic() {
 		}
 
 		// If human, score the next available score location, even if it scores zero.
-		nextValidIndex := slices.IndexFunc(validScores, func(score int) bool { return score > -1 })
+		nextValidIndex := slices.IndexFunc(validScores, func(score int) bool { return score > SCORE_UNSET })
 		state.scoreRoll(nextValidIndex)
 
 	} else {
@@ -424,6 +536,7 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 
 	if playersWereDropped {
 		state.Players = players
+		state.addBotsBackIn()
 	}
 
 	// If a new player is joining, don't bother updating anything else
@@ -470,7 +583,7 @@ func (state *GameState) clientLeave() {
 	playersLeft := 0
 
 	for _, player := range state.Players {
-		if !player.isLeaving {
+		if !player.isLeaving && !player.isViewing {
 			playersLeft++
 			if !player.isBot {
 				humanPlayersLeft++
@@ -497,21 +610,44 @@ func (state *GameState) playerPing() {
 	}
 }
 
+// Returns true if enough players (including bots) readied to start, followed by # of players ready, not ready
+func (state *GameState) getPlayerCounts() (bool, int, int, int) {
+	canStart := false
+	totalHumansReady := 0
+	totalHumansNotReady := 0
+	totalBots := 0
+
+	for _, player := range state.Players {
+		if !player.isBot && !player.isLeaving {
+			if player.Scores[0] == SCORE_READY {
+				totalHumansReady++
+			} else {
+				totalHumansNotReady++
+			}
+		} else if player.isBot {
+			totalBots++
+		}
+	}
+
+	if totalHumansReady > 1 || (totalHumansReady > 0 && totalBots > 0) {
+		canStart = true
+	}
+
+	return canStart, totalHumansReady, totalHumansNotReady, totalBots
+
+}
+
 // Toggle ready state if waiting to start game
 func (state *GameState) toggleReady() {
 
 	if state.Round == ROUND_LOBBY && len(state.Players) > 1 {
-		// Toggle ready state for this player
-		state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
 
-		// If all players have readied, start the countdown timer
-		if slices.ContainsFunc(state.Players, func(p Player) bool { return !p.isBot }) &&
-			!slices.ContainsFunc(state.Players, func(p Player) bool { return p.Scores[0] == 0 }) {
-			state.moveExpires = time.Now().Add(START_TIME_LIMIT)
+		_, totalHumansReady, _, _ := state.getPlayerCounts()
+
+		// Toggle ready state for this player if there is space
+		if state.Players[state.clientPlayer].Scores[0] != SCORE_READY && totalHumansReady < 6 {
+			state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
 		}
-
-		// Update prompt
-		state.runGameLogic()
 	}
 }
 
@@ -532,14 +668,14 @@ func (state *GameState) scoreRoll(index int, internalCall ...bool) bool {
 			score := 0
 			filledIn := 0
 			for i := SCORE_ONES; i < SCORE_UPPER_TOTAL; i++ {
-				if player.Scores[i] > -1 {
+				if player.Scores[i] > SCORE_UNSET {
 					score += player.Scores[i]
 					filledIn++
 				}
 			}
 
 			player.Scores[SCORE_UPPER_TOTAL] = score
-			if score >= 64 {
+			if score >= 63 {
 				player.Scores[SCORE_UPPER_BONUS] = 35
 			} else if filledIn == 6 {
 				player.Scores[SCORE_UPPER_BONUS] = 0
@@ -571,6 +707,11 @@ func (state *GameState) resetPlayerTimer() {
 func (state *GameState) nextValidPlayer() {
 	// Move to next player
 	state.ActivePlayer++
+
+	// Skip over any viewers (spectators)
+	for state.ActivePlayer < len(state.Players) && state.Players[state.ActivePlayer].isViewing {
+		state.ActivePlayer++
+	}
 
 	// Check if we should start the next round.
 	if state.ActivePlayer >= len(state.Players) {
@@ -666,7 +807,7 @@ func (state *GameState) getValidScores() ([]int, []string, string) {
 	// Block out any rows that can't be scored a zero
 	for i := 0; i < 15; i++ {
 		if currentScores[i] >= 0 || i == SCORE_UPPER_TOTAL || i == SCORE_UPPER_BONUS {
-			scores[i] = -1
+			scores[i] = SCORE_UNSET
 		}
 	}
 
@@ -758,7 +899,7 @@ func (state *GameState) createClientState() *GameState {
 	// When on observer is viewing the game, the clientPlayer will be -1, so just start at 0
 	// Also, set Viewing flag to let client know they are not actively part of the game
 	start := state.clientPlayer
-	if start < 0 {
+	if state.Players[state.clientPlayer].isViewing {
 		start = 0
 		stateCopy.Viewing = 1
 	} else {
@@ -798,7 +939,7 @@ func (state *GameState) createClientState() *GameState {
 	}
 
 	// No need to send move time if the calling player isn't the active player
-	if stateCopy.MoveTime < 0 || stateCopy.ActivePlayer != 0 {
+	if stateCopy.ActivePlayer != 0 || stateCopy.Viewing == 1 || stateCopy.MoveTime < 0 {
 		stateCopy.MoveTime = 0
 	}
 

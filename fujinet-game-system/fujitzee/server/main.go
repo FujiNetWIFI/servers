@@ -163,7 +163,7 @@ func apiState(c *gin.Context) {
 			// OR in the event the game is over - in case all players in that game left
 			// TODO - determine what happens if both players time out in a game
 			// will a newcomer trigger the game to end?
-			if state.clientPlayer >= 0 || state.Round == 99 {
+			if state.Round == ROUND_LOBBY || state.Round == ROUND_GAMEOVER || !state.Players[state.clientPlayer].isViewing {
 				state.runGameLogic()
 				saveState(state)
 			}

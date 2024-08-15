@@ -11,7 +11,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////////////////
 
 func TestPlayerLeavesMidGameNotTheirTurn(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -49,7 +49,7 @@ func TestPlayerLeavesMidGameNotTheirTurn(t *testing.T) {
 }
 
 func TestMiddlePlayerLeavesOnTheirTun(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -87,7 +87,7 @@ func TestMiddlePlayerLeavesOnTheirTun(t *testing.T) {
 }
 
 func TestLastPlayerLeavesOnTheirTun(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -129,7 +129,7 @@ func TestLastPlayerLeavesOnTheirTun(t *testing.T) {
 }
 
 func TestMiddlePlayerLeavesOnTheirTurn(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -167,7 +167,7 @@ func TestMiddlePlayerLeavesOnTheirTurn(t *testing.T) {
 }
 
 func Test2PlayerGame2ndPlayerLeavesOnTheirTurn(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -204,7 +204,7 @@ func Test2PlayerGame2ndPlayerLeavesOnTheirTurn(t *testing.T) {
 }
 
 func Test2PlayerGame1stPlayerLeavesOnTheirTurn(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -237,7 +237,7 @@ func Test2PlayerGame1stPlayerLeavesOnTheirTurn(t *testing.T) {
 }
 
 func Test1PlayerAbortsGameSecondRejoins(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -261,8 +261,8 @@ func Test1PlayerAbortsGameSecondRejoins(t *testing.T) {
 	// Player 1 leaves
 	c(p1, apiLeave)
 
-	// Player 2 sees abort message
-	state := c(p1, apiState).(*GameState)
+	// Player 2 gets state
+	state := c(p2, apiState).(*GameState)
 
 	// Check tables
 	tables := c(p1, apiTables).([]GameTable)
@@ -292,7 +292,7 @@ func Test1PlayerAbortsGameSecondRejoins(t *testing.T) {
 }
 
 func Test2PlayersLeave1JoinsBack(t *testing.T) {
-	table := createTestTable(0)
+	table, _ := createTestTable(0, 0)
 
 	p1 := "/?player=p1" + table
 	p2 := "/?player=p2" + table
@@ -339,9 +339,9 @@ func Test2PlayersLeave1JoinsBack(t *testing.T) {
 }
 
 func TestBotGamePlayerLeavesThenJoins(t *testing.T) {
-	table := createTestTable(4)
+	_, players := createTestTable(4, 1)
 
-	p1 := "/?player=p1" + table
+	p1 := players[0]
 
 	// Join game
 	c(p1, apiState)
