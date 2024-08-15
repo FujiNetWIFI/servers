@@ -22,6 +22,7 @@ type Player struct {
 	lastPing    time.Time
 	isLeaving   bool
 	isPenalized bool
+	isViewing   bool
 }
 
 type GameState struct {
@@ -38,9 +39,11 @@ type GameState struct {
 	Players      []Player `json:"pl"`
 
 	// Internal
-	gameOver     bool
-	clientPlayer int
-	moveExpires  time.Time
+	gameOver              bool
+	startedStartCountdown bool
+	clientPlayer          int
+	moveExpires           time.Time
+	botBox                []Player // if players join to replace the bots, bots go here until a player leaves
 
 	// Meta/Lobby related
 	table         string
