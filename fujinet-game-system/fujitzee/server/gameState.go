@@ -27,6 +27,7 @@ type Player struct {
 
 type GameState struct {
 	// External (JSON)
+	Name         string   `json:"n"` // Name of server - sent on first connect
 	Prompt       string   `json:"p"`
 	Round        int      `json:"r"`
 	RollsLeft    int      `json:"l"`

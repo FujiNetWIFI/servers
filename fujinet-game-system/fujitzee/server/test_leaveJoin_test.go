@@ -1,7 +1,9 @@
 package main
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -372,4 +374,32 @@ func TestBotGamePlayerLeavesThenJoins(t *testing.T) {
 		t.Fatal("Player 1 expects to be in game waitiny lobby after leaving bot match")
 	}
 
+}
+
+func TestBotGamePlayerReadyToggle(t *testing.T) {
+	_, players := createTestTable(4, 1)
+
+	// Set wait time longer than 0 so ready lasts multiple requests
+	START_WAIT_TIME = time.Second * 10
+
+	p1 := players[0]
+
+	// Join game
+	c(p1, apiState)
+
+	// Ready up
+	c(p1, apiReady)
+
+	state := c(p1, apiState).(*GameState)
+	if !strings.HasPrefix(state.Prompt, PROMPT_STARTING_IN) {
+		t.Fatal("Expected starting countdown after player 1 readies")
+	}
+
+	// Toggle Ready up
+	c(p1, apiReady)
+
+	state = c(p1, apiState).(*GameState)
+	if state.Prompt != PROMPT_WAITING_ON_READY {
+		t.Fatal("Expected waiting prompt as player un-redied")
+	}
 }

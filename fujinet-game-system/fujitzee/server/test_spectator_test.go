@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -222,4 +223,202 @@ func TestBotsLeavingForPlayersWithSpec(t *testing.T) {
 		}
 	}
 
+}
+
+func TestPlayersSeeSpecJoinMidGame(t *testing.T) {
+	table, players := createTestTable(3, 3)
+
+	spec := "/?player=spec" + table
+
+	// players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Get state
+	state := c(players[0], apiState).(*GameState)
+	if state.Round != 1 {
+		t.Fatal("Expected round to be 1 after all players ready up")
+	}
+
+	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
+	for i, player := range players {
+
+		state = c(player, apiState).(*GameState)
+		if state.Prompt != PROMPT_YOUR_TURN {
+			t.Fatal("Player %i expected to see YOUR TURN prompt", i)
+		}
+
+		if state.ActivePlayer != 0 {
+			t.Fatal("Player %i expected to see activePlayer 0", i)
+		}
+
+		// Score a move to go to next player
+		c(player, apiScore, []gin.Param{{Key: "index", Value: "0"}})
+	}
+
+	// Spec joins
+	c(spec, apiState)
+
+	// Get player 1 state
+	state = c(players[0], apiState).(*GameState)
+
+	// Spec's state should show round = 1
+	if state.Players[len(state.Players)-1].Scores[0] != SCORE_VIEWING {
+		t.Fatal("Expect last player to be the spectactor")
+	}
+
+}
+
+func TestSpecWatchesEntireGame(t *testing.T) {
+	table, players := createTestTable(0, 3)
+
+	spec := "/?player=spec" + table
+
+	// Spec joins
+	c(spec, apiState)
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Get state
+	state := c(spec, apiState).(*GameState)
+
+	// Spec's state should show round = 1
+	if state.Round != 1 {
+		t.Fatal("Expect round to be 1 after all ready")
+	}
+
+	// Spec should be the last player as viewing
+	player := state.Players[len(state.Players)-1]
+	if player.Name != "spec" || !player.isViewing || player.Scores[0] != SCORE_VIEWING {
+		t.Fatal("Expect SPEC player to be the last player, set to viewing, and score[0]=score_viewing")
+	}
+
+	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
+	for round := 1; round <= 13; round++ {
+		for _, player := range players {
+
+			state = c(player, apiState).(*GameState)
+
+			if state.Round != round {
+				t.Fatal("Expected to be in round", round, "instead of", state.Round)
+			}
+
+			// Score the first value>0 for this player, or 0 as a fallback
+			scoreIndex := -1
+			for i := 0; i < len(state.ValidScores); i++ {
+				if state.ValidScores[i] >= 0 {
+					scoreIndex = i
+				}
+				if state.ValidScores[i] > 0 {
+					break
+				}
+
+			}
+			c(player, apiScore, []gin.Param{{Key: "index", Value: strconv.Itoa(scoreIndex)}})
+		}
+	}
+}
+
+func TestEntireGameOnePlayerLeavesMidway(t *testing.T) {
+	_, players := createTestTable(0, 3)
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
+	for round := 1; round <= 13; round++ {
+		// Player leaves at start of round 6
+		if round == 6 {
+			c(players[0], apiLeave)
+			players = players[1:]
+		}
+		for _, player := range players {
+
+			state := c(player, apiState).(*GameState)
+
+			if state.Round != round {
+				t.Fatal("Expected to be in round", round, "instead of", state.Round)
+			}
+
+			// Score the first value>0 for this player, or 0 as a fallback
+			scoreIndex := -1
+			for i := 0; i < len(state.ValidScores); i++ {
+				if state.ValidScores[i] >= 0 {
+					scoreIndex = i
+				}
+				if state.ValidScores[i] > 0 {
+					break
+				}
+
+			}
+			c(player, apiScore, []gin.Param{{Key: "index", Value: strconv.Itoa(scoreIndex)}})
+		}
+	}
+}
+
+func TestEntireGameOnePlayerLeavesComesBack(t *testing.T) {
+	_, players := createTestTable(0, 3)
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
+	for round := 1; round <= 13; round++ {
+		// Player leaves at start of round 6. When they come back it will be as a spec, so their score call will be ignored
+		if round == 6 {
+			c(players[0], apiLeave)
+		}
+		for _, player := range players {
+
+			state := c(player, apiState).(*GameState)
+
+			if state.Round != round {
+				t.Fatal("Expected to be in round", round, "instead of", state.Round)
+			}
+
+			// Score the first value>0 for this player, or 0 as a fallback
+
+			if state.Viewing == 0 {
+				scoreIndex := -1
+				for i := 0; i < len(state.ValidScores); i++ {
+					if state.ValidScores[i] >= 0 {
+						scoreIndex = i
+					}
+					if state.ValidScores[i] > 0 {
+						break
+					}
+
+				}
+				c(player, apiScore, []gin.Param{{Key: "index", Value: strconv.Itoa(scoreIndex)}})
+			}
+		}
+	}
 }
