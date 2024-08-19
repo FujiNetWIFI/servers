@@ -190,29 +190,29 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 					}
 				}
 			}
+		}
 
-			// Determine unique single character alias for human players, defaulting to the first letter of their name
-			// A bot will always be referred to by the first character (a number)
-			playerName := playerID
+		// Determine unique single character alias for human players, defaulting to the first letter of their name
+		// A bot will always be referred to by the first character (a number)
+		playerName := playerID
 
-			// Find an appropriate index
-			aliasSourceName := strings.ToUpper(playerName + "ZYXWUV")
-			for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
-				if string(aliasSourceName[i]) != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return strings.ToUpper(p.Name)[p.Alias] == aliasSourceName[i] }) {
-					newPlayer.Alias = i
-					break
-				}
+		// Find an appropriate index
+		aliasSourceName := strings.ToUpper(playerName + "ZYXWUV")
+		for i := 0; i < len(aliasSourceName); i++ { //run a loop and iterate through each character
+			if string(aliasSourceName[i]) != " " && !slices.ContainsFunc(state.Players, func(p Player) bool { return strings.ToUpper(p.Name)[p.Alias] == aliasSourceName[i] }) {
+				newPlayer.Alias = i
+				break
 			}
+		}
 
-			// If one of the appended letters was found, add that to the player's name after a space
-			if newPlayer.Alias >= len(playerName) {
-				if len(playerName) > 6 {
-					playerName = playerName[:6]
-				}
-				playerName += " " + string(aliasSourceName[newPlayer.Alias])
-				newPlayer.Alias = len(playerName) - 1
-				newPlayer.Name = playerName
+		// If one of the appended letters was found, add that to the player's name after a space
+		if newPlayer.Alias >= len(playerName) {
+			if len(playerName) > 6 {
+				playerName = playerName[:6]
 			}
+			playerName += " " + string(aliasSourceName[newPlayer.Alias])
+			newPlayer.Alias = len(playerName) - 1
+			newPlayer.Name = playerName
 		}
 	}
 
@@ -233,11 +233,11 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 
 }
 
-func (state *GameState) setClientPlayerByID(playerID string) {
+func (state *GameState) setClientPlayerByID(playerID string) bool {
 	// If no player name was passed, simply return. This is an anonymous viewer.
 	if len(playerID) == 0 {
 		state.clientPlayer = -1
-		return
+		return false
 	}
 	state.clientPlayer = slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.id, playerID) })
 
@@ -257,12 +257,18 @@ func (state *GameState) setClientPlayerByID(playerID string) {
 
 		// Update the lobby with the new state (new player joined)
 		state.updateLobby()
+
+		// If spectator, save state now since it won't be saved later for perf reasons
+		if state.Players[state.clientPlayer].isViewing {
+			return true
+		}
 	} else {
 		// If a new game and spots available, set this player as no longer viewing
 		if state.Round == ROUND_LOBBY && state.Players[state.clientPlayer].isViewing && len(state.Players) < MAX_PLAYERS {
 			state.Players[state.clientPlayer].isViewing = false
 		}
 	}
+	return false
 }
 
 func (state *GameState) endGame(abortGame bool) {
@@ -283,17 +289,19 @@ func (state *GameState) endGame(abortGame bool) {
 
 	if !abortGame {
 		for index, player := range state.Players {
+			if !player.isViewing && len(player.Scores) > SCORE_TOTAL {
 
-			// Calculate the player's final score
-			score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
-			for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
-				score += player.Scores[i]
-			}
-			player.Scores[SCORE_TOTAL] = score
+				// Calculate the player's final score
+				score := player.Scores[SCORE_UPPER_TOTAL] + player.Scores[SCORE_UPPER_BONUS]
+				for i := SCORE_SET3; i < SCORE_TOTAL; i++ {
+					score += player.Scores[i]
+				}
+				player.Scores[SCORE_TOTAL] = score
 
-			if !player.isLeaving && score > winningScore {
-				winningPlayer = index
-				winningScore = score
+				if !player.isLeaving && score > winningScore {
+					winningPlayer = index
+					winningScore = score
+				}
 			}
 		}
 	}
@@ -420,7 +428,7 @@ func (state *GameState) runGameLogic() {
 		return
 	}
 
-	// Force an action for this player or BOT if they are in the game and have not folded
+	// Force an action for the active player or BOT if their time is up
 	player := &state.Players[state.ActivePlayer]
 
 	validScores, diceSets, sortedDice := state.getValidScores()
@@ -645,8 +653,10 @@ func (state *GameState) toggleReady() {
 		_, totalHumansReady, _, _ := state.getPlayerCounts()
 
 		// Toggle ready state for this player if there is space
-		if state.Players[state.clientPlayer].Scores[0] != SCORE_READY && totalHumansReady < 6 {
-			state.Players[state.clientPlayer].Scores[0] = (state.Players[state.clientPlayer].Scores[0] + 1) % 2
+		if state.Players[state.clientPlayer].Scores[0] == SCORE_READY {
+			state.Players[state.clientPlayer].Scores[0] = SCORE_UNREADY
+		} else if totalHumansReady < 6 {
+			state.Players[state.clientPlayer].Scores[0] = SCORE_READY
 		}
 	}
 }
@@ -889,6 +899,9 @@ func (state *GameState) createClientState() *GameState {
 
 	stateCopy := *state
 
+	// Set the server name - in the future this will not always be set based on state hash
+	stateCopy.Name = state.serverName
+
 	// Now, store a copy of state players, then loop
 	// through and add to the state copy, starting
 	// with this player first
@@ -907,20 +920,30 @@ func (state *GameState) createClientState() *GameState {
 	}
 
 	currentActivePlayer := stateCopy.ActivePlayer
-	// Loop through each players to add relative to calling player
-	for i := start; i < start+len(statePlayers); i++ {
 
-		// Wrap around to beginning of playar array when needed
-		playerIndex := i % len(statePlayers)
+	// Loop twice, first to add players, second to add viewers at the end
+	for isViewing := 0; isViewing < 2; isViewing++ {
+		// Loop through each players to add relative to calling player
+		for i := start; i < start+len(statePlayers); i++ {
 
-		// Update the ActivePlayer to be client relative
-		if playerIndex == currentActivePlayer {
-			stateCopy.ActivePlayer = i - start
+			// Wrap around to beginning of playar array when needed
+			playerIndex := i % len(statePlayers)
+
+			// Update the ActivePlayer to be client relative
+			if playerIndex == currentActivePlayer {
+				stateCopy.ActivePlayer = i - start
+			}
+
+			// Add this player to the copy of the state going out
+			if isViewing == 0 && !statePlayers[playerIndex].isViewing {
+				stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
+			}
+
+			// Add the viewers
+			if isViewing == 1 && statePlayers[playerIndex].isViewing {
+				stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
+			}
 		}
-
-		// Add this player to the copy of the state going out
-		stateCopy.Players = append(stateCopy.Players, statePlayers[playerIndex])
-
 	}
 
 	// Determine valid moves for this player (if their turn)
@@ -965,14 +988,15 @@ func (state *GameState) updateLobby() {
 
 // Return number of active human players in the table, for the lobby
 func (state *GameState) getHumanPlayerCountInfo() (int, int) {
+
+	// Since bots sub out for players, the available slots will always be
+	// max players even if bots are present
 	humanAvailSlots := MAX_PLAYERS
 	humanPlayerCount := 0
 	cutoff := time.Now().Add(PLAYER_PING_TIMEOUT)
 
 	for _, player := range state.Players {
-		if player.isBot {
-			humanAvailSlots--
-		} else if player.lastPing.Compare(cutoff) > 0 {
+		if !player.isBot && !player.isLeaving && player.lastPing.Compare(cutoff) > 0 {
 			humanPlayerCount++
 		}
 	}

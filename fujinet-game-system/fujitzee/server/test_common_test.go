@@ -47,13 +47,14 @@ func createCall(path string, opt_params [][]gin.Param) *gin.Context {
 
 // Helper function - creates a uniquely named table with the specified number of bots and human players
 func createTestTable(bots int, humans int) (string, []string) {
+	resetTestMode()
 	tableIndex++
 	table := fmt.Sprintf("t%d", tableIndex)
 	createTable(table, table, bots, true)
 
 	table = "&table=" + table
-	players := make([]string, 6)
-	for i := 0; i < 6; i++ {
+	players := make([]string, humans)
+	for i := 0; i < humans; i++ {
 		players[i] = fmt.Sprintf("/?player=p%d", i+1) + table
 	}
 

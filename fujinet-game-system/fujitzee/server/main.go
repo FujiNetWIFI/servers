@@ -159,14 +159,8 @@ func apiState(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			// Retrieving state runs the logic for any players in the game
-			// OR in the event the game is over - in case all players in that game left
-			// TODO - determine what happens if both players time out in a game
-			// will a newcomer trigger the game to end?
-			if state.Round == ROUND_LOBBY || state.Round == ROUND_GAMEOVER || !state.Players[state.clientPlayer].isViewing {
-				state.runGameLogic()
-				saveState(state)
-			}
+			state.runGameLogic()
+			saveState(state)
 			state = state.createClientState()
 		}
 	}()
@@ -268,7 +262,9 @@ func getState(c *gin.Context) (*GameState, func()) {
 	if ok {
 		stateCopy := *value.(*GameState)
 		state = &stateCopy
-		state.setClientPlayerByID(player)
+		if state.setClientPlayerByID(player) {
+			saveState(state)
+		}
 	}
 
 	return state, unlock
