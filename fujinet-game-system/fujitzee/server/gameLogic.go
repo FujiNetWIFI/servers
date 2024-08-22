@@ -18,12 +18,12 @@ var BOT_TIME_LIMIT = time.Second * 2
 var START_WAIT_TIME = time.Second * 5
 var START_WAIT_TIME_EXTRA = time.Second * 10
 var ENDGAME_TIME_LIMIT = time.Second * 5
+var PLAYER_TIME_LIMIT = time.Second * 45
+var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
 
 const (
-	MAX_PLAYERS                 = 6
-	MOVE_TIME_GRACE_SECONDS     = 4
-	PLAYER_TIME_LIMIT           = time.Second * 45
-	PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
+	MAX_PLAYERS             = 6
+	MOVE_TIME_GRACE_SECONDS = 4
 
 	// Drop players who do not make a move in 5 minutes
 	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
@@ -112,12 +112,16 @@ func (state *GameState) newRound() {
 		return
 	}
 
+	state.Round++
+
 	// If brand new game, clear the ready flags (first index of scores) and set all scores to -1 (unset)
 	// Also set any players that are not ready to spectators/viewing
-	if state.Round == ROUND_LOBBY {
+	if state.Round == 1 {
 		state.gameOver = false
 
 		players := []Player{}
+
+		clientPlayerID := state.Players[state.clientPlayer].id
 
 		// Initialize players, adding the playing players to the front of the list
 		for i := 0; i < len(state.Players); i++ {
@@ -147,9 +151,11 @@ func (state *GameState) newRound() {
 
 		// Update the players array in the state with the newly sorted list
 		state.Players = players
+
+		// As the client player may have shifted positions, re-set their ID
+		state.setClientPlayerByID(clientPlayerID)
 	}
 
-	state.Round++
 	state.ActivePlayer = -1
 	state.nextValidPlayer()
 }
@@ -367,6 +373,26 @@ func (state *GameState) resetGame() {
 	} else {
 		state.Prompt = PROMPT_WAITING_ON_READY
 	}
+
+}
+
+func (state *GameState) debugSkipToEnd() {
+	p1 := BOT_TIME_LIMIT
+	p2 := PLAYER_TIME_LIMIT
+	p3 := PLAYER_PENALIZED_TIME_LIMIT
+
+	BOT_TIME_LIMIT = 0
+	PLAYER_TIME_LIMIT = 0
+	PLAYER_PENALIZED_TIME_LIMIT = 0
+	state.moveExpires = time.Now()
+
+	for !state.gameOver {
+		state.runGameLogic()
+	}
+
+	BOT_TIME_LIMIT = p1
+	PLAYER_TIME_LIMIT = p2
+	PLAYER_PENALIZED_TIME_LIMIT = p3
 
 }
 
