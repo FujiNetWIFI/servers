@@ -159,6 +159,9 @@ func apiState(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
+			if !UpdateLobby && c.Query("skipToEnd") == "1" {
+				state.debugSkipToEnd()
+			}
 			state.runGameLogic()
 			saveState(state)
 			state = state.createClientState()

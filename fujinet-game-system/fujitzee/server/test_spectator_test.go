@@ -422,3 +422,36 @@ func TestEntireGameOnePlayerLeavesComesBack(t *testing.T) {
 		}
 	}
 }
+
+func TestSpecIsViewerOnGameStart(t *testing.T) {
+	table, players := createTestTable(0, 6)
+
+	spec := "/?player=spec" + table
+
+	// Spec joins
+	c(spec, apiState)
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Get state from spec
+	state := c(spec, apiState).(*GameState)
+
+	// Spec's state should show round = 1
+	if state.Round != 1 {
+		t.Fatal("Expect round to be 1 after all ready")
+	}
+
+	// Spec's state should show viewing = 1
+	if state.Viewing != 1 {
+		t.Fatal("Expect spec to be viewing")
+	}
+
+}
