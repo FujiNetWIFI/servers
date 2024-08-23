@@ -13,15 +13,12 @@ import (
 // TESTS
 //////////////////////////////////////////////////////////////////////////////////////////
 
-func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
-	table, players := createTestTable(0, 6)
+func TestBotsLeavingAtGameEndForSpecsThatJoinedMidGame(t *testing.T) {
+	table, players := createTestTable(2, 4)
 
 	spec := "/?player=spec" + table
 
-	// Spec joins
-	c(spec, apiState)
-
-	// Other players join game
+	// 4 Players join game to max out server with bots
 	for _, player := range players {
 		c(player, apiState)
 	}
@@ -31,39 +28,41 @@ func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
 		c(player, apiReady)
 	}
 
-	// Get state
-	state := c(spec, apiState).(*GameState)
+	// Start game with state call of first player
+	c(players[0], apiState)
+
+	// 2 Specs join
+	c(spec, apiState)
+	c("/?player=spec2"+table, apiState)
+	state := c("/?player=spec3"+table, apiState).(*GameState)
 
 	// Spec's state should show round = 1
-	if state.Round != 1 {
-		t.Fatal("Expect round to be 1 after all ready")
+	if state.Round != 1 || state.Viewing != 1 || len(state.Players) != 9 {
+		t.Fatal("Expect 9 players instead of", len(state.Players), ". Round and viewing to be 1 for spec instead of ", state.Round, state.Viewing, "after all ready")
 	}
 
-	// Spec should be the last player as viewing
-	player := state.Players[len(state.Players)-1]
-	if player.Name != "spec" || !player.isViewing || player.Scores[0] != SCORE_VIEWING {
-		t.Fatal("Expect SPEC player to be the last player, set to viewing, and score[0]=score_viewing")
+	// Play out game to end
+	state = c(players[0]+"&skipToEnd=1", apiState).(*GameState)
+
+	// Expect game to be over
+	if state.Round != ROUND_GAMEOVER {
+		t.Fatal("Expect game round to be 99 intead of", state.Round)
 	}
 
-	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
-	for i, player := range players {
-
-		state = c(player, apiState).(*GameState)
-		if state.Prompt != PROMPT_YOUR_TURN {
-			t.Fatal("Player %i expected to see YOUR TURN prompt", i)
-		}
-
-		if state.ActivePlayer != 0 {
-			t.Fatal("Player %i expected to see activePlayer 0", i)
-		}
-
+	// Wait for lobby
+	for state.Round == ROUND_GAMEOVER {
 		state = c(spec, apiState).(*GameState)
-		if state.Prompt == PROMPT_YOUR_TURN {
-			t.Fatal("Spectator expected to see NOT see YOUR TURN prompt")
-		}
+		time.Sleep(time.Millisecond * 50)
+	}
 
-		// Score a move to go to next player
-		c(player, apiScore, []gin.Param{{Key: "index", Value: "0"}})
+	// Check round and player count
+	if state.Round != ROUND_LOBBY || len(state.Players) != 7 {
+		t.Fatal("Expect round=0 instead of ", state.Round, "and 7 players at game end instead of", len(state.Players))
+	}
+
+	// There should be no bots left
+	if slices.ContainsFunc(state.Players, func(p Player) bool { return p.isBot }) {
+		t.Fatal("Expect no bots left after all humans join")
 	}
 
 }
@@ -221,6 +220,61 @@ func TestBotsLeavingForPlayersWithSpec(t *testing.T) {
 		if !player.isBot || player.isViewing || player.Scores[0] != SCORE_READY {
 			t.Fatal("Expect", i+1, "player to be bot, ready, not viewing")
 		}
+	}
+
+}
+
+func TestSpecAlwaysSeesPlayerNames(t *testing.T) {
+	table, players := createTestTable(0, 6)
+
+	spec := "/?player=spec" + table
+
+	// Spec joins
+	c(spec, apiState)
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Get state
+	state := c(spec, apiState).(*GameState)
+
+	// Spec's state should show round = 1
+	if state.Round != 1 {
+		t.Fatal("Expect round to be 1 after all ready")
+	}
+
+	// Spec should be the last player as viewing
+	player := state.Players[len(state.Players)-1]
+	if player.Name != "spec" || !player.isViewing || player.Scores[0] != SCORE_VIEWING {
+		t.Fatal("Expect SPEC player to be the last player, set to viewing, and score[0]=score_viewing")
+	}
+
+	// Loop through each player's turn and confirm they see activePlayer 0 the spec does not see "Your turn", while the player does
+	for i, player := range players {
+
+		state = c(player, apiState).(*GameState)
+		if state.Prompt != PROMPT_YOUR_TURN {
+			t.Fatal("Player %i expected to see YOUR TURN prompt", i)
+		}
+
+		if state.ActivePlayer != 0 {
+			t.Fatal("Player %i expected to see activePlayer 0", i)
+		}
+
+		state = c(spec, apiState).(*GameState)
+		if state.Prompt == PROMPT_YOUR_TURN {
+			t.Fatal("Spectator expected to see NOT see YOUR TURN prompt")
+		}
+
+		// Score a move to go to next player
+		c(player, apiScore, []gin.Param{{Key: "index", Value: "0"}})
 	}
 
 }
