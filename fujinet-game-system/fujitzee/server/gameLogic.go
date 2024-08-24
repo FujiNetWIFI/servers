@@ -17,7 +17,7 @@ import (
 var BOT_TIME_LIMIT = time.Second * 2
 var START_WAIT_TIME = time.Second * 5
 var START_WAIT_TIME_EXTRA = time.Second * 10
-var ENDGAME_TIME_LIMIT = time.Second * 5
+var ENDGAME_TIME_LIMIT = time.Second * 8
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
 
@@ -181,21 +181,6 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 			newPlayer.Scores[0] = SCORE_VIEWING
 			newPlayer.isViewing = true
 			isViewing = true
-		} else {
-			if len(state.Players) > 5 {
-				// If the table is full, drop a bot when this player joins
-				_, _, _, botCount := state.getPlayerCounts()
-
-				if botCount > 0 {
-					for i := len(state.Players) - 1; i >= 0; i-- {
-						if state.Players[i].isBot {
-							state.botBox = slices.Insert(state.botBox, len(state.botBox), state.Players[i])
-							state.Players = append(state.Players[:i], state.Players[i+1:]...)
-							break
-						}
-					}
-				}
-			}
 		}
 
 		// Determine unique single character alias for human players, defaulting to the first letter of their name
@@ -236,7 +221,7 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 	}
 
 	state.Players = slices.Insert(state.Players, insertIndex, newPlayer)
-
+	state.refreshBots()
 }
 
 func (state *GameState) setClientPlayerByID(playerID string) bool {
@@ -334,16 +319,45 @@ func (state *GameState) endGame(abortGame bool) {
 	log.Println(state.Prompt)
 }
 
-// As players leave (in the lobby), add back bots to fill their spot, up to the number of bots
-// the server started with
-func (state *GameState) addBotsBackIn() {
+// Adds/removes bots as space allows, up to the number of botsthe server started with
+func (state *GameState) refreshBots() {
 	if state.Round != ROUND_LOBBY {
 		return
 	}
 
+	botDropped := false
+
+	clientPlayerID := ""
+	if state.clientPlayer > 0 && state.clientPlayer < len(state.Players) {
+		clientPlayerID = state.Players[state.clientPlayer].id
+	}
+
+	// Remove bots if overcrowded
+	for len(state.Players) > 6 && slices.ContainsFunc(state.Players, func(p Player) bool { return p.isBot }) {
+		// If the table is full, drop a bot when this player joins
+		_, _, _, botCount := state.getPlayerCounts()
+
+		if botCount > 0 {
+			for i := len(state.Players) - 1; i >= 0; i-- {
+				if state.Players[i].isBot {
+					state.botBox = slices.Insert(state.botBox, len(state.botBox), state.Players[i])
+					state.Players = append(state.Players[:i], state.Players[i+1:]...)
+					botDropped = true
+					break
+				}
+			}
+		}
+	}
+
+	// Or if the table is not full, fill it back in with bots
 	for len(state.Players) < 6 && len(state.botBox) > 0 {
 		state.Players = slices.Insert(state.Players, len(state.Players), state.botBox[len(state.botBox)-1])
 		state.botBox = state.botBox[:len(state.botBox)-1]
+	}
+
+	// Update client player in case a bot drop affected their index
+	if botDropped && state.clientPlayer > 0 && state.clientPlayer < len(state.Players) {
+		state.setClientPlayerByID(clientPlayerID)
 	}
 }
 
@@ -353,7 +367,7 @@ func (state *GameState) resetGame() {
 	state.moveExpires = time.Now()
 	state.startedStartCountdown = false
 
-	state.addBotsBackIn()
+	state.refreshBots()
 
 	for i := 0; i < len(state.Players); i++ {
 		// Default to single score holding ready or not (defaulting to 0 - unready)
@@ -570,7 +584,7 @@ func (state *GameState) dropInactivePlayers(inMiddleOfGame bool, dropForNewPlaye
 
 	if playersWereDropped {
 		state.Players = players
-		state.addBotsBackIn()
+		state.refreshBots()
 	}
 
 	// If a new player is joining, don't bother updating anything else
@@ -799,8 +813,11 @@ func (state *GameState) rollDice(keepRoll string) {
 	}
 
 	// Assign the new roll to state
-	state.Dice = newRoll
+	//if !UpdateLobby && state.RollsLeft == state.Round {
+	//	newRoll = "55555"
+	//}
 
+	state.Dice = newRoll
 	state.RollsLeft--
 
 	state.resetPlayerTimer()
