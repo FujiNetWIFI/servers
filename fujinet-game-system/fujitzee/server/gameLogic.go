@@ -17,7 +17,7 @@ import (
 var BOT_TIME_LIMIT = time.Second * 2
 var START_WAIT_TIME = time.Second * 5
 var START_WAIT_TIME_EXTRA = time.Second * 10
-var ENDGAME_TIME_LIMIT = time.Second * 5
+var ENDGAME_TIME_LIMIT = time.Second * 8
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
 
@@ -813,8 +813,11 @@ func (state *GameState) rollDice(keepRoll string) {
 	}
 
 	// Assign the new roll to state
-	state.Dice = newRoll
+	//if !UpdateLobby && state.RollsLeft == state.Round {
+	//	newRoll = "55555"
+	//}
 
+	state.Dice = newRoll
 	state.RollsLeft--
 
 	state.resetPlayerTimer()
