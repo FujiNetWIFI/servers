@@ -297,12 +297,27 @@ func (state *GameState) endGame(abortGame bool) {
 		}
 	}
 
+	winners := []string{}
+
 	if winningPlayer >= 0 {
-		nameIndex := 0
-		if state.Players[winningPlayer].isBot {
-			nameIndex = 1
+		// First gather names of winners (in case of the rare tie!)
+		for _, player := range state.Players {
+			if !player.isLeaving && !player.isViewing && player.Scores[SCORE_TOTAL] == winningScore {
+
+				nameIndex := 0
+				if state.Players[winningPlayer].isBot {
+					nameIndex = 1
+				}
+				winners = append(winners, player.Name[nameIndex:])
+			}
 		}
-		state.Prompt = fmt.Sprintf("%s won with a score of %d!", state.Players[winningPlayer].Name[nameIndex:], winningScore)
+		if len(winners) == 1 {
+			state.Prompt = fmt.Sprintf("%s won with a score of %d!", winners[0], winningScore)
+		} else if len(winners) == 2 {
+			state.Prompt = fmt.Sprintf("%s and %s tied for %d!", winners[0], winners[1], winningScore)
+		} else {
+			state.Prompt = fmt.Sprintf("%d players tied for %d! what luck!", len(winners), winningScore)
+		}
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
 	} else {
 
@@ -390,7 +405,7 @@ func (state *GameState) resetGame() {
 
 }
 
-func (state *GameState) debugSkipToEnd() {
+func (state *GameState) debugSkipToEnd(winners int) {
 	p1 := BOT_TIME_LIMIT
 	p2 := PLAYER_TIME_LIMIT
 	p3 := PLAYER_PENALIZED_TIME_LIMIT
@@ -400,8 +415,20 @@ func (state *GameState) debugSkipToEnd() {
 	PLAYER_PENALIZED_TIME_LIMIT = 0
 	state.moveExpires = time.Now()
 
+	prevRound := 0
 	for !state.gameOver {
 		state.runGameLogic()
+		if state.Round == 13 && state.Round != prevRound {
+			// Start of final round - give winners high score
+			for i := 0; i < winners; i++ {
+				for j := 0; j < SCORE_CHANCE; j++ {
+					state.Players[i].Scores[j] = 0
+				}
+				state.Players[i].Scores[SCORE_CHANCE] = 500
+			}
+		}
+		prevRound = state.Round
+
 	}
 
 	BOT_TIME_LIMIT = p1

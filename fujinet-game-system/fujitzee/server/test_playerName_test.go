@@ -30,3 +30,78 @@ func TestAllHumanPlayersSameName(t *testing.T) {
 	}
 
 }
+
+func TestGameEndMessageWith1Winner(t *testing.T) {
+	_, players := createTestTable(0, 4)
+
+	// 4 Players join game to max out server with bots
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Start game with state call of first player
+	c(players[0], apiState)
+
+	// Play out game to with single winner
+	state := c(players[0]+"&skipToEnd=1", apiState).(*GameState)
+
+	// Expect game to be overxw
+	if !strings.HasPrefix(state.Prompt, "p1 won") {
+		t.Fatal("Expect game over message to match:", state.Prompt)
+	}
+}
+
+func TestGameEndMessageWith2WayTie(t *testing.T) {
+	_, players := createTestTable(0, 4)
+
+	// 4 Players join game to max out server with bots
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Start game with state call of first player
+	c(players[0], apiState)
+
+	// Play out game to with single winner
+	state := c(players[0]+"&skipToEnd=2", apiState).(*GameState)
+
+	// Expect game to be overxw
+	if !strings.HasPrefix(state.Prompt, "p1 and p2 tied") {
+		t.Fatal("Expect game over message to match:", state.Prompt)
+	}
+}
+
+func TestGameEndMessageWith3WayTie(t *testing.T) {
+	_, players := createTestTable(0, 4)
+
+	// 4 Players join game to max out server with bots
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Start game with state call of first player
+	c(players[0], apiState)
+
+	// Play out game to with single winner
+	state := c(players[0]+"&skipToEnd=3", apiState).(*GameState)
+
+	// Expect game to be overxw
+	if !strings.HasPrefix(state.Prompt, "3 players tied") {
+		t.Fatal("Expect game over message to match:", state.Prompt)
+	}
+}

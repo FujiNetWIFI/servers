@@ -159,8 +159,9 @@ func apiState(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			if !UpdateLobby && c.Query("skipToEnd") == "1" {
-				state.debugSkipToEnd()
+			if !UpdateLobby && c.Query("skipToEnd") != "" {
+				winners, _ := strconv.Atoi(c.Query("skipToEnd"))
+				state.debugSkipToEnd(winners)
 			}
 			state.runGameLogic()
 			saveState(state)
