@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -104,4 +106,47 @@ func TestGameEndMessageWith3WayTie(t *testing.T) {
 	if !strings.HasPrefix(state.Prompt, "3 players tied") {
 		t.Fatal("Expect game over message to match:", state.Prompt)
 	}
+}
+
+func TestPlayerPOV(t *testing.T) {
+	_, players := createTestTable(2, 4)
+
+	// 4 Players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	// Check all player's pov is of player 1
+	for _, player := range players {
+		state := c(player+"&pov=p1", apiState).(*GameState)
+		if state.Players[0].id != "p1" {
+			t.Fatal("Expect first player name to be p2:", state.Players[0].Name)
+		}
+
+		if !strings.HasPrefix(state.Prompt, "p") {
+			t.Fatal("Expect prompt to be pN's turn:", state.Prompt)
+		}
+	}
+
+	// Check player move time is >0
+	state := c(players[0]+"&pov=p1", apiState).(*GameState)
+	if state.MoveTime == 0 {
+		t.Fatal("Expected p1's move time to be >0:", state.MoveTime)
+	}
+
+	// Move for player 1
+	state = c(players[0]+"&pov=p1", apiScore, []gin.Param{{Key: "index", Value: "0"}}).(*GameState)
+	if state.ActivePlayer != 1 {
+		t.Fatal("Expected active player to be p2 (1):", state.ActivePlayer)
+	}
+
+	if state.MoveTime == 0 {
+		t.Fatal("Expected p2's move time to be >0:", state.MoveTime)
+	}
+
 }

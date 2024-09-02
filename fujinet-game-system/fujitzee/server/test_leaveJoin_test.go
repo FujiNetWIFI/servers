@@ -36,7 +36,7 @@ func TestPlayerLeavesMidGameNotTheirTurn(t *testing.T) {
 	// Player 2's turn.
 	state := c(p2, apiState).(*GameState)
 	if state.ActivePlayer != 0 {
-		t.Fatal("Player 2 expected to be active after P1's turn!")
+		t.Fatal("Player 2 expected to be active after P1's turn!", state.ActivePlayer)
 	}
 
 	// Player 1 leaves the game
