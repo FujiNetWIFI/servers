@@ -19,7 +19,8 @@ var START_WAIT_TIME = time.Second * 5
 var START_WAIT_TIME_EXTRA = time.Second * 10
 var ENDGAME_TIME_LIMIT = time.Second * 8
 var PLAYER_TIME_LIMIT = time.Second * 45
-var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 7
+var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
+var NEW_ROUND_TIME_EXTRA = time.Second * 5
 
 const (
 	MAX_PLAYERS             = 6
@@ -72,11 +73,12 @@ type GameTable struct {
 }
 
 func resetTestMode() {
-	// Set certain timeouts to 0 to facilitate running tests
+	// Set certain timeouts to 0 to facilitate running tests quickly
 	BOT_TIME_LIMIT = 0
 	START_WAIT_TIME = 0
 	START_WAIT_TIME_EXTRA = 0
 	ENDGAME_TIME_LIMIT = 0
+	NEW_ROUND_TIME_EXTRA = 0
 }
 
 func initializeGameServer() {
@@ -778,6 +780,12 @@ func (state *GameState) resetPlayerTimer() {
 		timeLimit = BOT_TIME_LIMIT
 	}
 
+	// If this is the first player of a new round, add some extra time
+	// for client to animate the new round
+	if state.ActivePlayer == 0 {
+		timeLimit = timeLimit + NEW_ROUND_TIME_EXTRA
+	}
+
 	state.moveExpires = time.Now().Add(timeLimit)
 }
 
@@ -964,9 +972,12 @@ func (state *GameState) getValidScores() ([]int, []string, string) {
 }
 
 // Creates a copy of the state and modifies it to be from the
-// perspective of this calling player
-func (state *GameState) createClientState() *GameState {
-
+// perspective of this calling player.
+// Alternatively, another player name may be passed in *pov*
+// to see it from that player's perspective. Used when multiple
+// people play from the same client and the order of players
+// should not shift from one player to the next
+func (state *GameState) createClientState(pov string) *GameState {
 	stateCopy := *state
 
 	// Set the server name - in the future this will not always be set based on state hash
@@ -979,9 +990,16 @@ func (state *GameState) createClientState() *GameState {
 	statePlayers := stateCopy.Players
 	stateCopy.Players = []Player{}
 
+	// start at the passed in POV
+	start := slices.IndexFunc(state.Players, func(p Player) bool { return strings.EqualFold(p.id, pov) })
+
+	// Default to the current player
+	if start == -1 {
+		start = state.clientPlayer
+	}
+
 	// When on observer is viewing the game, the clientPlayer will be -1, so just start at 0
 	// Also, set Viewing flag to let client know they are not actively part of the game
-	start := state.clientPlayer
 	if state.Players[state.clientPlayer].isViewing {
 		start = 0
 		stateCopy.Viewing = 1
@@ -989,7 +1007,10 @@ func (state *GameState) createClientState() *GameState {
 		stateCopy.Viewing = 0
 	}
 
-	currentActivePlayer := stateCopy.ActivePlayer
+	currentActivePlayerID := ""
+	if stateCopy.ActivePlayer > -1 {
+		currentActivePlayerID = statePlayers[stateCopy.ActivePlayer].id
+	}
 
 	// Loop twice, first to add players, second to add viewers at the end
 	for isViewing := 0; isViewing < 2; isViewing++ {
@@ -998,11 +1019,6 @@ func (state *GameState) createClientState() *GameState {
 
 			// Wrap around to beginning of playar array when needed
 			playerIndex := i % len(statePlayers)
-
-			// Update the ActivePlayer to be client relative
-			if playerIndex == currentActivePlayer {
-				stateCopy.ActivePlayer = i - start
-			}
 
 			// Add this player to the copy of the state going out
 			if isViewing == 0 && !statePlayers[playerIndex].isViewing {
@@ -1016,23 +1032,30 @@ func (state *GameState) createClientState() *GameState {
 		}
 	}
 
-	// Determine valid moves for this player (if their turn)
-	if stateCopy.ActivePlayer == 0 && stateCopy.Viewing == 0 {
-		stateCopy.ValidScores, _, _ = state.getValidScores()
-
-		// Personalize prompt
-		stateCopy.Prompt = PROMPT_YOUR_TURN
-	}
-
 	// Determine the move time left. Reduce the number by the grace period, to allow for plenty of time for a response to be sent back and accepted
 	stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
 
-	if stateCopy.ActivePlayer > -1 {
+	// If there is an active player
+	if state.ActivePlayer > -1 {
+
+		// Set the active player to the new index from the client centric players list
+		stateCopy.ActivePlayer = slices.IndexFunc(stateCopy.Players, func(p Player) bool { return strings.EqualFold(p.id, currentActivePlayerID) })
+
+		// Include the valid moves for the active player
+		if stateCopy.Viewing == 0 {
+			stateCopy.ValidScores, _, _ = state.getValidScores()
+
+			// Personalize prompt if not viewing from a pob
+			if len(pov) == 0 && state.ActivePlayer == state.clientPlayer {
+				stateCopy.Prompt = PROMPT_YOUR_TURN
+			}
+		}
+
 		stateCopy.MoveTime -= MOVE_TIME_GRACE_SECONDS
 	}
 
-	// No need to send move time if the calling player isn't the active player
-	if stateCopy.ActivePlayer != 0 || stateCopy.Viewing == 1 || stateCopy.MoveTime < 0 {
+	// Ensure move time is not negative
+	if stateCopy.MoveTime < 0 {
 		stateCopy.MoveTime = 0
 	}
 

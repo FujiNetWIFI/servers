@@ -148,7 +148,7 @@ func TestBotsLeavingForPlayersWithSpec(t *testing.T) {
 
 		state = c(player, apiState).(*GameState)
 		if state.Prompt != PROMPT_YOUR_TURN {
-			t.Fatal("Player", i, "expected to see YOUR TURN prompt")
+			t.Fatal("Player", i, "expected to see YOUR TURN prompt:", state.Prompt)
 		}
 
 		if state.ActivePlayer != 0 {
@@ -508,4 +508,34 @@ func TestSpecIsViewerOnGameStart(t *testing.T) {
 		t.Fatal("Expect spec to be viewing")
 	}
 
+}
+
+func TestSpecCorrectPlayerIndex(t *testing.T) {
+	table, players := createTestTable(0, 3)
+
+	spec := "/?player=spec" + table
+
+	// Other players join game
+	for _, player := range players {
+		c(player, apiState)
+	}
+
+	// Spec joins
+	c(spec, apiState)
+
+	// All players ready up
+	for _, player := range players {
+		c(player, apiReady)
+	}
+
+	state := c(players[1], apiState).(*GameState)
+
+	// Player 1's state should show round = 1
+	if state.Round != 1 {
+		t.Fatal("Expect round to be 1 after all ready")
+	}
+
+	if state.ActivePlayer != 2 {
+		t.Fatal("Expect ActivePlayer to be 2:", state.ActivePlayer)
+	}
 }

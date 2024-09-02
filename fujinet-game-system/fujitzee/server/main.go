@@ -100,9 +100,10 @@ func apiScore(c *gin.Context) {
 			// Access check - only move if the client is the active player
 			if state.clientPlayer == state.ActivePlayer {
 				index, _ := strconv.Atoi(c.Param("index"))
+				state.playerPing()
 				state.scoreRoll(index)
 				saveState(state)
-				state = state.createClientState()
+				state = state.createClientState(c.Query("pov"))
 			}
 		}
 	}()
@@ -120,9 +121,10 @@ func apiRoll(c *gin.Context) {
 		if state != nil {
 			// Access check - only move if the client is the active player
 			if state.clientPlayer == state.ActivePlayer {
+				state.playerPing()
 				state.rollDice(c.Param("keep"))
 				saveState(state)
-				state = state.createClientState()
+				state = state.createClientState(c.Query("pov"))
 			}
 		}
 	}()
@@ -142,7 +144,7 @@ func apiReady(c *gin.Context) {
 			if state.clientPlayer >= 0 {
 				state.toggleReady()
 				saveState(state)
-				state = state.createClientState()
+				state = state.createClientState(c.Query("pov"))
 			}
 		}
 	}()
@@ -165,7 +167,8 @@ func apiState(c *gin.Context) {
 			}
 			state.runGameLogic()
 			saveState(state)
-			state = state.createClientState()
+
+			state = state.createClientState(c.Query("pov"))
 		}
 	}()
 
@@ -204,7 +207,7 @@ func apiView(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			state = state.createClientState()
+			state = state.createClientState(c.Query("pov"))
 		}
 	}()
 
