@@ -14,7 +14,7 @@ import (
 )
 
 // These can be set to 0 for testing scenarios, so are outside of const
-var BOT_TIME_LIMIT = time.Second * 2
+var BOT_TIME_LIMIT = time.Second * 3
 var START_WAIT_TIME = time.Second * 5
 var START_WAIT_TIME_EXTRA = time.Second * 10
 var ENDGAME_TIME_LIMIT = time.Second * 8
@@ -411,10 +411,12 @@ func (state *GameState) debugSkipToEnd(winners int) {
 	p1 := BOT_TIME_LIMIT
 	p2 := PLAYER_TIME_LIMIT
 	p3 := PLAYER_PENALIZED_TIME_LIMIT
+	p4 := NEW_ROUND_TIME_EXTRA
 
 	BOT_TIME_LIMIT = 0
 	PLAYER_TIME_LIMIT = 0
 	PLAYER_PENALIZED_TIME_LIMIT = 0
+	NEW_ROUND_TIME_EXTRA = 0
 	state.moveExpires = time.Now()
 
 	prevRound := 0
@@ -436,6 +438,7 @@ func (state *GameState) debugSkipToEnd(winners int) {
 	BOT_TIME_LIMIT = p1
 	PLAYER_TIME_LIMIT = p2
 	PLAYER_PENALIZED_TIME_LIMIT = p3
+	NEW_ROUND_TIME_EXTRA = p4
 
 }
 

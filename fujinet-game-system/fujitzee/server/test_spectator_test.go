@@ -195,7 +195,7 @@ func TestBotsLeavingForPlayersWithSpec(t *testing.T) {
 	}
 
 	// Wait until abort message goes away
-	for true {
+	for {
 		time.Sleep(10 * time.Millisecond)
 		state = c(players[0], apiState).(*GameState)
 
