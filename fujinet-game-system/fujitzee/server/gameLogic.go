@@ -21,6 +21,7 @@ var ENDGAME_TIME_LIMIT = time.Second * 8
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
 var NEW_ROUND_TIME_EXTRA = time.Second * 5
+var PLAYER_TIME_LIMIT_SINGLE_PLAYER = time.Second * 255 // don't go over 255 as 8 bit clients expect to store in single byte
 
 const (
 	MAX_PLAYERS             = 6
@@ -412,11 +413,13 @@ func (state *GameState) debugSkipToEnd(winners int) {
 	p2 := PLAYER_TIME_LIMIT
 	p3 := PLAYER_PENALIZED_TIME_LIMIT
 	p4 := NEW_ROUND_TIME_EXTRA
+	p5 := PLAYER_TIME_LIMIT_SINGLE_PLAYER
 
 	BOT_TIME_LIMIT = 0
 	PLAYER_TIME_LIMIT = 0
 	PLAYER_PENALIZED_TIME_LIMIT = 0
 	NEW_ROUND_TIME_EXTRA = 0
+	PLAYER_TIME_LIMIT_SINGLE_PLAYER = 0
 	state.moveExpires = time.Now()
 
 	prevRound := 0
@@ -439,6 +442,7 @@ func (state *GameState) debugSkipToEnd(winners int) {
 	PLAYER_TIME_LIMIT = p2
 	PLAYER_PENALIZED_TIME_LIMIT = p3
 	NEW_ROUND_TIME_EXTRA = p4
+	PLAYER_TIME_LIMIT_SINGLE_PLAYER = p5
 
 }
 
@@ -781,12 +785,21 @@ func (state *GameState) resetPlayerTimer() {
 
 	if state.Players[state.ActivePlayer].isBot {
 		timeLimit = BOT_TIME_LIMIT
-	}
+	} else {
 
-	// If this is the first player of a new round, add some extra time
-	// for client to animate the new round
-	if state.ActivePlayer == 0 {
-		timeLimit = timeLimit + NEW_ROUND_TIME_EXTRA
+		// If this is a single player against bots, relax the timeouts
+		// as long as nobody is waiting to play
+		_, humanCount := state.getHumanPlayerCountInfo()
+		if humanCount == 1 {
+			timeLimit = PLAYER_TIME_LIMIT_SINGLE_PLAYER
+		} else {
+
+			// If this is the first player of a new round, add some extra time
+			// for client to animate the new round
+			if state.ActivePlayer == 0 {
+				timeLimit = timeLimit + NEW_ROUND_TIME_EXTRA
+			}
+		}
 	}
 
 	state.moveExpires = time.Now().Add(timeLimit)
