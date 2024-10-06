@@ -114,3 +114,15 @@ func IsValidURI(uri string) bool {
 
 	return err != nil
 }
+
+// Returns a byte slice equal to the maxLen+1, padded with zeros
+// The extra byte is added to terminate the string
+func appendFixedLengthString(buf []byte, s string, maxLen int) []byte {
+	buf = append(buf, s...)
+	maxLen -= len(s)
+	for maxLen >= 0 {
+		buf = append(buf, 0)
+		maxLen--
+	}
+	return buf
+}

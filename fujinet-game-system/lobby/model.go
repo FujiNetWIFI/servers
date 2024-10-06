@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
@@ -125,6 +126,22 @@ func (s GameServerClientSlice) toGameServerSlice() (gameservers GameServerSlice)
 	return gameservers
 }
 
+// Return minimized result to binary format to optimize 8-bit consumption
+func (s GameServerMin) appendAsBinary(buf []byte) []byte {
+	buf = append(buf, byte(s.AppKey))
+	buf = appendFixedLengthString(buf, s.Game, 16)
+	buf = appendFixedLengthString(buf, s.Server, 32)
+	buf = appendFixedLengthString(buf, s.Serverurl, 64)
+	buf = appendFixedLengthString(buf, s.Client, 64)
+	buf = appendFixedLengthString(buf, s.Region, 2)
+	buf = append(buf,
+		byte(s.Online),
+		byte(s.Curplayers),
+		byte(s.Maxplayers))
+	buf = binary.LittleEndian.AppendUint16(buf, uint16(s.Pingage))
+	return buf
+}
+
 // Do additional checking
 func (s *GameServer) CheckInput() (err error) {
 
@@ -133,8 +150,8 @@ func (s *GameServer) CheckInput() (err error) {
 		ErrorIf(s.Maxplayers < 0, fmt.Errorf("key: 'GameServer.Maxplayers' Error:Field validation for 'Maxplayers' cannot be negative (%d)", s.Maxplayers)),
 		ErrorIf(s.Curplayers > s.Maxplayers, fmt.Errorf("key: 'GameServer.Curplayers' and 'GameServer.Maxplayers' Error:Field validation for 'Curplayers' (%d) cannot be bigger than 'Maxplayers' (%d)", s.Curplayers, s.Maxplayers)),
 		ErrorIf(s.Appkey < 1 || s.Appkey > 255, fmt.Errorf("key: 'GameServer.Appkey' Error: Field validation length must be between 1 and 255")),
-		ErrorIf(len(s.Game) < 6 || len(s.Game) > 20, fmt.Errorf("key: 'GameServer.Game' Error: Field validation length must be between 6 and 20 characters")),
-		ErrorIf(len(s.Region) > 12, fmt.Errorf("key: 'GameServer.Region' Error: Field validation length must be 12 or less characters")),
+		ErrorIf(len(s.Game) < 2 || len(s.Game) > 16, fmt.Errorf("key: 'GameServer.Game' Error: Field validation length must be between 2 and 16 characters")),
+		ErrorIf(len(s.Region) > 2, fmt.Errorf("key: 'GameServer.Region' Error: Field validation length must be 2 or less characters")),
 		ErrorIf(len(s.Server) > 32, fmt.Errorf("key: 'GameServer.Server' Error: Field validation length must be 32 or less characters")),
 		ErrorIf(IsValidURI(s.Serverurl), fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation has to be a valid url")),
 		ErrorIf(len(s.Serverurl) > 64, fmt.Errorf("key: 'GameServer.ServerUrl' Error: Field validation length must be 64 or less characters")),

@@ -9,47 +9,11 @@
 </head>
 <body>
      <main>
-      <h1>🟢 <a href="https://fujinet.online/">Fujinet</a> Lobby server on-line</h1>
-      <p>Welcome to the Persistent Lobby Server (ver. $$version$$) for 8 bit computers. Even if this software has been created by as part of the <a href="https://fujinet.online/">Fujinet project</a>, it's not constrained by it.</p>
+      <h1>🟢 <a href="https://fujinet.online/">Fujinet</a> Lobby Server on-line</h1>
+      <p>Welcome to the Lobby Server (ver. $$version$$) for 8 bit computers. Even if this software has been created by as part of the <a href="https://fujinet.online/">Fujinet project</a>, it's not constrained by it.</p>
       <p>The lobby server objective is to publish the availability of third party network games so game clients now where they need to conect. </p>
 
-      <h2>So you're a sysadming and want to install the Lobby Server?</h2>
-      <p>Lobby server needs no parameter to start, but requires <a href="https://www.sqlite.org/index.html">sqlite</a> installed and the database schema setup. Once Lobby Server has been downloaded from github, run:
-      <pre>
-$ make install-db
-sqlite3 -bail db/lobby.sqlite3 < lobby_schema.sql</pre>  
-        to set up the database in the db/ directory.
-        </p>
-        <p>
-        Once the database has been created, starting the server without parameters...
-      <pre>
-$ ./lobbyPersist 
-DB: 2023/10/22 20:50:04 Connected to lobby.sqlite3
-...
-Some gin framework debug cruft
-...
-[GIN-debug] Listening and serving HTTP on :8080</pre>
-    will bind the server to http://localhost:8080. Because Lobby Server uses <a href="https://gin-gonic.com">gin framework</a> internally, 
-    it will start in debug mode and will show some [GIN-debug] messages.</p>
-      <p>For starting it in production the recommended command line is:
-        <pre>
-$ GIN_MODE=release ./lobbyPersist -srvaddr http://my.server.address:port/
-DB: 2023/10/22 20:47:14 Connected to lobby.sqlite3 </pre>
-        This will bind the server to the address provided in the -srvaddr field (http://my.server.address:port/)
-      </p>
-      <p>Additionally, you can request the Lobby Server to update a <a href="https://github.com/dillera/fujinetGameAlerts">Fujinet Game Alert</a> server
-        with the availabilty of the games servers. For this, use the param -evtaddr: 
-        <pre>
-$ ./lobbyPersist -srvaddr http://my.server.address:port/ -evtaddr http://fujinetGameAlerts.server/
-        </pre>
-      </p>
-      <p>You can also get the version of the Lobby server with the -version param:
-        <pre>
-# ./lobbyPersist -version
-$$version$$</pre>
-      </p>
-
-      <h2>So you're a programmer and want to use Lobby Server?</h2>
+      <h2>So you're making an online game and want to use Lobby Server?</h2>
       <p>Lobby Server uses http json calls to set and update the Game Server status (including server address, game name, number of users, etc) as well as for publishing the status of the games.</p>
 
       <h3 id="game-registering">How do I register a game in Lobby Server?</h3>
@@ -71,8 +35,8 @@ $$version$$</pre>
             "url": "TNFS://ec.tnfs.io/atari/5card.xex"
         },
         {
-            "platform": "spectrum",
-            "url": "TNFS://ec.tnfs.io/spectrum/5card.xex"
+            "platform": "apple2",
+            "url": "TNFS://ec.tnfs.io/apple2/5card.po"
         }
     ]
 }
@@ -87,16 +51,16 @@ $$version$$</pre>
               <tbody>
                 <tr><td>game</td>
                   <td>Name of the game to be showed by the game client to the user</td>
-                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 12</td></tr>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 2-16 chars</td></tr>
                 <tr><td>appkey</td>
                   <td><a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki/SIO-Command-%24DC-Open-App-Key">Registered id of game</a></td>
                   <td>required<br/>integer ⊂ [1, 255]</td></tr>
                 <tr><td>server</td>
                   <td>Name (and version) of the game server used</td>
-                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> len(game) ≤ 32</td></tr>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 32 chars max</td></tr>
                 <tr><td>region</td>
-                  <td>Name of the region where the server is hosted</td>
-                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 12 alphanum chars max</td></tr>
+                  <td>Region where the server is hosted (reserved for future use)</td>
+                  <td>required<br/>printable ascii characters (regex="^[\x20-\x7E]*$")<br/> 2 chars max</td></tr>
                 <tr><td>serverurl</td>
                   <td>url of the server where game clients will connect</td>
                   <td>required<br/>valid url<br/>64 url chars max</td></tr>
@@ -321,10 +285,48 @@ $$version$$</pre>
 }</code></pre>
       Again, the version message will change with new releases.    
       </p>
+  
+
+      <h2>So you're a sysadmin and want to install the Lobby Server?</h2>
+      <p>Lobby server needs no parameter to start, but requires <a href="https://www.sqlite.org/index.html">sqlite</a> installed and the database schema setup. Once Lobby Server has been downloaded from github, run:
+      <pre>
+$ make install-db
+sqlite3 -bail db/lobby.sqlite3 < lobby_schema.sql</pre>  
+        to set up the database in the db/ directory.
+        </p>
+        <p>
+        Once the database has been created, starting the server without parameters...
+      <pre>
+$ ./lobbyPersist 
+DB: 2023/10/22 20:50:04 Connected to lobby.sqlite3
+...
+Some gin framework debug cruft
+...
+[GIN-debug] Listening and serving HTTP on :8080</pre>
+    will bind the server to http://localhost:8080. Because Lobby Server uses <a href="https://gin-gonic.com">gin framework</a> internally, 
+    it will start in debug mode and will show some [GIN-debug] messages.</p>
+      <p>For starting it in production the recommended command line is:
+        <pre>
+$ GIN_MODE=release ./lobbyPersist -srvaddr http://my.server.address:port/
+DB: 2023/10/22 20:47:14 Connected to lobby.sqlite3 </pre>
+        This will bind the server to the address provided in the -srvaddr field (http://my.server.address:port/)
+      </p>
+      <p>Additionally, you can request the Lobby Server to update a <a href="https://github.com/dillera/fujinetGameAlerts">Fujinet Game Alert</a> server
+        with the availabilty of the games servers. For this, use the param -evtaddr: 
+        <pre>
+$ ./lobbyPersist -srvaddr http://my.server.address:port/ -evtaddr http://fujinetGameAlerts.server/
+        </pre>
+      </p>
+      <p>You can also get the version of the Lobby server with the -version param:
+        <pre>
+# ./lobbyPersist -version
+$$version$$</pre>
+      </p>
+
   </main>
   
     <footer>
-      <p>(c) 2023 <a href="https://rogersm.net/">Roger Sen</a></p>
+      <p>(c) 2024 <a href="https://rogersm.net/">Roger Sen</a></p>
     </footer>
   </body>
   </html>
