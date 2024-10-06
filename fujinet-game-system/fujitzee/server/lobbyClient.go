@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
+	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8081/server"
 	LOBBY_ENDPOINT_UPSERT = "http://lobby.fujinet.online/server"
 
 	LOBBY_CLIENT_APP_KEY = 0x03 // Registered at https://github.com/FujiNetWIFI/fujinet-firmware/wiki/SIO-Command-$DC-Open-App-Key#lobby-client-app-key-ids
@@ -20,12 +20,12 @@ const (
 // Appkey/game are hard coded, but the others could be read from a config file
 var DefaultGameServerDetails = GameServer{
 	Appkey:    LOBBY_CLIENT_APP_KEY,
-	Game:      "Fujitzee BETA",
+	Game:      "Fujitzee",
 	Region:    "us",
 	Serverurl: "https://fujitzee.carr-designs.com/",
 	Clients: []GameClient{
 		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujitzee.xex"},
-		//	{Platform: "apple2", Url: "tnfs://ec.tnfs.io/atari/fujzee.po"},
+		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/fujitzee.po"},
 	},
 }
 

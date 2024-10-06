@@ -38,8 +38,8 @@ var (
 )
 
 const (
-	VERSION   = "5.2.1"
-	STRINGVER = "fujinet persistent lobby  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2023"
+	VERSION   = "5.3.0"
+	STRINGVER = "fujinet persistent lobby  " + VERSION + "/" + runtime.GOOS + " (c) Roger Sen 2024"
 )
 
 //go:embed doc.html

@@ -42,7 +42,28 @@ func ShowServersMinimised(c *gin.Context) {
 		ServerMinSlice = append(ServerMinSlice, server.Minimize())
 	}
 
-	c.JSON(http.StatusOK, ServerMinSlice)
+	if form.Bin == 1 {
+		data := SerializeToBinaryFormat(c, ServerMinSlice, form)
+		c.Data(http.StatusOK, "application/octet-stream", data)
+	} else {
+		c.JSON(http.StatusOK, ServerMinSlice)
+	}
+}
+
+func SerializeToBinaryFormat(c *gin.Context, serverList []GameServerMin, form ShowServersMinimisedFormData) []byte {
+
+	NextPage, _ := txGameServerGetBy(form.Platform, form.Appkey, form.Pagesize, form.PageNumber+1)
+
+	var buf []byte
+	buf = append(buf, byte(len(serverList)))
+	buf = append(buf, byte(form.PageNumber))
+	buf = append(buf, byte(IfElse(len(NextPage) > 0, 1, 0)))
+
+	for _, server := range serverList {
+		buf = server.appendAsBinary(buf)
+	}
+
+	return buf
 }
 
 type ShowServersMinimisedFormData struct {
@@ -50,6 +71,7 @@ type ShowServersMinimisedFormData struct {
 	Appkey     int    // -1 if none
 	Pagesize   int    // number of entries to return.
 	PageNumber int    // page # of the entries.
+	Bin        int    // 1 if client expects binary response instead of json
 }
 
 func parseShowServersMinimisedForm(c *gin.Context) (output ShowServersMinimisedFormData, err error) {
@@ -65,8 +87,8 @@ func parseShowServersMinimisedForm(c *gin.Context) (output ShowServersMinimisedF
 	appkey := Atoi(appkeyForm, -1)
 
 	pagesizeForm := c.Query("pagesize")
-	pagesize := 999999 // big number so in case it's not in the form, the select gets all the records
-	page := 0          // if it's not in the form, we defaul to start from the beginning
+	pagesize := 255 // big number so in case it's not in the form, the select gets all the records
+	page := 0       // if it's not in the form, we defaul to start from the beginning
 
 	// if client provides pagesize for pagination, we capture the variables
 	if len(pagesizeForm) > 0 {
@@ -80,7 +102,8 @@ func parseShowServersMinimisedForm(c *gin.Context) (output ShowServersMinimisedF
 		Platform:   platform,
 		Appkey:     appkey,
 		Pagesize:   pagesize,
-		PageNumber: page - 1, // we want to start at 0, not at 1.
+		PageNumber: page,
+		Bin:        IfElse(c.Query("bin") == "1", 1, 0),
 	}, nil
 
 }
@@ -100,16 +123,13 @@ func ShowServersHtml(c *gin.Context) {
 
 	ServerTemplate := `
 <tr>
-	<td class='plat'>
-		<img src='%s'/>
-	</td>
 	<td class='server'>%s</td>
 	<td class='players'>%d/%d %s </td>
 </tr>
 `
 	GameTemplate := `
 <tr>
-	<td colspan='3' class='game'>%s</td>	
+	<td colspan='2' class='game'>%s</td>	
 </tr>
 `
 
@@ -118,17 +138,26 @@ func ShowServersHtml(c *gin.Context) {
 	var servers string
 	prevGame := ""
 
-	for _, gsc := range GameServerClient {
+	for i, gsc := range GameServerClient {
 		if gsc.Status == "online" {
+
+			// Game type heading
 			if prevGame != gsc.Game {
 				servers += fmt.Sprintf(GameTemplate, html.EscapeString(gsc.Game))
 				prevGame = gsc.Game
 			}
 
-			switch strings.ToLower(gsc.Client_platform) {
-			case "atari":
-				AtariIcon := "data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC"
-				servers += fmt.Sprintf(ServerTemplate, AtariIcon, html.EscapeString(gsc.Server), IfElse(gsc.Status == "online", gsc.Curplayers, 0), IfElse(gsc.Status == "online", gsc.Maxplayers, 0), IfElse(gsc.Curplayers > 0, PlayersAvailable, " "))
+			// Platform icons - commenting out for now. Not sure if really useful at this point, and it requires ongoing maint.
+			// switch strings.ToLower(gsc.Client_platform) {
+			// case "atari":
+			// 	platformIcons += "<img src='data:@file/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAgCAMAAABXc8oyAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGhJREFUOI3tkcEOwCAIQ8vc//9yd1CyKh7Ek0vGDSGvLVqBFmEgAANh3eTCYv2Lpy7e2hB9p7/9hTA7qRmGmnvvjhCCDQp5YnRYX10jS2TzpVVdOjNHnPFG5jrR00aeMrMe57RXKUV8AGPEFFEoV1/yAAAAAElFTkSuQmCC'/>"
+			// case "apple2":
+			// 	platformIcons += "<img style='transform:scale(1.1)' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAfCAMAAAAhm0ZxAAAADFBMVEUAAAD///+z9P////83isCuAAAABHRSTlP///8AQCqp9AAAAAlwSFlzAAALEwAACxMBAJqcGAAAAHNJREFUKJHFk8EKwDAIQ1/s/v+X3WHYdltT2GmehEeCGlTjXgnoamOBqp4Mz5JhudIVWrCOOCwplgU0Wmhxn3t2sIjc7CfCyeTvIiCMDD7d8zeWQMjAnWe+85th4E03cyrwwn1+Rlj5GddgDUXfT+N9RncC1+MPVhm/JmEAAAAASUVORK5CYII='/>"
+			// }
+
+			// Add server if this is the last game client row for the server (reached the end, or next record is a different server/game)
+			if i == len(GameServerClient)-1 || gsc.Server != GameServerClient[i+1].Server || gsc.Game != GameServerClient[i+1].Game {
+				servers += fmt.Sprintf(ServerTemplate, html.EscapeString(gsc.Server), IfElse(gsc.Status == "online", gsc.Curplayers, 0), IfElse(gsc.Status == "online", gsc.Maxplayers, 0), IfElse(gsc.Curplayers > -1, PlayersAvailable, " "))
 			}
 		}
 	}
@@ -136,6 +165,8 @@ func ShowServersHtml(c *gin.Context) {
 	// if we have processed no servers, we put the 'no servers available message'
 	if len(servers) == 0 {
 		servers = "<tr><td colspan='10'>No servers available.</td></tr>"
+	} else {
+
 	}
 
 	result := bytes.ReplaceAll(SERVERS_HTML, []byte("$$SERVERS$$"), []byte(servers))
