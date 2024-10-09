@@ -1,6 +1,8 @@
 # servers
 Source to servers for games and apps that work with FujiNet
 
+- "Lobby" - for FujiNet Game system - moved to new repo: https://github.com/FujiNetWIFI/fujinet-lobby
+
 - "apod" - Astronomy Picture of the Day fetcher.
   - Fetch [NASA's Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/),
     convert it to a format suitable for quickly loading on an Atari (e.g.,
