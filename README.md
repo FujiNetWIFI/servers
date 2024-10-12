@@ -20,13 +20,11 @@ Source to servers for games and apps that work with FujiNet
 - "5cardstud" - A Multi-player/Multi-Platform implementation of 5 Card Stud Poker
   - Clients
     - [fujinet-apps/5cardstud](https://github.com/FujiNetWIFI/fujinet-apps/tree/master/5cardstud) - 8 bit clients (C, FastBasic)
-    - "client/pc/python" - PC client, written in Python.
   - Servers
-    - "dummy-server/pc/Python" - Json server written in Python, serves random hands for client testing.
-    - "[fujinet-game-system/5cardstud/server](fujinet-game-system/5cardstud/server)" - Game server written in Go
+    - [fujinet-game-system/5cardstud/server](fujinet-game-system/5cardstud/server) - Game server written in Go
 
-- "Fujzee" - A Multi-player/Multi-Platform implementation of Yahtzee
+- "Fujitzee" - A Multi-player/Multi-Platform implementation of Yahtzee
   - Servers
-    - "[fujinet-game-system/fujzee/server](fujinet-game-system/5cardstud/server)" - Game server written in Go
+    - [fujinet-game-system/fujzee/server](fujinet-game-system/fujitzee/server) - Game server written in Go
   - Clients
-    - [fujinet-apps/fujzee](https://github.com/FujiNetWIFI/fujinet-apps/tree/master/fujzee) -  8 bit clients
+    - [github.com/FujiNetWIFI/fujinet-fujitzee](https://github.com/FujiNetWIFI/fujinet-fujitzee) -  8 bit clients
