@@ -31,7 +31,7 @@ const (
 	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
 
 	PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
-	PROMPT_WAITING_ON_READY         = "Waiting for everyone to ready up."
+	PROMPT_WAITING_ON_READY         = "Waiting for everyone to ready up"
 	PROMPT_STARTING_IN              = "Starting in "
 	PROMPT_YOUR_TURN                = "Your turn"
 	PROMPT_GAME_ABORTED             = "The game was aborted early"

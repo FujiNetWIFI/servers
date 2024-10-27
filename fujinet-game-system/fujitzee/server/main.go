@@ -228,6 +228,9 @@ func apiTables(c *gin.Context) {
 				humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
 				table.CurPlayers = humanPlayerCount
 				table.MaxPlayers = humanPlayerSlots
+				if table.CurPlayers > table.MaxPlayers {
+					table.CurPlayers = table.MaxPlayers
+				}
 				tableOutput = append(tableOutput, table)
 			}
 		}
