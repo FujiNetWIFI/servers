@@ -15,9 +15,9 @@ import (
 
 // These can be set to 0 for testing scenarios, so are outside of const
 var BOT_TIME_LIMIT = time.Second * 3
-var START_WAIT_TIME = time.Second * 5
-var START_WAIT_TIME_EXTRA = time.Second * 10
-var ENDGAME_TIME_LIMIT = time.Second * 8
+var START_WAIT_TIME = time.Second * 31
+var START_WAIT_TIME_ALL_READY = time.Second * 6
+var ENDGAME_TIME_LIMIT = time.Second * 5
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
 var NEW_ROUND_TIME_EXTRA = time.Second * 5
@@ -58,7 +58,7 @@ const (
 	SCORE_SRUN      = 11
 	SCORE_LRUN      = 12
 	SCORE_CHANCE    = 13
-	SCORE_FUJZEE    = 14
+	SCORE_FUJITZEE  = 14
 
 	SCORE_TOTAL = 15
 )
@@ -77,7 +77,7 @@ func resetTestMode() {
 	// Set certain timeouts to 0 to facilitate running tests quickly
 	BOT_TIME_LIMIT = 0
 	START_WAIT_TIME = 0
-	START_WAIT_TIME_EXTRA = 0
+	START_WAIT_TIME_ALL_READY = 0
 	ENDGAME_TIME_LIMIT = 0
 	NEW_ROUND_TIME_EXTRA = 0
 }
@@ -174,6 +174,7 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 		isPenalized: false,
 		isViewing:   false,
 		Alias:       0,
+		isSmart:     isBot && len(state.Players)%2 == 0,
 	}
 
 	if !isBot {
@@ -315,7 +316,7 @@ func (state *GameState) endGame(abortGame bool) {
 			}
 		}
 		if len(winners) == 1 {
-			state.Prompt = fmt.Sprintf("%s won with a score of %d!", winners[0], winningScore)
+			state.Prompt = fmt.Sprintf("%s won with a score of %d", winners[0], winningScore)
 		} else if len(winners) == 2 {
 			state.Prompt = fmt.Sprintf("%s and %s tied for %d!", winners[0], winners[1], winningScore)
 		} else {
@@ -460,18 +461,22 @@ func (state *GameState) runGameLogic() {
 
 		if canStartNow {
 
-			if !state.startedStartCountdown {
-				// Give a little extra start time if not everyone has readied up
-				if totalHumansReady < 6 && totalHumansNotReady > 0 {
-					state.moveExpires = time.Now().Add(START_WAIT_TIME_EXTRA)
-				} else {
-					// Everyone has readied up, so start sooner
-					state.moveExpires = time.Now().Add(START_WAIT_TIME)
-				}
+			// Start timer if not already started
+			// Reset the timer if spots are left and someone just joins or unreadies
+			if !state.startedStartCountdown || (totalHumansReady < 6 && totalHumansNotReady > state.prevTotalHumansNotReady) {
 				state.startedStartCountdown = true
+				state.moveExpires = time.Now().Add(START_WAIT_TIME)
 			}
 
+			state.prevTotalHumansNotReady = totalHumansNotReady
 			waitTime := int(time.Until(state.moveExpires).Seconds())
+
+			// If everyone has readied up, shorten a long wait time
+			if waitTime > 6 && (totalHumansReady > 5 || totalHumansNotReady == 0) {
+				state.moveExpires = time.Now().Add(START_WAIT_TIME_ALL_READY)
+				waitTime = int(time.Until(state.moveExpires).Seconds())
+			}
+
 			if waitTime < 1 {
 				state.newRound()
 			} else {
@@ -499,96 +504,188 @@ func (state *GameState) runGameLogic() {
 		return
 	}
 
-	// If there is no active player, or currently waiting on a move, exit
+	// If there is no active player, or there is stil time to make a move, exit
 	if state.ActivePlayer < 0 || int(time.Until(state.moveExpires).Seconds()) > 0 {
 		return
 	}
 
-	// Force an action for the active player or BOT if their time is up
+	// Force an action for the active player or BOT
 	player := &state.Players[state.ActivePlayer]
+
+	if player.isBot {
+		state.botMove()
+	} else {
+		state.forceHumanMove(player)
+	}
+}
+
+func (state *GameState) forceHumanMove(player *Player) {
+
+	validScores, _, _ := state.getValidScores()
+
+	// Human player did not respond in time. If they haven't rolled at all, penalize them
+	// so they have a shorter period the next round. Once they roll, they are out of penalty
+	if state.RollsLeft == 2 {
+		player.isPenalized = true
+	} else {
+		player.isPenalized = false
+	}
+
+	// If human, score the next available score location, even if it scores zero.
+	nextValidIndex := slices.IndexFunc(validScores, func(score int) bool { return score > SCORE_UNSET })
+	state.scoreRoll(nextValidIndex)
+}
+
+func (state *GameState) botMove() {
 
 	validScores, diceSets, sortedDice := state.getValidScores()
 
-	if !player.isBot {
-		// Human player did not respond in time. If they haven't rolled at all, penalize them
-		// so they have a shorter period the next round. Once they roll, they are out of penalty
-		if state.RollsLeft == 2 {
-			player.isPenalized = true
-		} else {
-			player.isPenalized = false
+	// If not on the final roll, see if the bot should re-roll
+	if state.RollsLeft > 0 {
+
+		// If a small run, attempt to get large run if not yet scored
+		if validScores[SCORE_SRUN] > 0 && validScores[SCORE_LRUN] == 0 {
+
+			// Compact diceparts to just get unique digits - for easy run detection
+			diceParts := strings.Split(sortedDice, "")
+			diceDistinct := strings.Join(slices.Compact(diceParts), "")
+
+			for _, keep := range []string{"1234", "2345", "3456"} {
+				if diceDistinct == keep {
+					state.rollDiceKeeping(keep)
+					return
+				}
+			}
 		}
 
-		// If human, score the next available score location, even if it scores zero.
-		nextValidIndex := slices.IndexFunc(validScores, func(score int) bool { return score > SCORE_UNSET })
-		state.scoreRoll(nextValidIndex)
+		// Otherise, just try to preserve the largest helpful set, unless a full house was found
+		if validScores[SCORE_FULLHOUSE] <= 0 && len(diceSets) > 1 {
 
-	} else {
+			// Sort dice sets in descending order by larget set
+			sort.Slice(diceSets, func(i, j int) bool {
+				return len(diceSets[i]) > len(diceSets[j])
+			})
 
-		// If not on the final roll, see if the bot should re-roll
-		if state.RollsLeft > 0 {
+			// Prefer to keep the largest set for an unfilled upper spot
+			selectedSet := slices.IndexFunc(diceSets, func(set string) bool {
+				val, _ := strconv.Atoi(string(set[0]))
+				return validScores[val-1] > 0
+			})
 
-			// If a small run, attempt to get large run if not yet scored
-			if validScores[SCORE_SRUN] > 0 && validScores[SCORE_LRUN] == 0 {
+			if selectedSet < 0 {
+				selectedSet = 0
+			}
 
-				// Compact diceparts to just get unique digits - for easy run detection
-				diceParts := strings.Split(sortedDice, "")
-				diceDistinct := strings.Join(slices.Compact(diceParts), "")
+			// Roll dice, keeping the first (largest) set
+			state.rollDiceKeeping(diceSets[selectedSet])
+			return
+		}
 
-				for _, keep := range []string{"1234", "2345", "3456"} {
-					if diceDistinct == keep {
-						state.rollDiceKeeping(keep)
-						return
+	}
+
+	scoreIndex := -1
+	totalUpper := state.Players[state.ActivePlayer].Scores[SCORE_UPPER_TOTAL]
+	isSmart := state.Players[state.ActivePlayer].isSmart
+
+	// SCORE UPPER - MOST IDEAL - Smart bots only
+	// If we have an upper score of 3 or more dice, prefer that.
+	// Defer to full house unless this score would bring the upper score to 63+
+
+	if isSmart {
+		for i := 0; i < 6; i++ {
+			if validScores[i] >= (i+1)*3 && (validScores[SCORE_FULLHOUSE] < 1 || (totalUpper < 63 && validScores[i]+totalUpper >= 63)) {
+				scoreIndex = i
+			}
+		}
+	}
+
+	// SCORE LOWER
+	// If an upper score hasn't been found, find a valid lower entry, checking bottom to top
+	if scoreIndex < 0 {
+		for i := SCORE_LRUN; i >= SCORE_SET3; i-- {
+			score := validScores[i]
+			if score > 0 {
+				scoreIndex = i
+				break
+			}
+		}
+	}
+
+	// SCORE UPPER - LEAST IDEAL
+	// If a lower entry was not found, try a smaller number in upper if it reaches 63
+	// Also, sluff any number of ones or 2 twos over a low chance
+	if scoreIndex < 0 {
+		for i := 0; i < 6; i++ {
+			if (validScores[i] > 0 && validScores[i]+totalUpper >= 63) ||
+				(i == 0 && validScores[i] > 0 && validScores[SCORE_CHANCE] < 15) ||
+				(i == 1 && validScores[i] > 2 && validScores[SCORE_CHANCE] < 15) ||
+				validScores[i] >= (i+1)*3 {
+				scoreIndex = i
+				break
+			}
+		}
+	}
+
+	// If not a smart bot, favor taking an upper score over a chance or zeroing something out
+	if !isSmart && scoreIndex < 0 {
+		for i := 0; i < 6; i++ {
+			if validScores[i] > 0 {
+				scoreIndex = i
+				break
+			}
+		}
+	}
+
+	// Fall back to Chance if nothing else was scored
+	if scoreIndex < 0 && validScores[SCORE_CHANCE] > 0 {
+		scoreIndex = SCORE_CHANCE
+	}
+
+	// Always override any score with a Fujitzee!
+	if validScores[SCORE_FUJITZEE] > 0 {
+		scoreIndex = SCORE_FUJITZEE
+	}
+
+	// If we still have no score at this point, find a score to zero out.
+	// Order: 4-Kind, Large Straight, lower, upper
+	if scoreIndex < 0 {
+		if validScores[SCORE_SET4] == 0 {
+			scoreIndex = SCORE_SET4
+		} else if validScores[SCORE_LRUN] == 0 {
+			scoreIndex = SCORE_LRUN
+		} else {
+			// Take the bottom most lower score (which we expect to be a zero at this point)
+			for i := SCORE_FUJITZEE; i >= SCORE_SET3; i-- {
+				if validScores[i] >= 0 {
+					scoreIndex = i
+					break
+				}
+			}
+
+			// If that fails, take the first upper that has a positive score - last ditch effort to score some points
+			if scoreIndex < 0 {
+				for i := 0; i < 6; i++ {
+					if validScores[i] > 0 {
+						scoreIndex = i
+						break
 					}
 				}
 			}
 
-			// Otherise, just try to preserve the largest helpful set, unless a full house was found
-			if validScores[SCORE_FULLHOUSE] <= 0 && len(diceSets) > 1 {
-
-				// Sort dice sets in descending order by larget set
-				sort.Slice(diceSets, func(i, j int) bool {
-					return len(diceSets[i]) > len(diceSets[j])
-				})
-
-				// Prefer to keep the largest set for an unfilled upper spot
-				selectedSet := slices.IndexFunc(diceSets, func(set string) bool {
-					val, _ := strconv.Atoi(string(set[0]))
-					return validScores[val-1] > 0
-				})
-
-				if selectedSet < 0 {
-					selectedSet = 0
+			// If all else fails, take the first available score.
+			// Expect to be the first 6 rows, but covering all to catch any bugs in above logic)
+			if scoreIndex < 0 {
+				for i := 0; i <= SCORE_FUJITZEE; i++ {
+					if validScores[i] >= 0 {
+						scoreIndex = i
+						break
+					}
 				}
-
-				// Roll dice, keeping the first (largest) set
-				state.rollDiceKeeping(diceSets[selectedSet])
-				return
-			}
-
-		}
-
-		// Out of rolls - simply fill in highest scoring spot (not the brightest bot)
-		bestIndex := -1
-		bestScore := -1
-		for index, score := range validScores {
-			if score > bestScore && index != SCORE_CHANCE {
-				bestIndex = index
-				bestScore = score
 			}
 		}
-
-		// Score chance if the best score is 0
-		if bestScore < 1 && validScores[SCORE_CHANCE] > 0 {
-			bestIndex = SCORE_CHANCE
-		}
-
-		// Override with full house if found
-		if validScores[SCORE_FULLHOUSE] > 0 {
-			bestIndex = SCORE_FULLHOUSE
-		}
-
-		state.scoreRoll(bestIndex)
 	}
+
+	state.scoreRoll(scoreIndex)
 }
 
 // Drop players that left or have not pinged within the expected timeout
@@ -980,8 +1077,8 @@ func (state *GameState) getValidScores() ([]int, []string, string) {
 	}
 
 	// All five - Fujzee!
-	if currentScores[SCORE_FUJZEE] < 0 && len(diceSets) == 1 {
-		scores[SCORE_FUJZEE] = 50
+	if currentScores[SCORE_FUJITZEE] < 0 && len(diceSets) == 1 {
+		scores[SCORE_FUJITZEE] = 50
 	}
 
 	return scores, diceSets, dice
