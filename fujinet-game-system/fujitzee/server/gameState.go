@@ -23,6 +23,7 @@ type Player struct {
 	isLeaving   bool
 	isPenalized bool
 	isViewing   bool
+	isSmart     bool
 }
 
 type GameState struct {
@@ -40,11 +41,12 @@ type GameState struct {
 	Players      []Player `json:"pl"`
 
 	// Internal
-	gameOver              bool
-	startedStartCountdown bool
-	clientPlayer          int
-	moveExpires           time.Time
-	botBox                []Player // if players join to replace the bots, bots go here until a player leaves
+	gameOver                bool
+	startedStartCountdown   bool
+	prevTotalHumansNotReady int
+	clientPlayer            int
+	moveExpires             time.Time
+	botBox                  []Player // if players join to replace the bots, bots go here until a player leaves
 
 	// Meta/Lobby related
 	table         string
