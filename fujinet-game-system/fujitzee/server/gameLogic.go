@@ -17,6 +17,7 @@ import (
 var BOT_TIME_LIMIT = time.Second * 3
 var START_WAIT_TIME = time.Second * 31
 var START_WAIT_TIME_ALL_READY = time.Second * 6
+var START_WAIT_TIME_ONE_PLAYER = time.Second * 3
 var ENDGAME_TIME_LIMIT = time.Second * 5
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
@@ -78,6 +79,7 @@ func resetTestMode() {
 	BOT_TIME_LIMIT = 0
 	START_WAIT_TIME = 0
 	START_WAIT_TIME_ALL_READY = 0
+	START_WAIT_TIME_ONE_PLAYER = 0
 	ENDGAME_TIME_LIMIT = 0
 	NEW_ROUND_TIME_EXTRA = 0
 }
@@ -126,13 +128,17 @@ func (state *GameState) newRound() {
 
 		clientPlayerID := state.Players[state.clientPlayer].id
 
+		totalPlaying := 0
+
 		// Initialize players, adding the playing players to the front of the list
 		for i := 0; i < len(state.Players); i++ {
 			player := &state.Players[i]
 
 			// This player is playing - initialize their scores
-			if player.Scores[0] == SCORE_READY {
+			if totalPlaying < 6 && (player.Scores[0] == SCORE_READY || player.isBot) {
+				totalPlaying++
 				player.Scores = make([]int, 16)
+				player.isViewing = false
 				for j := 0; j < 16; j++ {
 					player.Scores[j] = SCORE_UNSET
 				}
@@ -302,18 +308,34 @@ func (state *GameState) endGame(abortGame bool) {
 	}
 
 	winners := []string{}
+	gameResult := GameResult{}
+	gameResult.Players = []GamePlayer{}
 
 	if winningPlayer >= 0 {
 		// First gather names of winners (in case of the rare tie!)
 		for _, player := range state.Players {
-			if !player.isLeaving && !player.isViewing && player.Scores[SCORE_TOTAL] == winningScore {
 
+			// Add to game result for lobby
+			gamePlayer := GamePlayer{}
+
+			if !player.isLeaving && !player.isViewing && player.Scores[SCORE_TOTAL] == winningScore {
+				gamePlayer.Winner = true
 				nameIndex := 0
 				if state.Players[winningPlayer].isBot {
 					nameIndex = 1
 				}
 				winners = append(winners, player.Name[nameIndex:])
 			}
+
+			if !player.isViewing {
+				gamePlayer.Name = player.Name
+				gamePlayer.Type = PLAYER_TYPE_HUMAN
+				if player.isBot {
+					gamePlayer.Type = PLAYER_TYPE_BOT
+				}
+				gameResult.Players = append(gameResult.Players, gamePlayer)
+			}
+
 		}
 		if len(winners) == 1 {
 			state.Prompt = fmt.Sprintf("%s won with a score of %d", winners[0], winningScore)
@@ -323,6 +345,8 @@ func (state *GameState) endGame(abortGame bool) {
 			state.Prompt = fmt.Sprintf("%d players tied for %d! what luck!", len(winners), winningScore)
 		}
 		state.moveExpires = time.Now().Add(ENDGAME_TIME_LIMIT)
+
+		state.updateLobbyWithGameResult(&gameResult)
 	} else {
 
 		// If there are human players left, show the abort message so the winner can still view their scoreboard
@@ -465,7 +489,13 @@ func (state *GameState) runGameLogic() {
 			// Reset the timer if spots are left and someone just joins or unreadies
 			if !state.startedStartCountdown || (totalHumansReady < 6 && totalHumansNotReady > state.prevTotalHumansNotReady) {
 				state.startedStartCountdown = true
-				state.moveExpires = time.Now().Add(START_WAIT_TIME)
+
+				// If just a single player is starting the game, start even quicker
+				if totalHumansReady == 1 && totalHumansNotReady == 0 {
+					state.moveExpires = time.Now().Add(START_WAIT_TIME_ONE_PLAYER)
+				} else {
+					state.moveExpires = time.Now().Add(START_WAIT_TIME)
+				}
 			}
 
 			state.prevTotalHumansNotReady = totalHumansNotReady
@@ -1182,6 +1212,10 @@ func (state *GameState) createClientState(pov string) *GameState {
 }
 
 func (state *GameState) updateLobby() {
+	state.updateLobbyWithGameResult(nil)
+}
+
+func (state *GameState) updateLobbyWithGameResult(gameResult *GameResult) {
 	if !state.registerLobby {
 		return
 	}
@@ -1189,7 +1223,7 @@ func (state *GameState) updateLobby() {
 	humanPlayerSlots, humanPlayerCount := state.getHumanPlayerCountInfo()
 
 	// Send the total human slots / players to the Lobby
-	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table)
+	sendStateToLobby(humanPlayerSlots, humanPlayerCount, true, state.serverName, "?table="+state.table, gameResult)
 }
 
 // Return number of active human players in the table, for the lobby

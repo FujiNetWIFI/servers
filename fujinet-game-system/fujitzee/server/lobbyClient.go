@@ -11,7 +11,8 @@ import (
 
 const (
 	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8081/server"
-	LOBBY_ENDPOINT_UPSERT = "http://lobby.fujinet.online/server"
+	LOBBY_ENDPOINT_UPSERT    = "https://lobby.fujinet.online/server"
+	LOBBY_QA_ENDPOINT_UPSERT = "https://qalobby.fujinet.online/server"
 
 	LOBBY_CLIENT_APP_KEY = 0x03 // Registered at https://github.com/FujiNetWIFI/fujinet-firmware/wiki/SIO-Command-$DC-Open-App-Key#lobby-client-app-key-ids
 )
@@ -26,10 +27,15 @@ var DefaultGameServerDetails = GameServer{
 	Clients: []GameClient{
 		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujitzee.xex"},
 		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/fujitzee.po"},
+		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fujitzee.dsk"},
 	},
 }
 
 var UpdateLobby bool
+var LobbyEndpoint string = LOBBY_ENDPOINT_UPSERT
+
+const PLAYER_TYPE_BOT = "bot"
+const PLAYER_TYPE_HUMAN = "human"
 
 type GameServer struct {
 	// Properties being sent from Game Server
@@ -42,6 +48,7 @@ type GameServer struct {
 	Maxplayers int          `json:"maxplayers"`
 	Curplayers int          `json:"curplayers"`
 	Clients    []GameClient `json:"clients"`
+	GameResult *GameResult  `json:"gameResult,omitempty"`
 }
 
 type GameClient struct {
@@ -49,7 +56,17 @@ type GameClient struct {
 	Url      string `json:"url"`
 }
 
-func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server string, instanceUrlSuffix string) {
+type GameResult struct {
+	Players []GamePlayer `json:"players"`
+}
+
+type GamePlayer struct {
+	Name   string `json:"name"`
+	Winner bool   `json:"winner"`
+	Type   string `json:"type"`
+}
+
+func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server string, instanceUrlSuffix string, gameResult *GameResult) {
 
 	if !UpdateLobby {
 		return
@@ -67,14 +84,16 @@ func sendStateToLobby(maxPlayers int, curPlayers int, isOnline bool, server stri
 
 	serverDetails.Server = server
 	serverDetails.Serverurl += instanceUrlSuffix
+	serverDetails.GameResult = gameResult
 
 	jsonPayload, err := json.Marshal(serverDetails)
+
 	if err != nil {
 		panic(err)
 	}
 	log.Printf("Updating Lobby: %s", jsonPayload)
 
-	request, err := http.NewRequest("POST", LOBBY_ENDPOINT_UPSERT, bytes.NewBuffer(jsonPayload))
+	request, err := http.NewRequest("POST", LobbyEndpoint, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		panic(err)
 	}

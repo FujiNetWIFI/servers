@@ -22,7 +22,7 @@ var tables []GameTable = []GameTable{}
 var tableMutex KeyedMutex
 
 type KeyedMutex struct {
-	mutexes sync.Map // Zero value is empty and ready for use
+	mutexes sync.Map
 }
 
 func (m *KeyedMutex) Lock(key string) func() {
@@ -33,16 +33,23 @@ func (m *KeyedMutex) Lock(key string) func() {
 	return func() { mtx.Unlock() }
 }
 
+var PRODUCTION_MODE bool
+
 func main() {
 	log.Print("Starting server...")
 
-	// Set environment flags
-	UpdateLobby = os.Getenv("GO_PROD") == "1"
+	PRODUCTION_MODE = os.Getenv("GO_PROD") == "1"
 
-	if UpdateLobby {
-		log.Printf("This instance will update the lobby at " + LOBBY_ENDPOINT_UPSERT)
+	// Set environment flags
+	if PRODUCTION_MODE {
 		gin.SetMode(gin.ReleaseMode)
+		UpdateLobby = true
+	} else {
+		LobbyEndpoint = LOBBY_QA_ENDPOINT_UPSERT
+
 	}
+
+	log.Printf("This instance will update the lobby at " + LobbyEndpoint)
 
 	// Determine port for HTTP service.
 	port := os.Getenv("PORT")
@@ -161,7 +168,7 @@ func apiState(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			if !UpdateLobby && c.Query("skipToEnd") != "" {
+			if !PRODUCTION_MODE && c.Query("skipToEnd") != "" {
 				winners, _ := strconv.Atoi(c.Query("skipToEnd"))
 				state.debugSkipToEnd(winners)
 			}

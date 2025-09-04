@@ -381,6 +381,7 @@ func TestBotGamePlayerReadyToggle(t *testing.T) {
 
 	// Set wait time longer than 0 so ready lasts multiple requests
 	START_WAIT_TIME = time.Second * 10
+	START_WAIT_TIME_ONE_PLAYER = time.Second * 10
 
 	p1 := players[0]
 

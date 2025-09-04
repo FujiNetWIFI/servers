@@ -12,7 +12,7 @@ import (
 const (
 	//LOBBY_ENDPOINT_UPSERT = "http://127.0.0.1:8080/server"
 	//LOBBY_ENDPOINT_UPSERT = "http://lobby.rogersm.net:8080/server"
-	LOBBY_ENDPOINT_UPSERT = "http://lobby.fujinet.online/server"
+	LOBBY_ENDPOINT_UPSERT = "https://lobby.fujinet.online/server"
 )
 
 // Defaults for this game server
@@ -25,6 +25,8 @@ var DefaultGameServerDetails = GameServer{
 	Clients: []GameClient{
 		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/5card.xex"},
 		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/5card.po"},
+		{Platform: "adam", Url: "TNFS://apps.irata.online/Coleco_Adam/Games/fcs.ddp"},
+		{Platform: "pc", Url: "tnfs://ec.tnfs.io/dos/5card.exe"},
 	},
 }
 
