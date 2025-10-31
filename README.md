@@ -18,13 +18,21 @@ Source to servers for games and apps that work with FujiNet
 - "networds" - A server for a two-player word game played via mostly-RESTful HTTP requests.
 
 - "5cardstud" - A Multi-player/Multi-Platform implementation of 5 Card Stud Poker
+  - Server
+    - [fujinet-game-system/5cardstud/server](fujinet-game-system/5cardstud/server) - Game server written in Go
   - Clients
     - [fujinet-apps/5cardstud](https://github.com/FujiNetWIFI/fujinet-apps/tree/master/5cardstud) - 8 bit clients (C, FastBasic)
-  - Servers
-    - [fujinet-game-system/5cardstud/server](fujinet-game-system/5cardstud/server) - Game server written in Go
+  
 
-- "Fujitzee" - A Multi-player/Multi-Platform implementation of Yahtzee
-  - Servers
+- "fujitzee" - A Multi-player/Multi-Platform implementation of Yahtzee
+  - Server
     - [fujinet-game-system/fujzee/server](fujinet-game-system/fujitzee/server) - Game server written in Go
   - Clients
     - [github.com/FujiNetWIFI/fujinet-fujitzee](https://github.com/FujiNetWIFI/fujinet-fujitzee) -  8 bit clients
+
+
+- "battleship" - A multiplayer pimplementation of the classic sea battle game
+  - Server
+    - [fujinet-game-system/battleship](fujinet-game-system/battleship) - Game server written in Go
+  - Clients
+    - TBD
