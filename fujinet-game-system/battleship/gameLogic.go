@@ -109,6 +109,12 @@ type GameTable struct {
 }
 
 func resetTestMode() {
+	// Set certain timeouts to 0 to facilitate running tests quickly
+	BOT_TIME_LIMIT = 0
+	START_WAIT_TIME = 0
+	START_WAIT_TIME_ALL_READY = 0
+	START_WAIT_TIME_ONE_PLAYER = 0
+	ENDGAME_TIME_LIMIT = 0
 }
 
 func createGameState(playerCount int) *GameState {
@@ -377,7 +383,7 @@ func (state *GameState) runGameLogic() {
 			waitTime := int(time.Until(state.moveExpires).Seconds())
 
 			// If everyone has readied up, shorten a long wait time
-			if waitTime > 6 && (totalHumansReady > 5 || totalHumansNotReady == 0) {
+			if waitTime > 6 && totalHumansNotReady == 0 {
 				state.moveExpires = time.Now().Add(START_WAIT_TIME_ALL_READY)
 				waitTime = int(time.Until(state.moveExpires).Seconds())
 			}
@@ -635,7 +641,7 @@ func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool 
 		x := gridPos % FIELD_WIDTH
 		y := gridPos / FIELD_WIDTH
 		if dir==DIR_RIGHT && x+shipSize>FIELD_WIDTH || dir==DIR_DOWN && y+shipSize>FIELD_WIDTH || slices.ContainsFunc(player.ships, func(s Ship) bool { return slices.Contains(s.GridPos, gridPos) }){
-			fmt.Println("Invalid ship placement detected:", pos, " - aborting")
+			// This is common when placing ships randomly for bots
 			player.ships = nil
 			return false
 		}
@@ -672,8 +678,14 @@ func (state *GameState) attack(pos int) bool {
 	}
 	
 	attackedPlayers := 0
+
+	// Default t miss. A hit will override, and a sunk will override a hit.
+	status := STATUS_MISS
+
 	// Attack each player
-	for index, player := range state.Players {
+	for index, _  := range state.Players {
+		player := &state.Players[index]
+
 		// Can't attack self, non playing players, or players that have already been attacked at that position
 		if index == state.ActivePlayer ||  player.status != PLAYER_STATUS_PLAYING || player.Gamefield[pos] > 0 {
 			continue
@@ -685,13 +697,16 @@ func (state *GameState) attack(pos int) bool {
 		if hitShip >= 0 {
 			// Hit!
 			player.Gamefield[pos] = FIELD_HIT
-			state.Status = STATUS_HIT
+			if status != STATUS_SUNK {
+				status = STATUS_HIT
+			}
 
 			// Check if ship is sunk (all positions of this ship are hit)
 			if !slices.ContainsFunc(player.ships[hitShip].GridPos, func(p int) bool { return player.Gamefield[p] != FIELD_HIT }) {
 				// Mark ship as sunk
 				player.ShipsLeft[hitShip] = 0
-				
+				status = STATUS_SUNK
+
 				// Check if all ships are sunk - player defeated
 				if !slices.Contains(player.ShipsLeft, 1) {
 					player.status = PLAYER_STATUS_DEFEATED
@@ -701,7 +716,6 @@ func (state *GameState) attack(pos int) bool {
 		} else {
 			// Miss
 			player.Gamefield[pos] = FIELD_MISS
-			state.Status = STATUS_MISS
 		}
 	}
 
@@ -709,6 +723,9 @@ func (state *GameState) attack(pos int) bool {
 	if attackedPlayers == 0 {
 		return false
 	}
+
+	// Update state status
+	state.Status = status
 
 	// Move on to next player
 	state.nextValidPlayer()
@@ -759,6 +776,7 @@ func (state *GameState) nextValidPlayer() {
 	// Check if we looped back to the same player - meaning they are the only one left and WON!
 	if state.ActivePlayer == curActivePlayer {
 		state.endGame(false)
+		return
 	}
 
 	state.resetPlayerTimer();
