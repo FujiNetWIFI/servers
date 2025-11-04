@@ -27,6 +27,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/5card.po"},
 		{Platform: "adam", Url: "TNFS://apps.irata.online/Coleco_Adam/Games/fcs.ddp"},
 		{Platform: "pc", Url: "tnfs://ec.tnfs.io/dos/5card.exe"},
+		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fcs.dsk"},
 	},
 }
 
