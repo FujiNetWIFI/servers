@@ -18,6 +18,10 @@ var tableIndex int = 0
 func TestMain(m *testing.M) {
 	isTestMode = true
 	resetTestMode()
+
+	// Supress gin output during tests, it just clutters things up
+	gin.SetMode(gin.ReleaseMode)
+
 	os.Exit(m.Run())
 }
 

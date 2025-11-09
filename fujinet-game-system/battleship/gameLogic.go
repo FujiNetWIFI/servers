@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -15,7 +17,7 @@ var BOT_TIME_LIMIT = time.Second * 3
 var START_WAIT_TIME = time.Second * 31
 var START_WAIT_TIME_ALL_READY = time.Second * 6
 var START_WAIT_TIME_ONE_PLAYER = time.Second * 3
-var ENDGAME_TIME_LIMIT = time.Second * 5
+var ENDGAME_TIME_LIMIT = time.Second * 8
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
 var NEW_STATUS_TIME_EXTRA = time.Second * 5
@@ -36,8 +38,9 @@ const (
 	PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
 	PROMPT_WAITING_ON_READY         = "Waiting for everyone to ready up"
 	PROMPT_STARTING_IN              = "Starting in "
+	PROMPT_PLACE_SHIPS		        = "Place your five ships"
+	PROMPT_WAITING_PLACEMENT        = "Waiting on others to place"
 	PROMPT_GAME_ABORTED             = "The game was aborted early"
-
 
 	// GameState Status
 	STATUS_LOBBY          = 0
@@ -52,6 +55,8 @@ const (
 	PLAYER_STATUS_PLAYING = 0
 	PLAYER_STATUS_DEFEATED = 1
 	PLAYER_STATUS_VIEWING = 2
+	PLAYER_STATUS_READY = 3
+	PLAYER_STATUS_PLACE_SHIPS = 10
 
 	// Field values
 	FIELD_HIT = 1
@@ -60,12 +65,19 @@ const (
 	
 	// Ship placement direction
 	DIR_RIGHT = 0
-	DIR_DOWN = 0
+	DIR_DOWN = 1
 )
 
 var SHIP_SIZES = []int{5, 4, 3, 3, 2} 
 
 var botNames = []string{"Clyd", "Meg", "Kirk"}
+
+var wordChanges = [][]string{
+	[]string{" is "," are "},
+	[]string{" has "," have "},
+	[]string{" reigns "," reign "},
+	[]string{" takes "," take "},
+}
 
 var GAME_WON_MESSAGES = []string{
 //   12345678901234567890123
@@ -147,6 +159,7 @@ func (state *GameState) startGame() {
 	if state.Status == STATUS_LOBBY {
 		state.gameOver = false
 		state.Status = STATUS_PLACE_SHIPS
+		state.Prompt = PROMPT_WAITING_PLACEMENT
 		players := []Player{}
 
 		clientPlayerID := state.Players[state.clientPlayer].id
@@ -158,9 +171,9 @@ func (state *GameState) startGame() {
 			player := &state.Players[i]
 
 			// This player is playing - initialize their gamefield
-			if totalPlaying < 6 && (player.isReady || player.isBot) {
+			if totalPlaying < 6 && (player.status == PLAYER_STATUS_READY || player.isBot) {
 				totalPlaying++
-				player.status = PLAYER_STATUS_PLAYING
+				player.status = PLAYER_STATUS_PLACE_SHIPS
 
 				// Place random ships for bot
 				if player.isBot {
@@ -225,7 +238,7 @@ func (state *GameState) addPlayer(playerID string, isBot bool) {
 
 	// If a bot, set to ready
 	if isBot {
-		newPlayer.isReady = true
+		newPlayer.status = PLAYER_STATUS_READY
 	}
 
 	state.Players = slices.Insert(state.Players, insertIndex, newPlayer)
@@ -335,11 +348,13 @@ func (state *GameState) refreshBots() {
 func (state *GameState) resetGame() {
 	state.Status = STATUS_LOBBY
 	state.ActivePlayer = -1
+	state.lastSuccessfulAttackPos=-1
+	state.LastAttackPos = 0
 	state.refreshBots()
 
 	// Set player to unready if human, ready if bot (for future)
 	for i := 0; i < len(state.Players); i++ {
-		state.Players[i].isReady = state.Players[i].isBot
+		state.Players[i].status = ifElse(state.Players[i].isBot, PLAYER_STATUS_READY, PLAYER_STATUS_PLAYING)
 		state.Players[i].ShipsLeft = nil
 		state.Players[i].Gamefield = nil
 		state.Players[i].ships = nil
@@ -417,14 +432,13 @@ func (state *GameState) runGameLogic() {
 			if player.status == PLAYER_STATUS_PLAYING {
 				player.Gamefield = make([]int, FIELD_SIZE)
 				player.ShipsLeft = []int{1,1,1,1,1}
-	
 			}
 		}
 
 		// All players have placed ships, start the game!
 		state.Status = STATUS_GAMESTART
-
 		state.ActivePlayer = -1
+		state.Prompt = ""
 		state.nextValidPlayer()
 		return
 	}
@@ -464,13 +478,46 @@ func (state *GameState) forceHumanMove(player *Player) {
 }
 
 func (state *GameState) botMove() {
-	// Just attack randomly for now
-	for {
-		pos := rand.Intn(FIELD_SIZE)
-		if state.attack(pos) {
-			break
+
+	// If there was a last successful attack, try to target around it
+	if state.lastSuccessfulAttackPos >= 0 {
+		// Setup adjacent positions to attack in random order
+		adjacentOffsets := []int{-1, 1, -FIELD_WIDTH, FIELD_WIDTH}
+		rand.Shuffle(len(adjacentOffsets), func(i, j int) {
+			adjacentOffsets[i], adjacentOffsets[j] = adjacentOffsets[j], adjacentOffsets[i]
+		})
+
+		// Attacking adjacent positions
+		for _, offset := range adjacentOffsets {
+			pos := state.lastSuccessfulAttackPos + offset
+			// Only attack if the +/- 1 position does not wrap to a new row
+			if (math.Abs(float64(offset))>1 || pos/10==state.lastSuccessfulAttackPos/10) && state.attack(pos) {
+				return
+			}
 		}
 	}
+
+	// Failed, so create list of valid positions to attack and randomly choose one attack randomly
+	// Loop through fields of all enemy players to add to list if still 0
+
+	validPositions := []int{}
+	
+	for pos := 0; pos < FIELD_SIZE; pos++ {
+		for id, player := range state.Players {
+		// If found an open spot for another active player, add it
+			if id != state.ActivePlayer && player.status == PLAYER_STATUS_PLAYING && player.Gamefield[pos] == 0{
+				validPositions = append(validPositions, pos)
+				break
+			}
+		}
+	}
+
+	if len(validPositions) == 0 {
+		log.Println("Bot found no valid positions to attack!!!")
+	}
+	
+	pos := validPositions[rand.Intn(len(validPositions))]
+	state.attack(pos)
 }
 
 // Drop players that left or have not pinged within the expected timeout
@@ -582,7 +629,7 @@ func (state *GameState) getPlayerCounts() (bool, int, int, int) {
 
 	for _, player := range state.Players {
 		if !player.isBot {
-			if player.isReady {
+			if player.status == PLAYER_STATUS_READY {
 				totalHumansReady++
 			} else {
 				totalHumansNotReady++
@@ -608,10 +655,10 @@ func (state *GameState) toggleReady() {
 		_, totalHumansReady, _, _ := state.getPlayerCounts()
 
 		// Toggle ready state for this player if there is space
-		if state.Players[state.clientPlayer].isReady {
-			state.Players[state.clientPlayer].isReady = false
+		if state.Players[state.clientPlayer].status == PLAYER_STATUS_READY {
+			state.Players[state.clientPlayer].status = PLAYER_STATUS_PLAYING
 		} else if totalHumansReady < MAX_PLAYERS {
-			state.Players[state.clientPlayer].isReady = true
+			state.Players[state.clientPlayer].status = PLAYER_STATUS_READY
 		}
 	}
 }
@@ -624,7 +671,7 @@ func (state *GameState) placeShips(shipPositions []int) bool {
 
 // Place player's ships on the gamefield
 func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool {
-	if state.Status != STATUS_PLACE_SHIPS {
+	if state.Status != STATUS_PLACE_SHIPS ||  player.status != PLAYER_STATUS_PLACE_SHIPS {
 		return false
 	}
 	
@@ -640,8 +687,25 @@ func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool 
 		// Ensure the ship is within bounds and doesn't overlap an existing ship
 		x := gridPos % FIELD_WIDTH
 		y := gridPos / FIELD_WIDTH
-		if dir==DIR_RIGHT && x+shipSize>FIELD_WIDTH || dir==DIR_DOWN && y+shipSize>FIELD_WIDTH || slices.ContainsFunc(player.ships, func(s Ship) bool { return slices.Contains(s.GridPos, gridPos) }){
-			// This is common when placing ships randomly for bots
+
+		// Abort if this ship overlaps with another ship
+		for j := 0; j < shipSize; j++ {
+			if slices.ContainsFunc(player.ships, func(s Ship) bool { return slices.Contains(s.GridPos, gridPos) }) {
+				player.ships = nil
+				return false
+			}
+			if dir == DIR_RIGHT {
+				gridPos++
+			} else {
+				gridPos+= FIELD_WIDTH
+			}
+		}
+		
+		// Reset grid position
+		gridPos = pos % (FIELD_SIZE)
+
+		// If ship is placed outside of bounds, abort
+		if dir==DIR_RIGHT && x+shipSize>FIELD_WIDTH || dir==DIR_DOWN && y+shipSize>FIELD_WIDTH {
 			player.ships = nil
 			return false
 		}
@@ -666,6 +730,7 @@ func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool 
 		// Track this ship
 		player.ships = append(player.ships, ship)
 	}
+	player.status = PLAYER_STATUS_PLAYING
 	return true
 }
 
@@ -673,14 +738,24 @@ func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool 
 func (state *GameState) attack(pos int) bool {
 	
 	// Check for valid position
-	if (pos>=FIELD_SIZE) {
+	if (pos<0 || pos>=FIELD_SIZE) {
 		return false
 	}
 	
 	attackedPlayers := 0
+	playersHit := 0
 
 	// Default t miss. A hit will override, and a sunk will override a hit.
 	status := STATUS_MISS
+
+	// Count bots playing
+	activeBots := 0
+
+	for _, p := range state.Players {
+		if p.isBot  && p.status == PLAYER_STATUS_PLAYING {
+			activeBots++
+		}
+	}
 
 	// Attack each player
 	for index, _  := range state.Players {
@@ -696,6 +771,7 @@ func (state *GameState) attack(pos int) bool {
 		hitShip := slices.IndexFunc(player.ships, func(s Ship) bool { return slices.Contains(s.GridPos, pos) })
 		if hitShip >= 0 {
 			// Hit!
+			playersHit++
 			player.Gamefield[pos] = FIELD_HIT
 			if status != STATUS_SUNK {
 				status = STATUS_HIT
@@ -706,11 +782,31 @@ func (state *GameState) attack(pos int) bool {
 				// Mark ship as sunk
 				player.ShipsLeft[hitShip] = 0
 				status = STATUS_SUNK
+				
+				// Sunk - reset last successful attack position if this has been the only ship hit so far
+				// AND if any of the following are true:
+				// 1. The attacking (active) player is a bot
+				// 2. Multiple bots are still in play
+				// 3. One bot is left and was not the target (e.g. 2 humans, 1 bot)
+				if  playersHit == 1 && state.Players[state.ActivePlayer].isBot || activeBots > 1 || (activeBots==1 && !player.isBot) {
+					state.lastSuccessfulAttackPos = -1
+				}
 
 				// Check if all ships are sunk - player defeated
 				if !slices.Contains(player.ShipsLeft, 1) {
 					player.status = PLAYER_STATUS_DEFEATED
 				}
+			} else {
+				// We hit and did not sink, so store this as a successful attack that bots will use to target next time
+				
+				// Store if any of the following are true:
+				// 1. The attacking (active) player is a bot
+				// 2. Multiple bots are still in play
+				// 3. One bot is left and was not the target (e.g. 2 humans, 1 bot)
+				if  state.Players[state.ActivePlayer].isBot || activeBots > 1 || (activeBots==1 && !player.isBot) {
+					state.lastSuccessfulAttackPos = pos
+				}
+		
 			}
 			
 		} else {
@@ -724,8 +820,26 @@ func (state *GameState) attack(pos int) bool {
 		return false
 	}
 
+
+	state.Prompt = ""
+
+	// Updating prompt based on attack result was getting too busy
+	// Commenting out for now
+	// switch (status) {
+	// 	case STATUS_MISS:
+	// 		state.Prompt = state.Players[state.ActivePlayer].Name + " missed. "
+	// 	default:
+	// 		if playersHit > 1 {
+	// 			state.Prompt = fmt.Sprintf("%s hit %d! ", state.Players[state.ActivePlayer].Name, playersHit)
+	// 		} else {
+	// 			state.Prompt = fmt.Sprintf("%s hit! ", state.Players[state.ActivePlayer].Name)
+	// 		}
+			
+	// }
+
 	// Update state status
 	state.Status = status
+	state.LastAttackPos = pos
 
 	// Move on to next player
 	state.nextValidPlayer()
@@ -801,10 +915,10 @@ func (state *GameState) createClientState() *GameState {
 	// Also, set Viewing flag to let client know they are not actively part of the game
 	if state.Players[state.clientPlayer].status == PLAYER_STATUS_VIEWING {
 		start = 0
-		stateCopy.PlayerStatus = PLAYER_STATUS_VIEWING
-	} else {
-		stateCopy.PlayerStatus = state.Players[state.clientPlayer].status
-	}
+	} 
+
+	// Set current player's status
+	stateCopy.PlayerStatus = state.Players[state.clientPlayer].status
 
 	currentActivePlayerID := ""
 	if stateCopy.ActivePlayer > -1 {
@@ -838,6 +952,38 @@ func (state *GameState) createClientState() *GameState {
 	// Ensure move time is not negative
 	if stateCopy.MoveTime < 0 {
 		stateCopy.MoveTime = 0
+	}
+
+	// If this player has not yet placed their ships, update the prompt
+	if stateCopy.clientPlayer == 0 && stateCopy.Status == STATUS_PLACE_SHIPS && stateCopy.PlayerStatus == PLAYER_STATUS_PLACE_SHIPS{
+		stateCopy.Prompt = PROMPT_PLACE_SHIPS
+	}
+
+	// ** COMMENTED OUT FOR NOW - PROMPT REDUNDANT **
+	// Add active player's turn to prompt.
+	// if stateCopy.Status >= STATUS_GAMESTART && stateCopy.ActivePlayer >= 0 {
+	// 	// if stateCopy.ActivePlayer == 0 {
+	// 	// 	stateCopy.Prompt = stateCopy.Prompt + "Your turn"
+	// 	// }
+	// 	// } else {
+	// 	// 	stateCopy.Prompt = stateCopy.Prompt + stateCopy.Players[stateCopy.ActivePlayer].Name + "'s turn"
+	// 	// }
+	// }
+
+	// If sentence begins with current player's name, replace it with YOU
+	if strings.HasPrefix(stateCopy.Prompt, stateCopy.Players[0].Name) {
+		stateCopy.Prompt = strings.Replace(stateCopy.Prompt, stateCopy.Players[0].Name+" ", "You ", 1)
+		// Loop through and make any word changes for grammar
+		for _, change := range wordChanges {
+			if strings.Contains(stateCopy.Prompt, change[0]) {
+				stateCopy.Prompt = strings.Replace(stateCopy.Prompt, change[0], change[1], 1)
+				break
+			}
+		}
+	}
+
+	if BOT_TIME_LIMIT == 0 {
+		log.Println(stateCopy.Prompt)
 	}
 
 	return &stateCopy

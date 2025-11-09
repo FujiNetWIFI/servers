@@ -84,13 +84,9 @@ func TestFullGameTwoPlayers(t *testing.T) {
 	p1 := players[0]
 	p2 := players[1]
 
-	// Join game
-	c(p1, apiState)
-	c(p2, apiState)
-
-	// Ready up
-	c(p1, apiReady)
-	c(p2, apiReady)
+	// Players join game and ready up
+	for _, p := range players {c(p, apiState)}
+	for _, p := range players {c(p, apiReady)}
 
 	// Expect to place ships
 	state := c(p1, apiState).(*GameState)
@@ -136,7 +132,7 @@ func TestFullGameTwoPlayers(t *testing.T) {
 		t.Fatal("Expected Status STATUS_HIT. Got:",state.Status)
 	}
 
-	// P1 Attack same spot - should allow a second attack since this was already attacked
+	// P1 Attack same spot - should ignore and allow another attack since this was already attacked
 	state = c(p1, apiAttack,[]gin.Param{{Key: "pos", Value: "99"}}).(*GameState)
 	if (state.ActivePlayer != 0) {
 		t.Fatal("Expected ActivePlayer to stay at 0. Got:",state.ActivePlayer)
@@ -156,7 +152,6 @@ func TestFullGameTwoPlayers(t *testing.T) {
 	if (state.Players[1].ShipsLeft[4] != 0) {
 		t.Fatal("Expected ShipsLeft[4] to be 0. Got:",state.Players[0].ShipsLeft[4])
 	}
-
 	// Now take turns attacking until P2 inevitably wins
 	for i := 0; i < 33; i++ {
 		c(p1, apiAttack,[]gin.Param{{Key: "pos", Value: strconv.Itoa(i)}})
@@ -164,6 +159,98 @@ func TestFullGameTwoPlayers(t *testing.T) {
 	}
 
 	// The game has finished!
+	if (state.Status != STATUS_GAMEOVER) {
+		t.Fatal("Expected Status STATUS_GAMEOVER. Got:",state.Status)
+	}
+
+	// P1 Attacks - should not be allowed
+	state = c(p2, apiAttack,[]gin.Param{{Key: "pos", Value: "60"}}).(*GameState)
+	if (state.Status != STATUS_GAMEOVER) {
+		t.Fatal("Expected Status STATUS_SUNK. Got:",state.Status)
+	}
+
+}
+
+
+func TestFullGameThreePlayers(t *testing.T) {
+	_, players := createTestTable(0, 3)
+
+	// Players join game and ready up
+	for _, p := range players {c(p, apiState)}
+	for _, p := range players {c(p, apiReady)}
+
+	p1 := players[0]
+	p2 := players[1]
+	p3 := players[2]
+
+	// Expect to place ships
+	state := c(p1, apiState).(*GameState)
+	if  (state.Status != STATUS_PLACE_SHIPS) {
+		t.Fatal("Expected Status STATUS_PLACE_SHIPS. Got:",state.Status)
+	}
+
+	// Players place ships
+	// xxxxx
+	// xxxx
+	// xxx
+	// xxx
+	// xx
+	for _, p := range players {c(p, apiPlace,[]gin.Param{{Key: "ships", Value: "0,10,20,30,40"}})}
+
+	state = c(p1, apiState).(*GameState)
+	if  (state.Status != STATUS_GAMESTART) {
+		t.Fatal("Expected Status STATUS_GAMESTART. Got:",state.Status)
+	}
+	if  (state.ActivePlayer != 0) {
+		t.Fatal("Expected P1 to be activePlayer. Got:",state.ActivePlayer)
+	}
+	if  (state.PlayerStatus != PLAYER_STATUS_PLAYING) {
+		t.Fatal("Expected P1 PlayerStatus to be playing. Got:",state.PlayerStatus)
+	}
+
+	// Player 2 attacks out of turn. Expect game status to remain the same
+	state = c(p2, apiAttack,[]gin.Param{{Key: "pos", Value: "99"}}).(*GameState)
+	if (state.Status != STATUS_GAMESTART) {
+		t.Fatal("Expected Status STATUS_GAMESTART. Got:",state.Status)
+	}
+
+	// P1 Attack and miss
+	state = c(p1, apiAttack,[]gin.Param{{Key: "pos", Value: "99"}}).(*GameState)
+	if (state.Status != STATUS_MISS) {
+		t.Fatal("Expected Status STATUS_MISS. Got:",state.Status)
+	}
+
+	// P2 Attack and miss same spot - should attack since P1 hasn't been attacked there yet
+	state = c(p2, apiAttack,[]gin.Param{{Key: "pos", Value: "99"}}).(*GameState)
+	if (state.Status != STATUS_MISS) {
+		t.Fatal("Expected Status STATUS_MISS. Got:",state.Status)
+	}
+
+	// P3 Attack same spot - should ignore and allow another attack since this was already attacked
+	state = c(p3, apiAttack,[]gin.Param{{Key: "pos", Value: "99"}}).(*GameState)
+	if (state.ActivePlayer != 0) {
+		t.Fatal("Expected ActivePlayer to stay at 0. Got:",state.ActivePlayer)
+	}
+
+	// P3 Attack and miss
+	state = c(p3, apiAttack,[]gin.Param{{Key: "pos", Value: "98"}}).(*GameState)
+	if (state.Status != STATUS_MISS) {
+		t.Fatal("Expected Status STATUS_MISS. Got:",state.Status)
+	}
+
+	// Now take turns attacking until P1 inevitably wins
+	for i := 0; i < 42; i++ {
+		// Player 1 attacks, hitting P2 and P3. 
+		c(p1, apiAttack,[]gin.Param{{Key: "pos", Value: strconv.Itoa(i)}})
+		
+		// Player 2 attacks, hitting P1 and P3. 
+		c(p2, apiAttack,[]gin.Param{{Key: "pos", Value: strconv.Itoa(i)}})
+		
+		// Player 3 cannot attack the same spot since P2 and P3 have already been attacked, so attack another position
+		state =c(p3, apiAttack,[]gin.Param{{Key: "pos", Value: strconv.Itoa(97-i)}}).(*GameState)
+	}
+
+	// The game has finished! Technically, it ended with Player 1's final attack, and the P2/P3 attacks should no have effect
 	if (state.Status != STATUS_GAMEOVER) {
 		t.Fatal("Expected Status STATUS_GAMEOVER. Got:",state.Status)
 	}

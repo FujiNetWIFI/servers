@@ -12,7 +12,6 @@ type Player struct {
 	// Internal
 	id          string
 	isBot       bool
-	isReady     bool
 	lastPing    time.Time
 	isPenalized bool
 	status   	int
@@ -24,6 +23,7 @@ type GameState struct {
 	ActivePlayer int
 	PlayerStatus int
 	MoveTime     int
+	LastAttackPos int
 	Prompt	   	 string
 	Players      []Player
 
@@ -34,6 +34,7 @@ type GameState struct {
 	clientPlayer int
 	moveExpires  time.Time
 	
+	lastSuccessfulAttackPos int
 
 	// Meta/Lobby related
 	table         string

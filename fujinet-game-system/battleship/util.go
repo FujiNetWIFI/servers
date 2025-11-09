@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -17,8 +18,65 @@ func serializeResults(c *gin.Context, obj any) {
 	}
 	if c.Query("bin") == "1" {
 		var buf []byte
+		//var val int
+		//bigEndian := c.Query("be") == "1"
+
+		// Binary version of Table list
+		if tables, ok := obj.([]GameTable); ok {
+			buf = append(buf, byte(len(tables)))
+			for _, o := range tables {
+				buf = appendFixedLengthString(buf, o.Table, 8)
+				buf = appendFixedLengthString(buf, o.Name, 20)
+				buf = appendFixedLengthString(buf, fmt.Sprintf("%d / %d", o.CurPlayers, o.MaxPlayers), 5)
+			}
+		}
 		
-		// TODO: Implement binary serialization
+		// // Binary version of GameState
+		if o, ok := obj.(*GameState); ok {
+			buf = append(buf, byte(len(o.Players)))
+			buf = appendFixedLengthString(buf, o.Prompt, 32)
+			buf = append(buf,
+				byte(o.Status),
+				byte(o.PlayerStatus),
+				byte(o.ActivePlayer),
+				byte(o.MoveTime))
+
+			if o.Status == STATUS_LOBBY {
+				// include server name
+				buf = appendFixedLengthString(buf, o.serverName, 20)
+			} else {
+				buf = append(buf,byte(o.LastAttackPos))
+				
+				if o.clientPlayer == 0 && o.PlayerStatus != PLAYER_STATUS_VIEWING && o.Players[0].ships != nil {
+					for j := 0; j < 5; j++ {
+						buf = append(buf, byte(o.Players[0].ships[j].Pos + (100*o.Players[0].ships[j].Dir)))
+					}
+				} else {
+					for j := 0; j < 5; j++ {
+						buf = append(buf, byte(0))
+					}
+				}	
+			}
+
+		
+			for i := 0; i < len(o.Players); i++ {
+				buf = appendFixedLengthString(buf, o.Players[i].Name, 8)
+				buf = append(buf, byte(o.Players[i].status))
+				
+				if o.Status != STATUS_LOBBY {
+					// Include gamefield and ships only if avilable (the game has started)
+					if len(o.Players[i].Gamefield) >0 && len(o.Players[i].ShipsLeft) >0 {
+						for j := 0; j < FIELD_SIZE; j++ {
+							buf = append(buf, byte(o.Players[i].Gamefield[j]))
+						}
+						for j := 0; j < len(o.Players[i].ShipsLeft); j++ {
+							buf = append(buf, byte(o.Players[i].ShipsLeft[j]))
+						}
+					}
+				}
+				
+			}
+		}
 		
 		c.Data(http.StatusOK, "application/octet-stream", buf)
 	} else {
