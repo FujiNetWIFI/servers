@@ -18,8 +18,6 @@ func serializeResults(c *gin.Context, obj any) {
 	}
 	if c.Query("bin") == "1" {
 		var buf []byte
-		//var val int
-		//bigEndian := c.Query("be") == "1"
 
 		// Binary version of Table list
 		if tables, ok := obj.([]GameTable); ok {

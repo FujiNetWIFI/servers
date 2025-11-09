@@ -564,7 +564,7 @@ func (state *GameState) dropInactivePlayers(dropForNewPlayer bool) {
 		state.ActivePlayer = slices.IndexFunc(players, func(p Player) bool { return strings.EqualFold(p.id, activePlayerID) })
 
 		// Check if the active player is the one who left, in which case, we need to start the turn of the next player in line
-		if !state.gameOver && state.Status > 0 && state.ActivePlayer < 0 {
+		if !state.gameOver && state.Status >= STATUS_GAMESTART && state.ActivePlayer < 0 {
 			// The player immediately after the leaving player now owns that index, so set activePlayer the the index before them
 			// and call nextValidPlayer() to start their turn
 			state.ActivePlayer = currentActivePlayer - 1
@@ -584,9 +584,8 @@ func (state *GameState) clientLeave() {
 	if state.clientPlayer < 0 {
 		return
 	}
-	//player := &state.Players[state.clientPlayer]
-
-	//player.isLeaving = true
+	player := &state.Players[state.clientPlayer]
+	player.lastPing = time.Now().Add(time.Minute * time.Duration(-10))
 
 	// Check if no human players are playing. If so, end the game
 	humanPlayersLeft := 0
@@ -601,11 +600,13 @@ func (state *GameState) clientLeave() {
 		}
 	}
 
+	state.dropInactivePlayers(false)
+	
 	// If there aren't enough players to play, abort the game
 	if playersLeft < 2 || humanPlayersLeft == 0 {
 		state.endGame(true)
 	}
-	state.dropInactivePlayers(false)
+	
 }
 
 // Update player's ping timestamp. If a player doesn't ping in a certain amount of time, they will be dropped from the server.
