@@ -25,7 +25,7 @@ var DefaultGameServerDetails = GameServer{
 	Region:    "us",
 	Serverurl: "https://battleship.carr-designs.com/",
 	Clients: []GameClient{
-		//{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fbs.xex"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fbs.xex"},
 		//{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/fbs.po"},
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fbs.dsk"},
 	},

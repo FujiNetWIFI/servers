@@ -17,11 +17,11 @@ var BOT_TIME_LIMIT = time.Second * 3
 var START_WAIT_TIME = time.Second * 31
 var START_WAIT_TIME_ALL_READY = time.Second * 6
 var START_WAIT_TIME_ONE_PLAYER = time.Second * 3
-var ENDGAME_TIME_LIMIT = time.Second * 8
+var ENDGAME_TIME_LIMIT = time.Second * 10
 var PLAYER_TIME_LIMIT = time.Second * 45
 var PLAYER_PENALIZED_TIME_LIMIT = time.Second * 15
 var NEW_STATUS_TIME_EXTRA = time.Second * 5
-var PLAYER_TIME_LIMIT_SINGLE_PLAYER = time.Second * 255 // don't go over 255 as 8 bit clients expect to store in single byte
+var PLAYER_TIME_LIMIT_SINGLE_PLAYER = time.Second * 250 // don't go over 255 as 8 bit clients expect to store in single byte
 
 
 const (
@@ -281,6 +281,19 @@ func (state *GameState) setClientPlayerByID(playerID string) bool {
 		}
 	}
 	return false
+}
+
+func (state *GameState) debugForceEnd(winner int) {
+	for i, _ := range state.Players {
+		if state.Players[i].status != PLAYER_STATUS_VIEWING {
+			if i==winner {
+				state.Players[i].ShipsLeft = []int{1,1,1,1,1}
+			}else {
+				state.Players[i].ShipsLeft = []int{0,0,0,0,0}
+			}
+		}
+	}
+	state.endGame(false)
 }
 
 func (state *GameState) endGame(abortGame bool) {

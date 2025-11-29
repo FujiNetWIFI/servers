@@ -74,7 +74,12 @@ func main() {
 	route("/attack/:pos", apiAttack)
 	route("/leave", apiLeave)
 
-	route("/updateLobby", apiUpdateLobby)
+	if PRODUCTION_MODE {
+		route("/updateLobby", apiUpdateLobby)
+	} else {
+		route("/debugEndGame/:winner", apiDebugEndGame)
+	}
+	
 
 	initializeTables()
 
@@ -198,6 +203,23 @@ func apiLeave(c *gin.Context) {
 	}()
 	serializeResults(c, "bye")
 }
+//apiEndGame
+func apiDebugEndGame(c *gin.Context) {
+	state, unlock := getState(c)
+
+	func() {
+		defer unlock()
+
+		if state != nil {
+			if state.clientPlayer >= 0 {
+				winner,_ := strconv.Atoi(c.Param("winner"))
+				state.debugForceEnd(winner)
+				saveState(state)
+			}
+		}
+	}()
+	serializeResults(c, "bye")
+}
 
 // Returns a view of the current state without causing it to change. For debugging side-by-side with a client
 func apiView(c *gin.Context) {
@@ -287,8 +309,8 @@ func saveState(state *GameState) {
 func initializeTables() {
 
 	// Create the real servers (hard coded for now)
-	createTable("AI - 1 Bot", "ai1", 1, true)
-	createTable("AI - 2 Bot", "ai2", 2, true)
+	createTable("AI - 1 on 1", "ai1", 1, true)
+	createTable("AI - 2 Bots", "ai2", 2, true)
 	createTable("AI - 3 Bots", "ai3", 3, true)
 	createTable("Cape Fuji", "r1", 0, true)
 	createTable("High Seas", "r2", 0, true)

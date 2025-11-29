@@ -8,7 +8,7 @@
 gcloud config set project fuji-battleship
 
 # Initial deployment of service - make sure everything is working
-gcloud run deploy fuji-battleship --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=128Mi
+#gcloud run deploy fuji-battleship --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=128Mi
 
 # Production deployment - contacts the Lobby . Use this going forward once everthing is tested
-#gcloud run deploy fuji-battleship --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=128Mi
+gcloud run deploy fuji-battleship --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=128Mi

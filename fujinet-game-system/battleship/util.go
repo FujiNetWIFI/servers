@@ -45,11 +45,13 @@ func serializeResults(c *gin.Context, obj any) {
 			} else {
 				buf = append(buf,byte(o.LastAttackPos))
 				
-				if o.clientPlayer == 0 && o.PlayerStatus != PLAYER_STATUS_VIEWING && o.Players[0].ships != nil {
+				// return player's ship positions
+				if o.PlayerStatus != PLAYER_STATUS_VIEWING && o.Players[0].ships != nil {
 					for j := 0; j < 5; j++ {
 						buf = append(buf, byte(o.Players[0].ships[j].Pos + (100*o.Players[0].ships[j].Dir)))
 					}
 				} else {
+					// Viewer - return empty array
 					for j := 0; j < 5; j++ {
 						buf = append(buf, byte(0))
 					}
