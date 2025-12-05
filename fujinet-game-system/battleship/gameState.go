@@ -33,6 +33,7 @@ type GameState struct {
 	gameOver     bool
 	clientPlayer int
 	moveExpires  time.Time
+	botBox                  []Player // if players join to replace the bots, bots go here until a player leaves
 	
 	lastSuccessfulAttackPos int
 

@@ -307,7 +307,6 @@ func (state *GameState) endGame(abortGame bool) {
 	state.gameOver = true
 	state.ActivePlayer = -1
 	state.Status = STATUS_GAMEOVER
-	
 	state.Prompt = PROMPT_GAME_ABORTED
 
 	if !abortGame {
@@ -355,7 +354,41 @@ func (state *GameState) refreshBots() {
 	if state.Status != STATUS_LOBBY {
 		return
 	}
-	// TODO - support bots
+	botDropped := false
+
+	// Store current client player ID, in case we need it to reset the id after bots drop
+	clientPlayerID := ""
+	if state.clientPlayer > 0 && state.clientPlayer < len(state.Players) {
+		clientPlayerID = state.Players[state.clientPlayer].id
+	}
+
+	// Remove bots if overcrowded
+	for len(state.Players) > MAX_PLAYERS && slices.ContainsFunc(state.Players, func(p Player) bool { return p.isBot }) {
+		// If the table is full, drop a bot when this player joins
+		_, _, _, botCount := state.getPlayerCounts()
+
+		if botCount > 0 {
+			for i := len(state.Players) - 1; i >= 0; i-- {
+				if state.Players[i].isBot {
+					state.botBox = slices.Insert(state.botBox, len(state.botBox), state.Players[i])
+					state.Players = append(state.Players[:i], state.Players[i+1:]...)
+					botDropped = true
+					break
+				}
+			}
+		}
+	}
+
+	// Or if the table is not full, fill it back in with bots
+	for len(state.Players) < MAX_PLAYERS && len(state.botBox) > 0 {
+		state.Players = slices.Insert(state.Players, len(state.Players), state.botBox[len(state.botBox)-1])
+		state.botBox = state.botBox[:len(state.botBox)-1]
+	}
+
+	// Update client player in case a bot drop affected their index
+	if botDropped && state.clientPlayer > 0 && state.clientPlayer < len(state.Players) {
+		state.setClientPlayerByID(clientPlayerID)
+	}
 }
 
 func (state *GameState) resetGame() {

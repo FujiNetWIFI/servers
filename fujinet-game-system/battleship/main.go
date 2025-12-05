@@ -135,14 +135,15 @@ func apiAttack(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
+			state.playerPing()
+
 			// Access check - only move if the client is the active player
 			if state.clientPlayer == state.ActivePlayer {
 				pos, _ := strconv.Atoi(c.Param("pos"))
-				state.playerPing()
 				state.attack(pos)
 				saveState(state)
-				state = state.createClientState()
 			}
+			state = state.createClientState()
 		}
 	}()
 
@@ -161,8 +162,8 @@ func apiReady(c *gin.Context) {
 			if state.clientPlayer >= 0 {
 				state.toggleReady()
 				saveState(state)
-				state = state.createClientState()
 			}
+			state = state.createClientState()
 		}
 	}()
 
