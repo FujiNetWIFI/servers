@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -61,6 +60,7 @@ const (
 	// Field values
 	FIELD_HIT = 1
 	FIELD_MISS = 2
+	FIELD_SUNK = -99
 	FIELD_SIZE			 = FIELD_WIDTH * FIELD_WIDTH
 	
 	// Ship placement direction
@@ -171,7 +171,7 @@ func (state *GameState) startGame() {
 			player := &state.Players[i]
 
 			// This player is playing - initialize their gamefield
-			if totalPlaying < 6 && (player.status == PLAYER_STATUS_READY || player.isBot) {
+			if totalPlaying < MAX_PLAYERS && (player.status == PLAYER_STATUS_READY || player.isBot) {
 				totalPlaying++
 				player.status = PLAYER_STATUS_PLACE_SHIPS
 
@@ -204,6 +204,9 @@ func (state *GameState) startGame() {
 
 		// Update the players array in the state with the newly sorted list
 		state.Players = players
+
+		// Update the total number of players in this game
+		state.playerCount = totalPlaying
 
 		// As the client player may have shifted positions, re-set their ID
 		state.setClientPlayerByID(clientPlayerID)
@@ -370,6 +373,7 @@ func (state *GameState) refreshBots() {
 		if botCount > 0 {
 			for i := len(state.Players) - 1; i >= 0; i-- {
 				if state.Players[i].isBot {
+					state.Players[i].status = PLAYER_STATUS_READY
 					state.botBox = slices.Insert(state.botBox, len(state.botBox), state.Players[i])
 					state.Players = append(state.Players[:i], state.Players[i+1:]...)
 					botDropped = true
@@ -394,8 +398,8 @@ func (state *GameState) refreshBots() {
 func (state *GameState) resetGame() {
 	state.Status = STATUS_LOBBY
 	state.ActivePlayer = -1
-	state.lastSuccessfulAttackPos=-1
 	state.LastAttackPos = 0
+	state.aiCheckboardBit = rand.Intn(2)
 	state.refreshBots()
 
 	// Set player to unready if human, ready if bot (for future)
@@ -404,6 +408,7 @@ func (state *GameState) resetGame() {
 		state.Players[i].ShipsLeft = nil
 		state.Players[i].Gamefield = nil
 		state.Players[i].ships = nil
+	    state.Players[i].knownSunkShipsField = nil
 	}
 
 		if len(state.Players) < 2 {
@@ -478,6 +483,9 @@ func (state *GameState) runGameLogic() {
 			if player.status == PLAYER_STATUS_PLAYING {
 				player.Gamefield = make([]int, FIELD_SIZE)
 				player.ShipsLeft = []int{1,1,1,1,1}
+
+				player.knownSunkShipsField = make([]int, FIELD_SIZE)
+
 			}
 		}
 
@@ -516,43 +524,286 @@ func (state *GameState) runGameLogic() {
 }
 
 func (state *GameState) forceHumanMove(player *Player) {
-	// Human player did not attack in time. Penalize them so their next wait time is shorter to avoid stalling the game
+	// Human player did not attack in time, so penalize them so their next wait time is shorter to avoid stalling the game
 	player.isPenalized = true
 
-	// Next player's turn
+	// Instead of picking an attack, skip this player's turn and move to the next player.
 	state.nextValidPlayer()
 }
 
+func setRank(field *[]int, pos int, rank int) {
+	if (*field)[pos]>=0  && (*field)[pos] < rank {
+			(*field)[pos] = rank
+	}
+}
 func (state *GameState) botMove() {
 
-	// If there was a last successful attack, try to target around it
-	if state.lastSuccessfulAttackPos >= 0 {
-		// Setup adjacent positions to attack in random order
-		adjacentOffsets := []int{-1, 1, -FIELD_WIDTH, FIELD_WIDTH}
-		rand.Shuffle(len(adjacentOffsets), func(i, j int) {
-			adjacentOffsets[i], adjacentOffsets[j] = adjacentOffsets[j], adjacentOffsets[i]
-		})
+	// The AI scans the fields of all enemy players, ranking the spots most likely to have a ship
+	// It will prefer to attack a spot that is more likely to hit multiple player's ships
+	// It does not target human players or know the actual positions of any ships, sunken or otherwise.
+	// In other words, it does not cheat - it just plays better than random.
 
-		// Attacking adjacent positions
-		for _, offset := range adjacentOffsets {
-			pos := state.lastSuccessfulAttackPos + offset
-			// Only attack if the +/- 1 position does not wrap to a new row
-			if (math.Abs(float64(offset))>1 || pos/10==state.lastSuccessfulAttackPos/10) && state.attack(pos) {
-				return
+	// The main ranked field tracking positions to attack.
+	attackFieldRank := make([]int, FIELD_SIZE)
+
+	// Highest rank reached. Only attacks of this rank will be considered
+	highestRank := 0
+
+	// Logic: Scan each player's field:
+	// 	1. Remove hits that represent possible sunken ships
+	//  2. Find attack locations adjacent to (or in between) hits
+
+	for id, player := range state.Players {
+		// Skip current player or non playing players
+		if id == state.ActivePlayer || player.status != PLAYER_STATUS_PLAYING {
+			continue
+		}
+		
+		// Copy the player's current field, so it can be modified to indicate potential attacks
+		attackField := make([]int, FIELD_SIZE)
+
+		// Since this will use numbers over 0 to rank attacks, inverse the current values.
+		// Also, copy any known sunk positions
+		for pos := 0; pos < FIELD_SIZE; pos++ {
+			attackField[pos] = -player.Gamefield[pos]
+			
+			if player.knownSunkShipsField[pos] == FIELD_SUNK {
+				attackField[pos] = FIELD_SUNK
+			}
+		}
+
+		maxShipSizeLeft := -1
+
+
+		// Now, for each hit position remaining, figure out most likely attack positions
+		
+		// The following rank values are set:
+		// 1 - Single hit found with no adjacent hits. Unsure of direction
+		// 2 - Empty space between two hits that could be a ship
+		// 3 - Multiple hits in a row found, likely direction of ship
+
+		// Search for horizontal opportunities
+		foundSize := 0
+		for y:=0; y<FIELD_WIDTH; y++ {
+			for x:=0; x<FIELD_WIDTH; x++ {
+				if attackField[y*FIELD_WIDTH+x] == -FIELD_HIT {
+					foundSize++
+					
+					// Look ahead to determine if end of ship
+					if x==FIELD_WIDTH-1 || attackField[y*FIELD_WIDTH+x+1]!= -FIELD_HIT {
+						rank := 1
+
+						// If length>1, boost the attack rank as it is more likely there is a ship in this direction
+						if foundSize > 1 {
+							rank = 3
+						} 
+
+						// Test left
+						testX := x-foundSize
+						if testX >=0 && attackField[y*FIELD_WIDTH+testX]>=0  {
+							setRank(&attackField, y*FIELD_WIDTH+testX, rank)
+							leftToCheck := maxShipSizeLeft-foundSize
+							
+							// If a single width, check if there is empty space between this 
+							// up to the largest ship spaces away
+							if leftToCheck>0 {
+								for testI:=0; testI<leftToCheck; testI++ {
+
+									// Stop at edge
+									if testX<0 {
+										break
+									}
+
+									if attackField[y*FIELD_WIDTH+testX] == -FIELD_HIT {
+										// Found another hit! Set the in-between spaces to rank 2
+										for x2:=testX+1; x2<=x-foundSize; x2++ {
+											setRank(&attackField, y*FIELD_WIDTH+x2, 2)
+										}
+									}
+
+									// Stop if hit any non empty space
+									if attackField[y*FIELD_WIDTH+testX] <0 {
+										break
+									}
+
+									testX--
+								}
+							}
+
+						}
+
+						// Test right
+						testX = x+1
+						if testX < FIELD_WIDTH && attackField[y*FIELD_WIDTH+testX] >= 0 {
+							setRank(&attackField, y*FIELD_WIDTH+testX, rank)
+
+							// If a single width, check if there is empty space between this 
+							// up to the largest ship spaces away
+							leftToCheck := maxShipSizeLeft-foundSize
+							if leftToCheck>0 {
+								for testI:=0; testI<leftToCheck; testI++ {
+
+									// Stop at edge
+									if testX>=FIELD_WIDTH {
+										break
+									}
+
+									if attackField[y*FIELD_WIDTH+testX] == -FIELD_HIT {
+										// Found another hit! Set the in-between spaces to rank 2
+										for x2:=x+1; x2<testX; x2++ {
+											setRank(&attackField, y*FIELD_WIDTH+x2, 2)
+										}
+									}
+
+									// Stop if hit any non empty space
+									if attackField[y*FIELD_WIDTH+testX] <0 {
+										break
+									}
+
+									testX++
+								}
+							}
+						}
+					}
+				} else {
+					foundSize=0
+				}
+			}
+		}
+		
+		// Search for vertical opportunities
+		foundSize = 0
+		for x:=0; x<FIELD_WIDTH; x++ {
+			for y:=0; y<FIELD_WIDTH; y++ {
+				if attackField[y*FIELD_WIDTH+x] == -FIELD_HIT {
+					foundSize++
+					
+					// Look ahead to determine if end of ship
+					if y==FIELD_WIDTH-1 || attackField[(y+1)*FIELD_WIDTH+x]!= -FIELD_HIT {
+						rank := 1
+
+						// If length>1, boost the attack rank as it is more likely there is a ship in this direction
+						if foundSize > 1 {
+							rank = 3
+						} 
+
+						// Test up
+						testY := y-foundSize
+						if testY >=0 && attackField[testY*FIELD_WIDTH+x]==0 {
+							setRank(&attackField, testY*FIELD_WIDTH+x, rank)
+
+							leftToCheck := maxShipSizeLeft-foundSize
+							
+							// If a single width, check if there is empty space between this 
+							// up to the largest ship spaces away
+							if leftToCheck>0 {
+								for testI:=0; testI<leftToCheck; testI++ {
+
+									// Stop at edge
+									if testY<0 {
+										break
+									}
+
+									if attackField[testY*FIELD_WIDTH+x] == -FIELD_HIT {
+										// Found another hit! Set the in-between spaces to rank 2
+										for y2:=testY+1; y2<=y-foundSize; y2++ {
+											setRank(&attackField, y2*FIELD_WIDTH+x, 2)
+										}
+									}
+
+									// Stop if hit any non empty space
+									if attackField[testY*FIELD_WIDTH+x] <0 {
+										break
+									}
+
+									testY--
+								}
+							}
+						}
+
+						// Test down
+						testY = y+1	
+						if testY < FIELD_WIDTH && attackField[testY*FIELD_WIDTH+x] == 0 {
+							setRank(&attackField, testY*FIELD_WIDTH+x, rank)
+
+							// If a single width, check if there is empty space between this 
+							// up to the largest ship spaces away
+							leftToCheck := maxShipSizeLeft-foundSize
+							if leftToCheck>0 {
+								for testI:=0; testI<leftToCheck; testI++ {
+
+									// Stop at edge
+									if testY>=FIELD_WIDTH {
+										break
+									}
+
+									if attackField[testY*FIELD_WIDTH+x] == -FIELD_HIT {
+										// Found another hit! Set the in-between spaces to rank 2
+										for y2:=y+1; y2<testY; y2++ {
+											setRank(&attackField, y2*FIELD_WIDTH+x, 2)
+										}
+									}
+
+									// Stop if hit any non empty space
+									if attackField[testY*FIELD_WIDTH+x] <0 {
+										break
+									}
+
+									testY++
+								}
+							}
+						}
+					}
+				} else {
+					foundSize=0
+				}
+			}
+		}
+
+		// Now add to the overall attack field rank 
+		for pos:=0; pos<FIELD_SIZE; pos++ {
+			if attackField[pos] > 0 {
+				attackFieldRank[pos] += attackField[pos]
+				if attackFieldRank[pos] > highestRank {
+					highestRank = attackFieldRank[pos]
+				}
 			}
 		}
 	}
 
-	// Failed, so create list of valid positions to attack and randomly choose one attack randomly
-	// Loop through fields of all enemy players to add to list if still 0
-
+	// Generate a rank of positions and sort by attack rank
 	validPositions := []int{}
-	
-	for pos := 0; pos < FIELD_SIZE; pos++ {
-		for id, player := range state.Players {
-		// If found an open spot for another active player, add it
-			if id != state.ActivePlayer && player.status == PLAYER_STATUS_PLAYING && player.Gamefield[pos] == 0{
+	if highestRank > 0 {
+		for pos:=0; pos<FIELD_SIZE; pos++ {
+			if attackFieldRank[pos] == highestRank {
 				validPositions = append(validPositions, pos)
+			}
+		}
+	}
+
+	if len(validPositions) == 0 {
+
+		// If no attack positions were found, resort to search logic
+		for attempt :=0; attempt<2; attempt++ {
+
+			// Two attempt:
+			// attempt 0 - random checkerboard pattern
+			// attempt 1 - any open spot
+
+			validPositions = []int{}
+			
+			for pos := 0; pos < FIELD_SIZE; pos++ {
+				for id, player := range state.Players {
+					// If found an open spot for another player, add it
+					if id != state.ActivePlayer && player.status == PLAYER_STATUS_PLAYING && player.Gamefield[pos] == 0 && 
+					(attempt==1 || ( (pos+(pos/FIELD_WIDTH)%2)%2==state.aiCheckboardBit)) {
+						validPositions = append(validPositions, pos)
+						break
+					}
+				}
+			}
+
+			if len(validPositions) > 0 {
 				break
 			}
 		}
@@ -724,7 +975,7 @@ func (state *GameState) placeShipsFor(shipPositions []int, player *Player) bool 
 	
 	// Reset ship details
 	player.ships = []Ship{}
-
+	
 	// Place each ship
 	for i, pos := range shipPositions {
 		shipSize := SHIP_SIZES[i]
@@ -829,33 +1080,47 @@ func (state *GameState) attack(pos int) bool {
 				// Mark ship as sunk
 				player.ShipsLeft[hitShip] = 0
 				status = STATUS_SUNK
-				
-				// Sunk - reset last successful attack position if this has been the only ship hit so far
-				// AND if any of the following are true:
-				// 1. The attacking (active) player is a bot
-				// 2. Multiple bots are still in play
-				// 3. One bot is left and was not the target (e.g. 2 humans, 1 bot)
-				if  playersHit == 1 && state.Players[state.ActivePlayer].isBot || activeBots > 1 || (activeBots==1 && !player.isBot) {
-					state.lastSuccessfulAttackPos = -1
-				}
 
+				// We know this position represents a sunk ship, so update known sunk ships field
+				// We update the rest of the ship locations if it can be determined later
+				player.knownSunkShipsField[pos] = FIELD_SUNK
+				
 				// Check if all ships are sunk - player defeated
 				if !slices.Contains(player.ShipsLeft, 1) {
 					player.status = PLAYER_STATUS_DEFEATED
+					log.Println("Player defeated:", player.Name)
+				} else {
+
+					// Otherwise, check if total hits match the number required to sunk the current ships.
+					// If so, this means every hit is accounted for and we KNOW (without cheating) all hits represent sunk ships.
+
+					// Count total sizes of sunk ships
+					totalSunkHits := 0
+					for i, shipLeft := range player.ShipsLeft {
+						if shipLeft == 0 {
+							totalSunkHits += SHIP_SIZES[i]
+						}
+					}
+
+					// Count total hits in this player's gamefield
+					totalGamefieldHits := 0
+					for pos:=0; pos<FIELD_SIZE; pos++ {
+						if player.Gamefield[pos] == FIELD_HIT {
+							totalGamefieldHits++
+						}	
+					}
+
+					// If the number of hits match, update known sunk ships field
+					if totalGamefieldHits == totalSunkHits {						
+						log.Println("All hits marked as sunk for player:", player.Name)
+						for pos:=0; pos<FIELD_SIZE; pos++ {
+							if player.Gamefield[pos] == FIELD_HIT {
+								player.knownSunkShipsField[pos] = FIELD_SUNK
+							}
+						}
+					}
 				}
-			} else {
-				// We hit and did not sink, so store this as a successful attack that bots will use to target next time
-				
-				// Store if any of the following are true:
-				// 1. The attacking (active) player is a bot
-				// 2. Multiple bots are still in play
-				// 3. One bot is left and was not the target (e.g. 2 humans, 1 bot)
-				if  state.Players[state.ActivePlayer].isBot || activeBots > 1 || (activeBots==1 && !player.isBot) {
-					state.lastSuccessfulAttackPos = pos
-				}
-		
-			}
-			
+			} 
 		} else {
 			// Miss
 			player.Gamefield[pos] = FIELD_MISS
@@ -1017,16 +1282,10 @@ func (state *GameState) createClientState() *GameState {
 	// 	// }
 	// }
 
-	// If sentence begins with current player's name, replace it with YOU
+	// If sentence begins with current player's name, replace it with YOU and fix resulting grammar
 	if strings.HasPrefix(stateCopy.Prompt, stateCopy.Players[0].Name) {
 		stateCopy.Prompt = strings.Replace(stateCopy.Prompt, stateCopy.Players[0].Name+" ", "You ", 1)
-		// Loop through and make any word changes for grammar
-		for _, change := range wordChanges {
-			if strings.Contains(stateCopy.Prompt, change[0]) {
-				stateCopy.Prompt = strings.Replace(stateCopy.Prompt, change[0], change[1], 1)
-				break
-			}
-		}
+		stateCopy.Prompt = makeSingular(stateCopy.Prompt)
 	}
 
 	if BOT_TIME_LIMIT == 0 {
@@ -1034,6 +1293,17 @@ func (state *GameState) createClientState() *GameState {
 	}
 
 	return &stateCopy
+}
+
+// Loop through and make any word changes for grammar
+func makeSingular(phrase string) string {
+	for _, change := range wordChanges {
+		if strings.Contains(phrase, change[0]) {
+			phrase = strings.Replace(phrase, change[0], change[1], 1)
+			break
+		}
+	}
+	return phrase
 }
 
 func (state *GameState) updateLobby() {

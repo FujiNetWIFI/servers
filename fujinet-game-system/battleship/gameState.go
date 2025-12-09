@@ -16,6 +16,9 @@ type Player struct {
 	isPenalized bool
 	status   	int
 	ships 		[]Ship
+
+	// Field of known sunk positions. Memory for AI
+	knownSunkShipsField []int
 }
 
 type GameState struct {
@@ -34,8 +37,13 @@ type GameState struct {
 	clientPlayer int
 	moveExpires  time.Time
 	botBox                  []Player // if players join to replace the bots, bots go here until a player leaves
-	
-	lastSuccessfulAttackPos int
+
+
+	// Ai checkboard even/odd
+	aiCheckboardBit int
+
+	// Number of players in the game. Updated on game start
+	playerCount int
 
 	// Meta/Lobby related
 	table         string
