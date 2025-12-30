@@ -308,23 +308,29 @@ func (state *GameState) endGame(abortGame bool) {
 	}
 
 	state.gameOver = true
-	state.ActivePlayer = -1
 	state.Status = STATUS_GAMEOVER
 	state.Prompt = PROMPT_GAME_ABORTED
 
+	// If there is a winning player, it will overwrite the active player
+	state.ActivePlayer = -1
+	
 	if !abortGame {
 
 		// Build game result to send to lobby
 		gameResult := GameResult{}
 		gameResult.Players = []GamePlayer{}
-		for _, player := range state.Players {
+		for playerIndex, player := range state.Players {
 			if player.status != PLAYER_STATUS_VIEWING {
 
 				gamePlayer := GamePlayer{}
 				gamePlayer.Winner = slices.Contains(player.ShipsLeft,1)
+
+				// This player won!
 				if (gamePlayer.Winner) {
 					state.Prompt = fmt.Sprintf("%s " + GAME_WON_MESSAGES[rand.Intn(len(GAME_WON_MESSAGES))], player.Name)
+					state.ActivePlayer = playerIndex
 				}
+
 				gamePlayer.Name = player.Name
 				gamePlayer.Type = PLAYER_TYPE_HUMAN
 				if player.isBot {

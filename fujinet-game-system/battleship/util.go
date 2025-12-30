@@ -19,6 +19,14 @@ func serializeResults(c *gin.Context, obj any) {
 	if c.Query("bin") == "1" {
 		var buf []byte
 
+		// Handle version - for now it just drives feature
+		version := 1
+
+		// Version 2 - on game over, set active player to winner and include their ship positions
+		if c.Query("v") == "2" {
+			version = 2
+		}
+
 		// Binary version of Table list
 		if tables, ok := obj.([]GameTable); ok {
 			buf = append(buf, byte(len(tables)))
@@ -31,6 +39,12 @@ func serializeResults(c *gin.Context, obj any) {
 		
 		// // Binary version of GameState
 		if o, ok := obj.(*GameState); ok {
+
+			// Preserve original version behavior of not indicating winniny player
+			if version == 1 {
+				o.ActivePlayer = -1
+			}
+			
 			buf = append(buf, byte(len(o.Players)))
 			buf = appendFixedLengthString(buf, o.Prompt, 32)
 			buf = append(buf,
@@ -45,17 +59,30 @@ func serializeResults(c *gin.Context, obj any) {
 			} else {
 				buf = append(buf,byte(o.LastAttackPos))
 				
-				// return player's ship positions
-				if o.PlayerStatus != PLAYER_STATUS_VIEWING && o.Players[0].ships != nil {
-					for j := 0; j < 5; j++ {
-						buf = append(buf, byte(o.Players[0].ships[j].Pos + (100*o.Players[0].ships[j].Dir)))
-					}
-				} else {
-					// Viewer - return empty array
-					for j := 0; j < 5; j++ {
-						buf = append(buf, byte(0))
-					}
-				}	
+				// Original version only sent array of 5. V2 always returns an array of 10
+				shipTotal := 10;
+				if version <2 {
+					shipTotal = 5
+				}
+
+				// Return array of this players ships, followed by winning ships if game over
+				for j := 0; j < shipTotal; j++ {
+
+					// Default to empty value
+					value := byte(0)
+
+					// First 5 ships: If actively playing, show current player's ships
+					if j<5 && o.PlayerStatus != PLAYER_STATUS_VIEWING && o.Players[0].ships != nil {
+						value = byte(o.Players[0].ships[j].Pos + (100*o.Players[0].ships[j].Dir))
+
+					// Last 5 ships: If game over, show winning player's ships
+					} else if j>=5 && o.Status == STATUS_GAMEOVER && o.ActivePlayer >=0 && o.ActivePlayer < len(o.Players) && o.Players[o.ActivePlayer].ships != nil {
+						value = byte(o.Players[o.ActivePlayer].ships[j-5].Pos + (100*o.Players[o.ActivePlayer].ships[j-5].Dir))
+					} 
+
+					// Append value
+					buf = append(buf, value)
+				}
 			}
 
 		
