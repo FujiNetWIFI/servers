@@ -42,7 +42,9 @@ func serializeResults(c *gin.Context, obj any) {
 
 			// Preserve original version behavior of not indicating winniny player
 			if version == 1 {
-				o.ActivePlayer = -1
+				if o.Status == STATUS_GAMEOVER {
+					o.ActivePlayer = -1
+				}
 			}
 			
 			buf = append(buf, byte(len(o.Players)))
