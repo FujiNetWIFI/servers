@@ -29,6 +29,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/fbs.po"},
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fbs.dsk"},
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/fbs.img"},
+		{Platform: "c64", Url: "tnfs://ec.tnfs.io/c64/fbs.prg"},
 	},
 }
 
