@@ -70,6 +70,7 @@ func main() {
 
 	route("/state", apiState)
 	route("/ready", apiReady)
+	route("/ready/:ready", apiReady)
 	route("/place/:ships", apiPlace)
 	route("/attack/:pos", apiAttack)
 	route("/leave", apiLeave)
@@ -158,9 +159,21 @@ func apiReady(c *gin.Context) {
 		defer unlock()
 
 		if state != nil {
-			// Access check - only move if the client is a valid player
+			// Access check - only proceed if the client is a valid player
 			if state.clientPlayer >= 0 {
-				state.toggleReady()
+				
+				setReady := c.Param("ready")
+				
+				// If ready is specified, us it. Otherwise, toggle.
+				switch setReady {
+				case "1":
+					state.setReady(true)	
+				case "0":
+					state.setReady(false)
+				default:
+					state.toggleReady()
+				}
+
 				saveState(state)
 			}
 			state = state.createClientState()

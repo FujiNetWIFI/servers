@@ -951,7 +951,7 @@ func (state *GameState) getPlayerCounts() (bool, int, int, int) {
 
 }
 
-// Toggle ready state if waiting to start game
+// Toggle ready state if waiting to start game (deprecated in favor of setReady, which explicitly sets ready/unready instead of toggling)
 func (state *GameState) toggleReady() {
 
 	if state.Status == STATUS_LOBBY && len(state.Players) > 1 {
@@ -966,6 +966,23 @@ func (state *GameState) toggleReady() {
 		}
 	}
 }
+
+// Set ready state if waiting to start game
+func (state *GameState) setReady(ready bool) {
+
+	if state.Status == STATUS_LOBBY && len(state.Players) > 1 {
+
+		_, totalHumansReady, _, _ := state.getPlayerCounts()
+
+		// Set ready state for this player if there is space
+		if !ready {
+			state.Players[state.clientPlayer].status = PLAYER_STATUS_PLAYING
+		} else if totalHumansReady < MAX_PLAYERS {
+			state.Players[state.clientPlayer].status = PLAYER_STATUS_READY
+		}
+	}
+}
+
 
 // Place player's ships on the gamefield
 func (state *GameState) placeShips(shipPositions []int) bool {

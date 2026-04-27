@@ -32,7 +32,8 @@ A game client should perform the following actions:
 1. There is no specific call to join a table. Simply retrieving the state for a table will cause the player to join that table.
 2. In a loop (waiting for players to ready up):
     1. Call `/state?player=X&table=Y` to retrieve the latest state
-    2. Call `/ready?player=X&table=Y` to toggle if that player is ready or not
+    2. Call `/ready/1?player=X&table=Y` to set if that player is ready
+    3. Call `/ready/0?player=X&table=Y` to set if that player is not ready
 3. Once all players have readied up, a count down starts and then gameplay begins. Players may unready to abort the countdown.
 
 #### Place ships
@@ -85,7 +86,8 @@ You can view the state as-is by calling `/view`.
 ## Api paths
 
 * `/state` - Advance forward (AI/Game Logic) and return updated state
-* `/ready` - Toggle if this player is ready. When joining a table that does not have game in progress, all connected players must ready up to start.
+* `/ready/[1/0]` - Set if this player is ready (1), or not ready (0). When joining a table that does not have game in progress, all connected players must ready up to start.
+* `/ready` - (Deprecated) Toggle if this player is ready. Do not use for new clients.
 * `/place/[N,N,N,N,N]` - 5 comma separated positions. Place 5 ships on the grid. Position is top left. 0-99 - horizontal. 100-199 - vertical
 * `/attack/[POSITION]` - Attack a position on the grid (0-99)
 * `/leave` - Leave the game. Each client should call this when a player exits
