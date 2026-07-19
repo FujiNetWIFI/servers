@@ -38,7 +38,7 @@ func (m *KeyedMutex) Lock(key string) func() {
 }
 
 func main() {
-	log.Print("Starting server...")
+	log.Printf("Starting %s ...", versionString())
 
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug logging for requests and responses")
 	flag.BoolVar(&disableLobby, "disable-lobby", false, "Disable lobby communication")
@@ -96,6 +96,7 @@ func setupRouter() *gin.Engine {
 	router.POST("/leave", apiLeave)
 
 	router.GET("/tables", apiTables)
+	router.GET("/version", apiVersion)
 	router.GET("/updateLobby", apiUpdateLobby)
 
 	router.GET("/ws", func(c *gin.Context) {
@@ -220,6 +221,11 @@ func apiTables(c *gin.Context) {
 		}
 	}
 	serializeResults(c, tableOutput)
+}
+
+// Returns the server version, e.g. to verify a deployment
+func apiVersion(c *gin.Context) {
+	serializeResults(c, versionString())
 }
 
 // Forces an update of all tables to the lobby - useful for adhoc use if the Lobby restarts or loses info

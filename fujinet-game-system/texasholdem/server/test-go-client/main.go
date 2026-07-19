@@ -663,8 +663,11 @@ func runHeadless(a *api, hands int, timeout time.Duration) error {
 
 // ---------------------------------------------------------------------------
 
+// https://th.carr-designs.com/tables
+
+
 func main() {
-	server := flag.String("server", "http://localhost:8080", "Game server base URL")
+	server := flag.String("server", "https://th.carr-designs.com", "Game server base URL")
 	table := flag.String("table", "", "Table to join (empty = interactive table picker)")
 	name := flag.String("name", "Human", "Player name")
 	auto := flag.Bool("auto", false, "Start with auto-play enabled")

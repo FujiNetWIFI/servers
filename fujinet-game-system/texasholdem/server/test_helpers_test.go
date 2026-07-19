@@ -164,11 +164,13 @@ func totalChips(state *GameState) int {
 	return total
 }
 
-// newBotTable creates a test table with the given number of bots and a seeded RNG
+// newBotTable creates a test table with the given number of bots and a seeded RNG.
+// Engine tests drive bot-only games, so the humans-required rule is lifted.
 func newBotTable(botCount int, seed int64) *GameState {
 	initializeGameServer()
 	state := createGameState(botCount, false)
 	state.TableId = fmt.Sprintf("test-%d-%d", botCount, seed)
 	state.rng = rand.New(rand.NewSource(seed))
+	state.allowBotGames = true
 	return state
 }

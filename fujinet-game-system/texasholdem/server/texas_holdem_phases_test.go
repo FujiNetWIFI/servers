@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,10 +26,8 @@ func TestTexasHoldemSetup(t *testing.T) {
 		// Exactly one SB and one BB were posted
 		blinds := []int{}
 		for _, p := range state.Players {
-			if strings.HasPrefix(p.Move, "POST") {
-				var amt int
-				fmt.Sscanf(p.Move, "POST %d", &amt)
-				blinds = append(blinds, amt)
+			if p.Move == "POST" {
+				blinds = append(blinds, p.Bet)
 			}
 		}
 		assert.ElementsMatch(t, []int{SB, BB}, blinds, "one small and one big blind posted")
@@ -48,8 +44,10 @@ func TestTexasHoldemSetup(t *testing.T) {
 		bb := (state.buttonPos + 2) % n
 		utg := (state.buttonPos + 3) % n
 
-		assert.Equal(t, fmt.Sprintf("POST %d", SB), state.Players[sb].Move, "seat left of button posts SB")
-		assert.Equal(t, fmt.Sprintf("POST %d", BB), state.Players[bb].Move, "next seat posts BB")
+		assert.Equal(t, "POST", state.Players[sb].Move, "seat left of button posts SB")
+		assert.Equal(t, SB, state.Players[sb].Bet)
+		assert.Equal(t, "POST", state.Players[bb].Move, "next seat posts BB")
+		assert.Equal(t, BB, state.Players[bb].Bet)
 		assert.Equal(t, utg, state.ActivePlayer, "UTG (left of BB) acts first pre-flop")
 	})
 }
@@ -64,8 +62,10 @@ func TestHeadsUpBlindsAndOrder(t *testing.T) {
 	button := state.buttonPos
 	other := (button + 1) % 2
 
-	assert.Equal(t, fmt.Sprintf("POST %d", SB), state.Players[button].Move, "button posts the small blind heads-up")
-	assert.Equal(t, fmt.Sprintf("POST %d", BB), state.Players[other].Move, "non-button posts the big blind")
+	assert.Equal(t, "POST", state.Players[button].Move, "button posts the small blind heads-up")
+	assert.Equal(t, SB, state.Players[button].Bet)
+	assert.Equal(t, "POST", state.Players[other].Move, "non-button posts the big blind")
+	assert.Equal(t, BB, state.Players[other].Bet)
 	assert.Equal(t, button, state.ActivePlayer, "button acts first pre-flop heads-up")
 
 	// Complete the pre-flop round: button calls, BB checks

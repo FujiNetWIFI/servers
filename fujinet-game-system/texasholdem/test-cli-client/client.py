@@ -5,14 +5,17 @@ import requests
 import threading
 from inputimeout import inputimeout, TimeoutOccurred
 
+# https://th.carr-designs.com/tables
+
+
 # Configuration
-SERVER_IP = "localhost"
-HTTP_PORT = "8080"
-WS_PORT = "8080"
-TABLE_ID = "dev1"
+SERVER_IP = "th.carr-designs.com"
+HTTP_PORT = "443"
+WS_PORT = "443"
+TABLE_ID = "ai2"
 PLAYER_NAME = "TestClient"
 
-BASE_URL = f"http://{SERVER_IP}:{HTTP_PORT}"
+BASE_URL = f"https://{SERVER_IP}:{HTTP_PORT}"
 WEBSOCKET_URL = f"ws://{SERVER_IP}:{WS_PORT}/ws?table={TABLE_ID}&player={PLAYER_NAME}"
 
 # --- Global state to share between threads ---

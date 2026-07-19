@@ -17,8 +17,8 @@ const (
 
 // Defaults for this game server
 // Appkey/game are hard coded, but the others could be read from a config file
-// NOTE: Serverurl and client download URLs still point at the 5 Card Stud
-// deployment - update them before registering a production Texas Hold'em lobby
+// NOTE: client download URLs still point at the 5 Card Stud builds -
+// update them when Texas Hold'em client binaries are hosted
 var DefaultGameServerDetails = GameServer{
 	Appkey:    8,
 	Game:      "Texas Hold'em",

@@ -170,6 +170,7 @@ type GameState struct {
 	raiseCount    int
 	raiseAmount   int
 	registerLobby bool
+	allowBotGames bool // tests only: allow hands with zero human players
 
 	buttonPos     int    // Seat index of the dealer button; rotates each hand
 	lastRaiseSize int    // Size of the last bet/raise increment this round (min-raise tracking)
@@ -298,7 +299,9 @@ func (state *GameState) postBlind(seat int, amount int) int {
 	player.Bet += amount
 	player.totalBet += amount
 	state.Pot += amount
-	player.Move = fmt.Sprintf("POST %d", amount)
+	// Just "POST" - the amount shows as the player's bet, and 8-bit clients
+	// render moves in a 5-character field
+	player.Move = "POST"
 	if player.Purse == 0 {
 		player.Status = STATUS_ALL_IN
 	}
@@ -811,9 +814,42 @@ func (state *GameState) advanceStreet() {
 	log.Printf("BETTING: %s betting begins with %s", state.RoundName, state.Players[state.ActivePlayer].Name)
 }
 
+// countActiveHumans returns the number of human players seated at the table
+// (any status except LEFT)
+func (state *GameState) countActiveHumans() int {
+	humans := 0
+	for i := range state.Players {
+		if !state.Players[i].isBot && state.Players[i].Status != STATUS_LEFT {
+			humans++
+		}
+	}
+	return humans
+}
+
 // RunGameLogic drives the Texas Hold'em hand forward: starts hands, forces moves for
 // bots and timed-out humans, and advances streets when betting rounds complete.
 func (state *GameState) RunGameLogic() {
+
+	// Bots never play on their own: if no human (remote) player is seated, abort
+	// any hand in progress and park the table until a human joins. Without this,
+	// the per-table hub ticker would keep bot-only games running forever.
+	// (allowBotGames is a test-only escape hatch.)
+	if !state.allowBotGames && state.countActiveHumans() == 0 {
+		// Fold anyone still marked as in a hand (also cleans up after an abort
+		// triggered elsewhere, e.g. the last human's /leave)
+		for i := range state.Players {
+			p := &state.Players[i]
+			if p.Status == STATUS_PLAYING || p.Status == STATUS_ALL_IN {
+				p.Status = STATUS_FOLDED
+				p.Move = "FOLD"
+			}
+		}
+		if state.Round > 0 && !state.gameOver {
+			log.Printf("TABLE %s: no human players left - all bots fold, game stops", state.TableId)
+			state.endGame(true)
+		}
+		return
+	}
 
 	// We can't play a game until there are at least 2 players
 	if len(state.Players) < 2 {
