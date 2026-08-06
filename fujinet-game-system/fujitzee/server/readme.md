@@ -99,9 +99,14 @@ All paths require the query parameters below, unless otherwise specified.
 * `PLAYER=[Alphanumeric]` - **Required for Real** - Player's name. Treated as case insensitive unique ID.
 
 ### Optional
-* `RAW=1` - **Optional** - Use to return key[byte 0]value[byte 0] pairs instead of json output - similar to FujiNet json parsing, with 0x00 used as delimiter instead of line end
-* `UC=1` - **Optional** - Use with raw, to make the result data upper case
-* `LC=1` - **Optional** - Use with raw, to make the result data lower case
+* `raw=1` - **Optional** - Use to return key[byte 0]value[byte 0] pairs instead of json output - similar to FujiNet json parsing, with 0x00 used as delimiter instead of line end
+
+#### Raw Options
+
+When `raw=1` is sent, the following **optional** parameters may also be sent:
+* `be=1` - Use to request big-endian values from the server. If this parameter is not included, the server defaults to little-endian. 
+* `uc=1` - Use to make the result data upper case 
+* `lc=1` - Use to make the result data lower case
 
 
 ## State structure
