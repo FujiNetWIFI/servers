@@ -95,16 +95,21 @@ All paths accept GET or POST for ease of use.
 
 ### Required
 All paths require the query parameters below, unless otherwise specified.
-* `TABLE=[Alphanumeric]` - **Required** - Use to play in an isolated game. Case insensitive.
-* `PLAYER=[Alphanumeric]` - **Required for Real** - Player's name. Treated as case insensitive unique ID.
+* `TABLE=[Alphanumeric]` - Use to play in an isolated game. Case insensitive.
+* `PLAYER=[Alphanumeric]` - Player's name. Treated as case insensitive unique ID.
 
-### Optional
-* `raw=1` - **Optional** - Use to return key[byte 0]value[byte 0] pairs instead of json output - similar to FujiNet json parsing, with 0x00 used as delimiter instead of line end
+### Response format
+The default response is json. Include one of the below parameters to change the format.
+* `bin=1` - Return a binary representation suitable for copying directly into a struct. Little-endian is the default. See below for big-endian clientss.
+* `raw=1` - Use to return key[byte 0]value[byte 0] pairs instead of json output - similar to FujiNet json parsing, with 0x00 used as delimiter instead of line end
+
+#### Bin Options
+
+When `bin=1` is sent, the following **optional** parameter may be sent:
+* `be=1` - Use to request big-endian values from the server. If this parameter is not included, the server defaults to little-endian. 
 
 #### Raw Options
-
-When `raw=1` is sent, the following **optional** parameters may also be sent:
-* `be=1` - Use to request big-endian values from the server. If this parameter is not included, the server defaults to little-endian. 
+When `raw=1` is sent, the following **optional** parameters may be sent:
 * `uc=1` - Use to make the result data upper case 
 * `lc=1` - Use to make the result data lower case
 
