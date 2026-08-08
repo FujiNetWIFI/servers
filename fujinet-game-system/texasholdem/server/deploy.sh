@@ -8,7 +8,7 @@
 gcloud config set project five-card-stud-383623
 
 # Initial deployment of service - make sure everything is working
-gcloud run deploy texas-holdem --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=512Mi
+#gcloud run deploy texas-holdem --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=512Mi
 
 # Production deployment - contacts the Lobby . Use this going forward once everthing is tested
-#gcloud run deploy texas-holdem --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=512Mi
+gcloud run deploy texas-holdem --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --revision-suffix="" --cpu-boost --execution-environment=gen1 --memory=512Mi
