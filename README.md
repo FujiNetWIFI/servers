@@ -26,13 +26,27 @@ Source to servers for games and apps that work with FujiNet
 
 - "fujitzee" - A Multi-player/Multi-Platform implementation of Yahtzee
   - Server
-    - [fujinet-game-system/fujzee/server](fujinet-game-system/fujitzee/server) - Game server written in Go
+    - [fujinet-game-system/fujitzee/server](fujinet-game-system/fujitzee/server) - Game server written in Go
   - Clients
     - [github.com/FujiNetWIFI/fujinet-fujitzee](https://github.com/FujiNetWIFI/fujinet-fujitzee) -  8 bit clients
 
 
-- "battleship" - A multiplayer pimplementation of the classic sea battle game
+- "battleship" - A multiplayer implementation of the classic sea battle game
   - Server
     - [fujinet-game-system/battleship](fujinet-game-system/battleship) - Game server written in Go
   - Clients
-    - TBD
+    - [github.com/FujiNetWIFI/fujinet-battleship](https://github.com/FujiNetWIFI/fujinet-battleship) - 8 bit clients
+
+
+- "texasholdem" - A Multi-player/Multi-Platform implementation of Texas Hold'em poker
+  - Server
+    - [fujinet-game-system/texasholdem/server](fujinet-game-system/texasholdem/server) - Game server written in Go
+  - Clients
+    - [github.com/dillera/fujinet-texasHoldEm](https://github.com/dillera/fujinet-texasHoldEm) - 8 bit clients
+
+
+- "fujirkle" - A Multi-player/Multi-Platform implementation of Farkle
+  - Server
+    - [fujinet-game-system/fujirkle/server](fujinet-game-system/fujirkle/server) - Game server written in Go
+  - Clients
+    - [github.com/RichStephens/fujinet-fujirkle](https://github.com/RichStephens/fujinet-fujirkle) - 8 bit clients
