@@ -15,7 +15,8 @@ const (
 
 	// Must match AK_LOBBY_KEY_SERVER in the client's misc.h - if these disagree
 	// the Lobby hands clients another game's server.
-	LOBBY_CLIENT_APP_KEY = 0x09 // Registered at https://github.com/FujiNetWIFI/fujinet-firmware/wiki/SIO-Command-$DC-Open-App-Key#lobby-client-app-key-ids
+	// Claim your unique client app key at https://github.com/FujiNetWIFI/fujinet-firmware/wiki/AppKey-Registry-Page
+	LOBBY_CLIENT_APP_KEY = 0x09 
 )
 
 var DefaultGameServerDetails = GameServer{
