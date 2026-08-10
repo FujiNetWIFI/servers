@@ -1,0 +1,13 @@
+# Compiled binaries (Go executables)
+/server/fujirkle
+/client/fujirkle-client
+*.exe
+
+# Test binaries, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Log files
+*.log
