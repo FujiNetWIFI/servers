@@ -31,6 +31,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/fbs.img"},
 		{Platform: "c64", Url: "tnfs://ec.tnfs.io/c64/fbs.prg"},
 		{Platform: "ti99", Url: "https://ftp.whtech.com/TIPI/FBS1"},
+		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/fbs.rom"},
 	},
 }
 
