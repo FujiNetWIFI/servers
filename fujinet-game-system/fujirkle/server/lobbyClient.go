@@ -25,10 +25,11 @@ var DefaultGameServerDetails = GameServer{
 	Region:    "us",
 	Serverurl: "https://fujirkle.carr-designs.com/",
 	Clients: []GameClient{
-		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujirkle.xex"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/fujirkle.atr"},
 		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/fujirkle.po"},
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fujirkle.dsk"},
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/fujirkle.img"},
+		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/fujirkle.rom"},
 	},
 }
 
