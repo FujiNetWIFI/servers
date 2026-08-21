@@ -288,3 +288,60 @@ func TestBotPlaysCompleteGame(t *testing.T) {
 		t.Fatalf("winning score = %d, want at least %d", winner, TARGET_SCORE)
 	}
 }
+
+// The final round is not "one more round" - everyone else owes exactly one more
+// turn and the game ends when play would return to whoever crossed the target.
+// Triggered mid list here, so the count wraps a round boundary, as it does when
+// a bot crosses the line.
+func TestFinalRoundTriggeredMidListEndsOnReturnToTrigger(t *testing.T) {
+	table, players := createTestTable(0, 5)
+
+	// Installs the deterministic roller before the opening roll. Anything past
+	// the queue rolls all 1s, so every turn opens with six 1s and a "111000"
+	// keep banks exactly 1000.
+	queueRoll(1, 1, 1, 1, 1, 1)
+	startGame(t, table, players)
+
+	// Walk play round to player 3 (index 2), who then crosses the target
+	for i := 0; i < 2; i++ {
+		callBank(players[i], "111000")
+	}
+
+	state := rawState(table)
+	if state.ActivePlayer != 2 {
+		t.Fatalf("ActivePlayer = %d, want 2", state.ActivePlayer)
+	}
+
+	state.Players[2].Score = TARGET_SCORE - 1000
+	callBank(players[2], "111000")
+
+	state = rawState(table)
+	if !state.finalRound {
+		t.Fatal("crossing the target should start the final round")
+	}
+	if state.gameOver {
+		t.Fatal("four players still owe a turn - the game must not end here")
+	}
+
+	// Everyone else takes exactly one more turn: 3, 4, then a wrap to 0, 1
+	for _, i := range []int{3, 4, 0, 1} {
+		if rawState(table).ActivePlayer != i {
+			t.Fatalf("ActivePlayer = %d, want %d", rawState(table).ActivePlayer, i)
+		}
+		if rawState(table).gameOver {
+			t.Fatalf("game ended early, before player %d had their last turn", i)
+		}
+		callBank(players[i], "111000")
+	}
+
+	state = rawState(table)
+	if !state.gameOver {
+		t.Fatal("play returned to the trigger, so the game should be over")
+	}
+	if state.Round != ROUND_GAMEOVER {
+		t.Fatalf("Round = %d, want %d", state.Round, ROUND_GAMEOVER)
+	}
+	if !strings.Contains(state.Prompt, "won with a score of") {
+		t.Fatalf("Prompt = %q, want a winner announcement", state.Prompt)
+	}
+}

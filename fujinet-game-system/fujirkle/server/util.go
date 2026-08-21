@@ -81,7 +81,8 @@ func serializeResults(c *gin.Context, obj any) {
 				byte(o.ActivePlayer),
 				byte(o.MoveTime),
 				byte(o.Viewing),
-				byte(o.ValidMoves))
+				byte(o.ValidMoves),
+				byte(o.Status))
 			buf = appendWord(buf, o.TurnScore)
 			buf = appendFixedLengthString(buf, o.Dice, NUM_DICE)
 			buf = appendFixedLengthString(buf, o.KeptDice, NUM_DICE)

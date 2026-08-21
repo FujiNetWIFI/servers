@@ -28,6 +28,9 @@ const (
 	MAX_PLAYERS             = 6
 	MOVE_TIME_GRACE_SECONDS = 4
 
+	// Wire status bits, so a client can react without inferring from the prompt
+	STATUS_FUJIRKLE = 1
+
 	PLAYER_PING_TIMEOUT = time.Minute * time.Duration(-5)
 
 	PROMPT_WAITING_FOR_MORE_PLAYERS = "Waiting for players"
@@ -411,8 +414,10 @@ func (state *GameState) runGameLogic() {
 		return
 	}
 
-	// The fujirkled roll has been on screen long enough - move on
+	// The fujirkled roll has been on screen long enough - move on. Nothing was
+	// banked, so clear the pick, or clients replay it as though it had been.
 	if state.fujirkled {
+		state.KeepRoll = ""
 		state.nextValidPlayer()
 		return
 	}
@@ -426,18 +431,27 @@ func (state *GameState) runGameLogic() {
 	}
 }
 
-// Begin the active player's turn with a fresh pool of six dice
-func (state *GameState) startTurn() {
-	state.TurnScore = 0
-	state.KeptDice = ""
-	state.KeepRoll = ""
-	state.fujirkled = false
-
+// Bot names carry a leading digit for ordering that players should not see
+func (state *GameState) setTurnPrompt() {
 	nameIndex := 0
 	if state.Players[state.ActivePlayer].isBot {
 		nameIndex = 1
 	}
 	state.Prompt = state.Players[state.ActivePlayer].Name[nameIndex:] + "'s turn"
+}
+
+// Begin the active player's turn with a fresh pool of six dice
+func (state *GameState) startTurn() {
+	state.TurnScore = 0
+	state.KeptDice = ""
+	state.fujirkled = false
+
+	// KeepRoll deliberately survives the turn change. Banking commits the pick and
+	// starts the next turn in one call, so clearing it here destroyed the mask
+	// before any client could poll for it. commitSelection overwrites it on the
+	// next pick.
+
+	state.setTurnPrompt()
 
 	state.rollPool(NUM_DICE)
 }
@@ -506,6 +520,9 @@ func (state *GameState) rollAgain(mask string) bool {
 		count = NUM_DICE
 		state.KeptDice = ""
 		state.Prompt = PROMPT_HOT_DICE
+	} else {
+		// The banner belongs to the roll that earned it, and no later one
+		state.setTurnPrompt()
 	}
 
 	state.rollPool(count)
@@ -876,6 +893,11 @@ func (state *GameState) createClientState(pov string) *GameState {
 	}
 
 	stateCopy.MoveTime = int(time.Until(stateCopy.moveExpires).Seconds())
+
+	stateCopy.Status = 0
+	if state.fujirkled {
+		stateCopy.Status |= STATUS_FUJIRKLE
+	}
 
 	stateCopy.ValidMoves = 0
 
