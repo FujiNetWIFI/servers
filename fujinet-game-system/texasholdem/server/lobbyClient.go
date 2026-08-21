@@ -29,6 +29,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "atari", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-atari.xex"},
 		{Platform: "coco", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-coco.dsk"},
 		{Platform: "msdos", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-msdos.img"},
+		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/texas.rom"},
 	},
 }
 
