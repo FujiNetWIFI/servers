@@ -41,6 +41,7 @@ type GameState struct {
 	KeptDice     string   `json:"e"`
 	Selectable   string   `json:"x"`
 	ValidMoves   int      `json:"c"`
+	Status       int      `json:"s"`
 	Players      []Player `json:"pl"`
 
 	// Internal
@@ -52,7 +53,9 @@ type GameState struct {
 	botBox                  []Player
 
 	// Set when the active player's roll has no scoring dice. The roll stays on
-	// screen until the timer expires so everyone can see it.
+	// screen until the timer expires so everyone can see it. Mirrored onto the
+	// wire as STATUS_FUJIRKLE so every client can react, not just the one it
+	// happened to.
 	fujirkled bool
 
 	// Set once a player reaches the target; the game ends when play returns
