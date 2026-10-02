@@ -121,6 +121,8 @@ if ($mode == "8") {
   $outfile = "img/$basename.GR9";
 }
 
+$descr_outfile = "descr/" . $basename . ".txt";
+
 
 if (!$sample) {
   /* Check whether it's a new day, and we'll need
@@ -129,9 +131,11 @@ if (!$sample) {
     /* Time to fetch a new one */
     $img_src = "";
     if ($date_wanted !== NULL) {
-      $url = "https://apod.nasa.gov/apod/ap" . $date_wanted . ".html";
+      // $url = "https://apod.nasa.gov/apod/ap" . $date_wanted . ".html";
+      $url = "https://apod.com/en/ap" . $date_wanted . ".html";
     } else {
-      $url = "https://apod.nasa.gov/apod/astropix.html";
+      // $url = "https://apod.nasa.gov/apod/astropix.html";
+      $url = "https://apod.com/en";
     }
     $page = file_get_contents($url);
 
@@ -148,7 +152,8 @@ if (!$sample) {
 
       if ($img_src != "") {
         /* Found an image! Convert it! */
-        system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
+        // system("./fetch_and_cvt.sh 'https://apod.nasa.gov/apod/$img_src' '$mode' '$outfile'");
+        system("./fetch_and_cvt.sh 'https://apod.com/en/$img_src' '$mode' '$outfile'");
       } else {
         /* Let's see if there's a YouTube video */
         $vid_src = "";
@@ -217,7 +222,6 @@ if (!$sample) {
     }
 
     if ($title != "") {
-      $descr_outfile = "descr/" . $basename . ".txt";
       $fo = fopen($descr_outfile, "w");
 
       /* Store it, word-wrapping the title to avoid words
@@ -251,7 +255,11 @@ if (!$sample) {
 $img = file_get_contents($outfile);
 
 if (!$sample) {
-  $descr = file_get_contents($descr_outfile);
+  if (file_exists($descr_outfile)) {
+    $descr = file_get_contents($descr_outfile);
+  } else {
+    $descr = "";
+  }
 } else {
   $descr = "SAMPLE $sample";
 }
