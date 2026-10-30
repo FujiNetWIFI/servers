@@ -11,13 +11,12 @@ import (
 
 const LOBBY_ENDPOINT_UPSERT = "http://lobby.fujinet.online/server"
 
-// TODO before release: the lobby app key, server URL and client URLs are not
-// assigned yet
+// TODO before release: the lobby app key and client URLs are not assigned yet
 var DefaultGameServerDetails = GameServer{
 	Appkey:    0,
 	Game:      "Blackjack",
 	Region:    "us",
-	Serverurl: "",
+	Serverurl: "https://blackjack.carr-designs.com/",
 	Clients:   []GameClient{},
 }
 
