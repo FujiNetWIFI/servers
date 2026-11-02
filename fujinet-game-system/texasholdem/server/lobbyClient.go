@@ -25,10 +25,10 @@ var DefaultGameServerDetails = GameServer{
 	Region:    "us",
 	Serverurl: "https://th.carr-designs.com/",
 	Clients: []GameClient{
-		{Platform: "apple2", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-apple2.po"},
-		{Platform: "atari", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-atari.xex"},
-		{Platform: "coco", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-coco.dsk"},
-		{Platform: "msdos", Url: "tnfs://fujinet.diller.org/TEXASHOLDEM/texas-msdos.img"},
+		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/texas.po"},
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/texas.xex"},
+		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/texas.dsk"},
+		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/texas.img"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/texas.rom"},
 	},
 }

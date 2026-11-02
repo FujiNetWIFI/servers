@@ -17,7 +17,14 @@ var DefaultGameServerDetails = GameServer{
 	Game:      "Blackjack",
 	Region:    "us",
 	Serverurl: "https://blackjack.carr-designs.com/",
-	Clients:   []GameClient{},
+	Clients:   []GameClient{
+		{Platform: "atari", Url: "tnfs://ec.tnfs.io/atari/blkjack.atr"},
+		{Platform: "apple2", Url: "tnfs://ec.tnfs.io/apple2/blkjack.po"},
+		{Platform: "adam", Url: "TNFS://ec.tnfs.io/adam/blkjack.ddp"},
+		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/blkjack.img"},
+		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/blkjack.dsk"},
+		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/blkjack.imd"},
+	},
 }
 
 var UpdateLobby bool

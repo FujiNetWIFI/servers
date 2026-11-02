@@ -12,7 +12,7 @@
 gcloud config set project five-card-stud-383623
 
 # Initial deployment of service. Set your custom domain and make sure everything is working there before doing the prod deployment
-gcloud run deploy blackjack --source . --region=us-central1 --min-instances=0 --max-instances=1 --max=1 --cpu-boost --execution-environment=gen1 --memory=128Mi
+# gcloud run deploy blackjack --source . --region=us-central1 --min-instances=0 --max-instances=1 --max=1 --cpu-boost --execution-environment=gen1 --memory=128Mi
 
 # Production deployment - contacts the Lobby . Use this going forward once everthing is tested
-#gcloud run deploy blackjack --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --max=1 --cpu-boost --execution-environment=gen1 --memory=128Mi
+gcloud run deploy blackjack --set-env-vars GO_PROD=1 --source . --region=us-central1 --min-instances=0 --max-instances=1 --max=1 --cpu-boost --execution-environment=gen1 --memory=128Mi
