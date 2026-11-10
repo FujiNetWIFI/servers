@@ -30,7 +30,8 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fcs.dsk"},
 		{Platform: "ti99", Url: "https://ftp.whtech.com/TIPI/FCS1"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/5card.rom"},
-		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fcs.imd"},
+		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fcs.imd"},		
+		{Platform: "nes", Url: "tnfs://ec.tnfs.io/nes/fcs.nes"},
 	},
 }
 
