@@ -31,6 +31,9 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/fujitzee.img"},
 		{Platform: "ti99", Url: "https://ftp.whtech.com/TIPI/FJT1"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/fujitzee.rom"},
+		{Platform: "adam", Url: "tnfs://ec.tnfs.io/adam/fujitzee.ddp"},
+		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fujitzee.imd"},
+		{Platform: "nes", Url: "tnfs://ec.tnfs.io/nes/fujitzee.nes"},
 	},
 }
 

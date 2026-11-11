@@ -30,6 +30,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/texas.dsk"},
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/texas.img"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/texas.rom"},
+		{Platform: "adam", Url: "tnfs://ec.tnfs.io/adam/texas.ddp"},
 	},
 }
 

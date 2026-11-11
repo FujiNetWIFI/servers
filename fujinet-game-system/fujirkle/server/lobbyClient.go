@@ -30,6 +30,8 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "coco", Url: "tnfs://ec.tnfs.io/coco/fujirkle.dsk"},
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/fujirkle.img"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/fujirkle.rom"},
+		{Platform: "adam", Url: "tnfs://ec.tnfs.io/adam/fujirkle.ddp"},
+		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fujirkle.imd"},
 	},
 }
 
