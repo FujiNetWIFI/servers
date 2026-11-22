@@ -32,6 +32,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/5card.rom"},
 		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fcs.imd"},		
 		{Platform: "nes", Url: "tnfs://ec.tnfs.io/nes/fcs.nes"},
+		{Platform: "atari5200", Url: "tnfs://ec.tnfs.io/atari5200/fcs.a52"},
 	},
 }
 

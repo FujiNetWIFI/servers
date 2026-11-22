@@ -34,6 +34,7 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "adam", Url: "tnfs://ec.tnfs.io/adam/fujitzee.ddp"},
 		{Platform: "model2", Url: "tnfs://ec.tnfs.io/model2/fujitzee.imd"},
 		{Platform: "nes", Url: "tnfs://ec.tnfs.io/nes/fujitzee.nes"},
+		{Platform: "atari5200", Url: "tnfs://ec.tnfs.io/atari5200/fujitzee.a52"},
 	},
 }
 

@@ -31,6 +31,8 @@ var DefaultGameServerDetails = GameServer{
 		{Platform: "msdos", Url: "tnfs://ec.tnfs.io/msdos/texas.img"},
 		{Platform: "intv", Url: "tnfs://ec.tnfs.io/intv/texas.rom"},
 		{Platform: "adam", Url: "tnfs://ec.tnfs.io/adam/texas.ddp"},
+		{Platform: "atari5200", Url: "tnfs://ec.tnfs.io/atari5200/texas.a52"},
+
 	},
 }
 
